@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Dış glow -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" />
+            <gradient
+                android:type="radial"
+                android:gradientRadius="160dp"
+                android:centerX="50%"
+                android:centerY="0%"
+                android:startColor="#4400F5FF"
+                android:endColor="#00111318" />
+        </shape>
+    </item>
+
+    <!-- İç siyah kart -->
+    <item android:left="2dp" android:top="2dp" android:right="2dp" android:bottom="2dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="22dp" />
+            <solid android:color="#111318" />
+        </shape>
+    </item>
+</layer-list>

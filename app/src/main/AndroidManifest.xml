@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.stepforge">
+    <!-- build.gradle içindeki namespace ile aynı olmalı -->
+
+    <!-- Permissions (Aynen Korundu) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="com.samsung.android.health.permission.READ_STEP_COUNT_DATA" />
+    <uses-permission android:name="com.samsung.android.health.permission.WRITE_STEP_COUNT_DATA" />
+    <uses-permission android:name="com.samsung.android.providers.context.permission.WRITE_USE_APP_FEATURE_SURVEY" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+
+    <!-- Health Connect izinleri (Aynen Korundu) -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.WRITE_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_DISTANCE" />
+    <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED"/>
+    <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+    <uses-permission android:name="android.permission.health.WRITE_WEIGHT" />
+    <uses-permission android:name="android.permission.health.WRITE_WATER" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.WRITE_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+
+    <!-- ✅ Android 14 öncesi Health Connect uygulamasını görebilmek için şart -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
+
+    <application
+        android:allowBackup="true"
+        android:label="StepForge"
+        android:icon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.StepForge">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".ProfileSettingsActivity" android:exported="false" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait" />
+        <activity android:name=".TargetActivity" android:exported="false" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait" />
+        <activity android:name=".HistoryActivity" android:exported="false" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait" />
+        <activity android:name=".SettingsActivity" android:exported="false" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait" />
+        <activity android:name=".AboutActivity" android:exported="false" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait" />
+        <activity android:name=".FeedbackActivity" android:exported="false" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait" />
+        <activity android:name=".PrivacySecurityActivity" android:exported="false" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait" />
+        <activity android:name=".LockActivity" android:exported="false" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait" />
+        <activity android:name=".SyncBackupActivity" android:exported="false" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait" />
+        <activity android:name=".SetPinActivity" android:exported="false" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait" />
+        <activity android:name=".WaterReminderActivity" android:exported="false" android:screenOrientation="portrait" android:theme="@style/Theme.StepForge" />
+        <activity android:name=".HistoryDetailActivity" android:exported="false" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait" />
+        <activity android:name=".InsightsActivity" />
+
+        <!-- ✅ SleepActivity: Health Connect İzin Dönüşü İçin Güncellendi -->
+        <activity android:name=".SleepActivity" android:exported="true" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".StepCounterService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="health|dataSync" />
+
+
+        <receiver android:name=".BootReceiver" android:enabled="true" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver android:name=".notification.ReminderReceiver" android:enabled="true" android:exported="true" />
+        <receiver android:name=".notification.WaterReminderReceiver" android:enabled="true" android:exported="false" />
+        <receiver android:name=".MidnightResetReceiver" android:enabled="true" android:exported="false" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <meta-data
+            android:name="androidx.health.connect.client.provider"
+            android:value="androidx.health.connect.client.impl" />
+
+        <!-- Widgets (Aynen Korundu) -->
+        <receiver android:name=".widget.StepWidgetProvider" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.stepforge.ACTION_REFRESH_WIDGET" />
+                <action android:name="com.example.stepforge.WIDGET_UPDATE" />
+                <action android:name="android.intent.action.CONFIGURATION_CHANGED" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/stepforge_widget_info" />
+        </receiver>
+
+        <receiver android:name=".widget.StepWidgetCompactProvider" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.stepforge.ACTION_REFRESH_WIDGET_COMPACT" />
+                <action android:name="com.example.stepforge.WIDGET_UPDATE_COMPACT" />
+                <action android:name="android.intent.action.CONFIGURATION_CHANGED" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/stepforge_widget_compact_info" />
+        </receiver>
+
+        <receiver android:name=".widget.StepWidgetLargeProvider" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.stepforge.ACTION_REFRESH_WIDGET_LARGE" />
+                <action android:name="com.example.stepforge.WIDGET_UPDATE_LARGE" />
+                <action android:name="android.intent.action.CONFIGURATION_CHANGED" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/stepforge_widget_large_info" />
+        </receiver>
+
+        <activity-alias
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:name=".ViewPermissionActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
+        <receiver android:name=".widget.WidgetThemeChangeReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.CONFIGURATION_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <activity
+            android:name=".OnboardingActivity"
+            android:exported="false"
+            android:theme="@style/Theme.StepForge"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".ProgressActivity"
+            android:exported="false"
+            android:theme="@style/Theme.StepForge"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".WaterGoalActivity"
+            android:exported="false"
+            android:theme="@style/Theme.StepForge"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".CustomWaterIntakeActivity"
+            android:exported="false"
+            android:theme="@style/Theme.StepForge"
+            android:screenOrientation="portrait" />
+    </application>
+</manifest>

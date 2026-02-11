@@ -1,0 +1,13 @@
+<resources>
+    <color name="black">#121212</color>
+    <color name="neon_blue">#00E5FF</color>
+    <color name="neon_green">#00FF00</color>
+    <color name="white">#FFFFFF</color>
+    <color name="gray">#B0B0B0</color>
+
+    <!-- Widget Light Renkleri -->
+    <color name="widget_background">#FFFFFF</color> <!-- Beyaz Arka Plan -->
+    <color name="widget_text_primary">#1C1C1E</color> <!-- Siyah Yazı -->
+    <color name="widget_text_secondary">#666666</color>
+    <color name="widget_icon_tint">#000000</color>
+</resources>

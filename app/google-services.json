@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "798781764133",
+    "project_id": "stepforge-01",
+    "storage_bucket": "stepforge-01.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:798781764133:android:63c44712ed41bc542f85cc",
+        "android_client_info": {
+          "package_name": "com.example.stepforge"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "798781764133-516kt0unffrski7h1kjcv1oahi34ofht.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.stepforge",
+            "certificate_hash": "b49d860ee44003788de1fe8b6c0e5e845c38aa35"
+          }
+        },
+        {
+          "client_id": "798781764133-luvh4394k27cdhre66fmfkon3fjsggko.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD8ZNB0wwtuLssUs-CI_1r-QV9nua3C73g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "798781764133-luvh4394k27cdhre66fmfkon3fjsggko.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

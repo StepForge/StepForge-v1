@@ -1,0 +1,7 @@
+<resources>
+    <!-- Widget Dark Renkleri -->
+    <color name="widget_background">#1C1C1E</color> <!-- Koyu Arka Plan -->
+    <color name="widget_text_primary">#FFFFFF</color> <!-- Beyaz Yazı -->
+    <color name="widget_text_secondary">#AAAAAA</color>
+    <color name="widget_icon_tint">#FFFFFF</color>
+</resources>
