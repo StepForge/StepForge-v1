@@ -5,8 +5,10 @@ plugins {
     alias(libs.plugins.google.gms.google.services)
     alias(libs.plugins.google.firebase.crashlytics)
 
-    id("com.google.devtools.ksp") version "2.0.0-1.0.24"
+    // Kotlin 2.1.0 için doğru KSP sürümü:
+    id("com.google.devtools.ksp") version "2.1.0-1.0.29"
 }
+
 
 
 android {
@@ -49,9 +51,12 @@ dependencies {
     implementation(libs.androidx.compose.animation.core)
     implementation(libs.androidx.compose.remote.creation.core)
     implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.firebase.analytics)
     debugImplementation("androidx.compose.ui:ui-tooling:1.7.5")
     implementation("com.google.accompanist:accompanist-swiperefresh:0.34.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
+    implementation("androidx.appcompat:appcompat:1.7.0")
 
     // Diğer Compose foundation dependency'leri (lib'lerden gelen)
     implementation(libs.androidx.compose.foundation.foundation)
@@ -71,6 +76,10 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    //Glance
+    implementation("androidx.glance:glance-appwidget:1.1.0")
+    implementation("androidx.glance:glance-material3:1.1.0")
 
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")

@@ -2,6 +2,7 @@
 
 package com.example.stepforge
 
+
 import android.Manifest
 import android.app.AlarmManager
 import android.content.Context
@@ -19,6 +20,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -50,6 +52,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Settings
@@ -117,6 +120,9 @@ import com.example.stepforge.steps.StepEvents
 import com.example.stepforge.ui.components.GoalKonfetti
 import com.example.stepforge.ui.components.HealthSyncManager
 import com.example.stepforge.ui.stepforgeTheme
+import com.google.firebase.Firebase
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.analytics.analytics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -128,7 +134,10 @@ import java.text.NumberFormat
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
-class MainActivity : ComponentActivity() {
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var analytics: FirebaseAnalytics
 
     // App Lock keys
     private val KEY_APP_LOCK_ENABLED = intPreferencesKey("app_lock_enabled")
@@ -253,12 +262,17 @@ class MainActivity : ComponentActivity() {
         setContent {
             MainRoot()
         }
+
+        // Obtain the FirebaseAnalytics instance.
+        analytics = Firebase.analytics
     }
 
 
 
     override fun onStart() {
         super.onStart()
+
+        ensureMidnightResetConsistency()
 
         if (!isAppLockEnabled()) return
         if (isLockScreenShowing) return
@@ -352,6 +366,62 @@ class MainActivity : ComponentActivity() {
             Log.e("StepForge", "Service start failed!", e)
         }
     }
+
+    private fun hasServiceResetToday(): Boolean = runBlocking {
+        val prefs = applicationContext.stepforgeStore.data.first()
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            .format(java.util.Date())
+        (prefs[StepCounterService.LAST_RESET_DATE] ?: "") == today
+    }
+
+    private fun ensureMidnightResetConsistency() {
+        try {
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            val today = sdf.format(java.util.Date())
+
+            // ✅ 1) Eğer servis zaten bugün reset yaptıysa çık
+            if (hasServiceResetToday()) {
+                Log.d("StepForge", "ensureMidnightResetConsistency: already reset today, skipping.")
+                return
+            }
+
+            // ✅ 2) DataStore bazen 00:00 civarı gecikmeli güncellenebiliyor.
+            // Bu yüzden "missed" demeden önce 1 kez daha kontrol et.
+            val last = runBlocking {
+                val prefs = applicationContext.stepforgeStore.data.first()
+                prefs[StepCounterService.LAST_RESET_DATE] ?: ""
+            }
+
+            if (last == today) {
+                Log.d("StepForge", "ensureMidnightResetConsistency: LAST_RESET_DATE already today, skipping.")
+                return
+            }
+
+            // ✅ 3) Ek güvenlik: Eğer persisted_total_sum zaten 0 ise (yeni gün başlamış gibi),
+            // tekrar reset tetikleme.
+            val persistedSum = runBlocking {
+                val prefs = applicationContext.stepforgeStore.data.first()
+                prefs[intPreferencesKey("persisted_total_sum")] ?: -1
+            }
+            if (persistedSum == 0) {
+                Log.d("StepForge", "ensureMidnightResetConsistency: persisted_total_sum=0, skipping force reset.")
+                return
+            }
+
+            Log.w("StepForge", "Missed midnight reset detected. Forcing reset. last=$last today=$today")
+
+            val resetIntent = Intent(this, StepCounterService::class.java).apply {
+                putExtra("forceReset", true)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(resetIntent)
+            } else {
+                startService(resetIntent)
+            }
+        } catch (e: Exception) {
+            Log.e("StepForge", "ensureMidnightResetConsistency error", e)
+        }
+    }
 }
 
 /* ======================= MAIN ROOT ======================= */
@@ -418,7 +488,7 @@ private fun MainHomeScreen() {
     // STREAK state
     var streak by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) {
-        streak = calculateStreak(ctx)
+        streak = calculateStreak(ctx, target)
     }
 
     DisposableEffect(healthManager) {
@@ -503,7 +573,10 @@ private fun MainHomeScreen() {
                 )
 
                 SleepSummaryCard()
+                WorkoutsHomeCard()
                 Spacer(modifier = Modifier.height(8.dp))
+
+
             }
 
             GoalKonfetti(
@@ -590,7 +663,7 @@ private fun HomeBottomBar(
             Icons.Filled.Home,
             Icons.Filled.History,
             Icons.Filled.WaterDrop,
-            Icons.Outlined.Insights,
+            Icons.Outlined.BarChart,
             Icons.Filled.Person
         )
 
@@ -653,7 +726,7 @@ private fun MainHeroCard(
     streak: Int
 ) {
     val cs = colorScheme
-
+    val ctx = LocalContext.current
     val neonA = Color(0xFF00FFA3)
     val neonB = Color(0xFF00F5FF)
 
@@ -687,7 +760,12 @@ private fun MainHeroCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     DailyGoalLeftBadge(steps = steps, target = target)
-                    StreakBadge(streak = streak)
+                    StreakBadge(
+                        streak = streak,
+                        onClick = {
+                            ctx.startActivity(Intent(ctx, StreakActivity::class.java))
+                        }
+                    )
                 }
 
                 Box(
@@ -756,7 +834,10 @@ private fun DailyGoalLeftBadge(
 
 
 @Composable
-private fun StreakBadge(streak: Int) {
+private fun StreakBadge(
+    streak: Int,
+    onClick: () -> Unit
+) {
     val cs = colorScheme
     val isDark = cs.background.luminance() < 0.5f
     val streakLabel = if (streak <= 0) "0" else streak.toString()
@@ -764,18 +845,21 @@ private fun StreakBadge(streak: Int) {
     Column(
         horizontalAlignment = Alignment.End,
         verticalArrangement = Arrangement.spacedBy(2.dp),
-        modifier = Modifier.padding(top = 2.dp, end = 2.dp)
+        modifier = Modifier
+            .padding(top = 2.dp, end = 2.dp)
+            .clickable { onClick() }
     ) {
-        // PNG ikon + ortasında sayı
+
         Box(
-            modifier = Modifier.size(35.dp),
+            modifier = Modifier.size(36.dp),
             contentAlignment = Alignment.Center
         ) {
+
             Icon(
                 painter = painterResource(id = R.drawable.ic_streak_calendar_vec),
                 contentDescription = "Streak",
                 tint = cs.primary,
-                modifier = Modifier.size(35.dp)
+                modifier = Modifier.size(36.dp)
             )
 
             Text(
@@ -1231,6 +1315,125 @@ private fun SleepSummaryCard() {
 
 
 @Composable
+private fun WorkoutsHomeCard() {
+    val cs = colorScheme
+    val ctx = LocalContext.current
+
+    val today = remember {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        sdf.format(java.util.Date())
+    }
+
+    val dao = remember { AppDatabase.getDatabase(ctx).workoutSessionDao() }
+    var todaySessions by remember { mutableStateOf<List<com.example.stepforge.data.WorkoutSession>>(emptyList()) }
+
+    LaunchedEffect(Unit) {
+        dao.observeAllForDate(today).collect { list ->
+            todaySessions = list
+        }
+    }
+
+    val totalMinutes = remember(todaySessions) { todaySessions.sumOf { it.durationMinutes } }
+    val totalSteps = remember(todaySessions) { todaySessions.sumOf { it.steps } }
+    val totalCalories = remember(todaySessions) { todaySessions.sumOf { it.caloriesKcal } }
+    val totalDistanceKm = remember(todaySessions) {
+        todaySessions.sumOf { it.distanceMeters } / 1000f
+    }
+
+    val df = remember { java.text.DecimalFormat("#.#") }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 150.dp)
+            .shadow(6.dp, RoundedCornerShape(22.dp))
+            .clip(RoundedCornerShape(22.dp))
+            .clickable {
+                ctx.startActivity(Intent(ctx, WorkoutsActivity::class.java))
+            },
+        shape = RoundedCornerShape(22.dp),
+        color = if (cs.background.luminance() < 0.5f) cs.surface else Color.White
+    ) {
+        Column(
+            modifier = Modifier
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            cs.surface.copy(alpha = 1f),
+                            cs.surfaceVariant.copy(alpha = 0.96f)
+                        )
+                    )
+                )
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.run_workout),
+                        contentDescription = null,
+                        tint = Color(0xFF00F5FF),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = androidx.compose.ui.res.stringResource(R.string.workouts_today_card_title),
+                        color = Color(0xFF00F5FF),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Text(
+                    text = if (todaySessions.isEmpty()) "0" else todaySessions.size.toString(),
+                    color = cs.onSurface,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Divider(color = cs.outlineVariant)
+
+            if (todaySessions.isEmpty()) {
+                Text(
+                    text = androidx.compose.ui.res.stringResource(R.string.workouts_today_card_empty),
+                    color = cs.onSurface.copy(alpha = 0.7f),
+                    fontSize = 12.sp
+                )
+            } else {
+                Text(
+                    text = androidx.compose.ui.res.stringResource(
+                        R.string.workouts_today_card_minutes,
+                        totalMinutes
+                    ),
+                    color = cs.onSurface,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    text = androidx.compose.ui.res.stringResource(
+                        R.string.workouts_today_card_steps,
+                        totalSteps,
+                        df.format(totalDistanceKm),
+                        totalCalories
+                    ),
+                    color = cs.onSurface.copy(alpha = 0.75f),
+                    fontSize = 12.sp
+                )
+            }
+        }
+    }
+}
+
+
+@Composable
 private fun SleepMiniBox(
     label: String,
     value: String
@@ -1278,36 +1481,38 @@ fun vibrateOnce(ctx: Context) {
     }
 }
 
-private suspend fun calculateStreak(context: Context): Int {
+private suspend fun calculateStreak(
+    context: Context,
+    goal: Int
+): Int {
     return withContext(Dispatchers.IO) {
         try {
             val db = AppDatabase.getDatabase(context)
             val dao = db.dailyStepsDao()
-            val all = dao.getAllSteps()  // tarih DESC geliyor
+            val all = dao.getAllSteps()
 
             if (all.isEmpty()) return@withContext 0
 
-            // Son 14 güne bak, ardışık günlerde threshold’u geçenleri say
-            val threshold = 3000
             val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-
-            val today = dateFormat.parse(all.first().date) ?: return@withContext 0
-            val cal = java.util.Calendar.getInstance().apply { time = today }
+            val calendar = java.util.Calendar.getInstance()
 
             var streak = 0
 
-            for (offset in 0 until 14) {
-                val dayStr = dateFormat.format(cal.time)
+            while (true) {
+                val dayStr = dateFormat.format(calendar.time)
                 val daySteps = all.firstOrNull { it.date == dayStr }?.steps ?: 0
-                if (daySteps >= threshold) {
+
+                if (daySteps >= goal) {
                     streak++
-                    cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
+                    calendar.add(java.util.Calendar.DAY_OF_YEAR, -1)
                 } else {
                     break
                 }
             }
+
             streak
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e("StepForge", "Streak calculation error", e)
             0
         }
     }

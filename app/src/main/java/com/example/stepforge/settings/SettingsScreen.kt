@@ -1,6 +1,9 @@
 package com.example.stepforge.settings
 
-
+import androidx.compose.ui.res.stringResource
+import com.example.stepforge.R
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -37,6 +40,7 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +50,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -68,6 +73,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -127,6 +133,7 @@ fun SettingsScreen(
     var goal by remember { mutableStateOf(10000) }
     var themeMode by remember { mutableStateOf("system") }
     var notifTime by remember { mutableStateOf("09:00") }
+    var showLanguageDialog by remember { mutableStateOf(false) }
 
     // ✅ Theme hesapla (dark mı light mı?)
     val isDark = when (themeMode) {
@@ -668,6 +675,49 @@ fun SettingsScreen(
                     }
                 }
 
+                // ✅ Language
+                SettingItem(
+                    icon = Icons.Outlined.Public,
+                    title = stringResource(R.string.settings_language_title),
+                    infoText = stringResource(R.string.settings_language_info),
+                    openInfoCard = openInfoCard,
+                    onInfoAnchor = { rect, text ->
+                        infoAnchor = rect
+                        infoText = text
+                        openInfoCard.value = text
+                    },
+                    alwaysExpanded = true,
+                    darkTheme = isDark
+                ) {
+                    val currentTags = AppCompatDelegate.getApplicationLocales().toLanguageTags()
+                    val currentLabel = if (currentTags.isBlank()) {
+                        stringResource(R.string.settings_language_system_default)
+                    } else {
+                        currentTags
+                    }
+
+                    Text(
+                        text = stringResource(R.string.settings_language_current, currentLabel),
+                        color = textSub,
+                        fontSize = 13.sp
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = { showLanguageDialog = true },
+                        border = BorderStroke(1.dp, neon),
+                        shape = RoundedCornerShape(50)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_language_change_button),
+                            color = Color(0xFF00F5FF),
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+
+
                 // 4.5) Premium Debug
                 SettingItem(
                     icon = Icons.Outlined.Info,
@@ -962,6 +1012,61 @@ fun SettingsScreen(
                 density = LocalDensity.current,
                 onDismiss = { openInfoCard.value = null },
                 darkTheme = isDark
+            )
+        }
+
+        if (showLanguageDialog) {
+            AlertDialog(
+                onDismissRequest = { showLanguageDialog = false },
+                containerColor = if (isDark) Color(0xFF111318) else Color.White,
+                titleContentColor = textMain,
+                textContentColor = textMain,
+                shape = RoundedCornerShape(20.dp),
+                title = {
+                    Text(
+                        text = stringResource(R.string.settings_language_dialog_title),
+                        color = textMain,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                        fun apply(tags: String?) {
+                            val locales = if (tags.isNullOrBlank()) {
+                                LocaleListCompat.getEmptyLocaleList()
+                            } else {
+                                LocaleListCompat.forLanguageTags(tags)
+                            }
+
+                            AppCompatDelegate.setApplicationLocales(locales)
+                            activity.recreate()
+                            showLanguageDialog = false
+                        }
+
+                        TextButton(onClick = { apply(null) }) {
+                            Text(
+                                text = stringResource(R.string.settings_language_system_default),
+                                color = if (isDark) Color(0xFF00F5FF) else Color(0xFF2CB6AE)
+                            )
+                        }
+
+                        TextButton(onClick = { apply("tr") }) {
+                            Text(
+                                text = stringResource(R.string.settings_language_turkish),
+                                color = if (isDark) Color(0xFF00F5FF) else Color(0xFF2CB6AE)
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showLanguageDialog = false }) {
+                        Text(
+                            text = stringResource(R.string.common_close),
+                            color = if (isDark) Color(0xFF00F5FF) else Color(0xFF2CB6AE)
+                        )
+                    }
+                }
             )
         }
     }

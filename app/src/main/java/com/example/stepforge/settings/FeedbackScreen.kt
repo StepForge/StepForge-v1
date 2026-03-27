@@ -64,6 +64,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -117,9 +118,14 @@ fun FeedbackScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Help us refine StepForge by reporting issues and sharing ideas.",
+                            text = "Help us refine StepForge by" +
+                                    " reporting issues and sharing ideas.",
                             color = cs.onBackground.copy(alpha = 0.65f),
-                            fontSize = 12.sp
+                            fontSize = 12.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            lineHeight = 14.sp
+                            
                         )
                     }
                 },

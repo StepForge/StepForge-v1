@@ -136,6 +136,7 @@ fun SleepScreen(
 
     val db = remember { AppDatabase.getDatabase(ctx) }
     val dao = remember { db.sleepSessionDao() }
+    val stageDao = remember { db.sleepStageDao() }
     val hc = remember { SleepSyncManager(ctx) }
 
     // ✅ Auto sync DataStore keys
@@ -289,15 +290,20 @@ fun SleepScreen(
     }
 
     val last30Dates = remember { (0..29).map { dateDaysAgo(it) }.reversed() }
-    val sessionByDate = remember(sessions) { sessions.associateBy { it.date } }
+    val sessionsByDate = remember(sessions) { sessions.groupBy { it.date } }
 
     var selectedDate by remember { mutableStateOf(todayDate()) }
-    val selectedSession = remember(sessionByDate, selectedDate) { sessionByDate[selectedDate] }
+    val selectedDaySessions = remember(sessionsByDate, selectedDate) {
+        sessionsByDate[selectedDate].orEmpty().sortedByDescending { it.startTime }
+    }
+    val selectedSession = selectedDaySessions.firstOrNull()
 
     val scroll = rememberScrollState()
     LaunchedEffect(Unit) { scroll.scrollTo(scroll.maxValue) }
 
-    val last7WithData = remember(sessions) { sessions.sortedBy { it.date }.takeLast(7) }
+    val last7WithData = remember(sessions) {
+        sessions.sortedByDescending { it.startTime }.take(7)
+    }
     val avgMin = remember(last7WithData) {
         if (last7WithData.isEmpty()) 0
         else last7WithData.sumOf { it.totalMinutes } / last7WithData.size
@@ -329,7 +335,8 @@ fun SleepScreen(
         scope.launch {
 
             // 1️⃣ Eğer DB'de kayıt varsa → HER ŞEYİ BIRAK, ONU GÖSTER
-            val s = sessionByDate[date]
+            val sessionsForDate = sessionsByDate[date].orEmpty()
+            val s = sessionsForDate.maxByOrNull { it.startTime }
             if (s != null) {
                 val calS = Calendar.getInstance().apply { timeInMillis = s.startTime }
                 val calE = Calendar.getInstance().apply { timeInMillis = s.endTime }
@@ -423,7 +430,7 @@ fun SleepScreen(
         }
     ((previewEndMs - previewStartMs) / 60_000L).toInt().coerceAtLeast(0)
 
-    val sessionMap = remember(sessionByDate) { sessionByDate }
+    val sessionMap = remember(sessionsByDate) { sessionsByDate }
 
     Scaffold(
         topBar = {
@@ -708,15 +715,15 @@ fun SleepScreen(
                                 lastMonth = m
                             }
 
-                            val s = sessionByDate[date]
+                            val s = sessionsByDate[date]
                             DayTile(
                                 day = shortDay(date),
                                 week = shortWeekday(date),
-                                hasData = s != null,
-                                minutes = s?.totalMinutes ?: 0,
+                                hasData = !s.isNullOrEmpty(),
+                                minutes = s?.sumOf { it.totalMinutes } ?: 0,
                                 selected = date == selectedDate,
                                 isDark = isDark,
-                                accent = if (s?.source == "health_connect") purple else neonB,
+                                accent = if (s?.any { it.source == "health_connect" } == true) purple else neonB,
                                 onClick = { selectedDate = date }
                             )
                         }
@@ -732,13 +739,13 @@ fun SleepScreen(
                             accent = if (selectedSession!!.source == "health_connect") purple else neonB,
                             onDelete = { s ->
                                 if (skipDeleteConfirm) {
-                                    // Direkt sil
                                     scope.launch {
                                         withContext(Dispatchers.IO) {
                                             dao.deleteById(s.id)
+                                            stageDao.deleteBySessionId(s.id)
                                         }
                                         reload()
-                                        selectedDate = todayDate()
+                                        selectedDate = s.date
 
                                         Toast.makeText(
                                             ctx,
@@ -747,14 +754,45 @@ fun SleepScreen(
                                         ).show()
                                     }
                                 } else {
-                                    // Confirm dialog aç
                                     pendingDelete = s
                                     dontAskAgain = false
                                     showDeleteDialog = true
                                 }
                             }
-
                         )
+
+                        if (selectedDaySessions.size > 1) {
+                            SleepSessionsListCard(
+                                date = selectedDate,
+                                sessions = selectedDaySessions,
+                                bg = card,
+                                textMain = textMain,
+                                textSub = textSub,
+                                neon = Brush.horizontalGradient(listOf(neonA, neonB)),
+                                accent = if (selectedSession!!.source == "health_connect") purple else neonB,
+                                onDelete = { s ->
+                                    if (skipDeleteConfirm) {
+                                        scope.launch {
+                                            withContext(Dispatchers.IO) {
+                                                dao.deleteById(s.id)
+                                                stageDao.deleteBySessionId(s.id)
+                                            }
+                                            reload()
+                                            selectedDate = s.date
+                                            Toast.makeText(
+                                                ctx,
+                                                "Sleep deleted",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    } else {
+                                        pendingDelete = s
+                                        dontAskAgain = false
+                                        showDeleteDialog = true
+                                    }
+                                }
+                            )
+                        }
 
                     } else {
                         Text(
@@ -841,7 +879,6 @@ fun SleepScreen(
                             val saveDate = editDate
 
                             withContext(Dispatchers.IO) {
-                                dao.deleteByDate(saveDate)
                                 dao.insert(
                                     SleepSession(
                                         date = saveDate,
@@ -931,7 +968,7 @@ fun SleepScreen(
                     ) {
                         Text(
                             text = "Logging for ${prettyDate(editDate)}",
-                                    color = cs.onSurface.copy(alpha = 0.8f),
+                            color = cs.onSurface.copy(alpha = 0.8f),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -1009,10 +1046,11 @@ fun SleepScreen(
 
                             withContext(Dispatchers.IO) {
                                 dao.deleteById(s.id)
+                                stageDao.deleteBySessionId(s.id)
                             }
 
                             reload()
-                            selectedDate = todayDate()
+                            selectedDate = s.date
 
                             Toast.makeText(
                                 ctx,
@@ -1042,6 +1080,118 @@ fun SleepScreen(
 }
 
 
+@Composable
+private fun SleepSessionsListCard(
+    date: String,
+    sessions: List<SleepSession>,
+    bg: Color,
+    textMain: Color,
+    textSub: Color,
+    neon: Brush,
+    accent: Color,
+    onDelete: (SleepSession) -> Unit
+) {
+    val totalMinutes = sessions.sumOf { it.totalMinutes }
+    val latest = sessions.maxByOrNull { it.startTime }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(10.dp, RoundedCornerShape(22.dp)),
+        colors = CardDefaults.cardColors(containerColor = bg),
+        shape = RoundedCornerShape(22.dp)
+    ) {
+        Column(
+            Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.CloudSync, contentDescription = null, tint = accent)
+                Spacer(Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Sessions on $date",
+                        color = textMain,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "${sessions.size} entries • ${formatDuration(totalMinutes)} total",
+                        color = textSub,
+                        fontSize = 11.sp
+                    )
+                }
+                if (latest != null) {
+                    Box(
+                        modifier = Modifier
+                            .background(accent.copy(alpha = 0.14f), RoundedCornerShape(999.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = when (latest.source) {
+                                "health_connect" -> "HC"
+                                "auto" -> "AUTO"
+                                else -> "Manual"
+                            },
+                            color = accent,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            sessions.forEachIndexed { index, s ->
+                val rowAccent = when (s.source) {
+                    "health_connect" -> accent
+                    "auto" -> accent.copy(alpha = 0.92f)
+                    else -> accent.copy(alpha = 0.85f)
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            RoundedCornerShape(16.dp)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(4.dp)
+                            .height(42.dp)
+                            .background(rowAccent, RoundedCornerShape(999.dp))
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "${formatClock(s.startTime)} - ${formatClock(s.endTime)}",
+                            color = textMain,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp
+                        )
+                        Text(
+                            text = "${formatDuration(s.totalMinutes)} • ${s.qualityScore}/100 quality",
+                            color = textSub,
+                            fontSize = 11.sp
+                        )
+                    }
+                    IconButton(onClick = { onDelete(s) }, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            Icons.Outlined.Delete,
+                            contentDescription = "Delete sleep",
+                            tint = Color(0xFFE53935),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                if (index != sessions.lastIndex) Spacer(Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+
 
 /* ===========================================================
  * DATE PICKER – SLEEP
@@ -1052,7 +1202,7 @@ fun SleepScreen(
 @Composable
 private fun SleepDatePickerDialog(
     initialDate: String,
-    sessionMap: Map<String, SleepSession>,
+    sessionMap: Map<String, List<SleepSession>>,
     onDismiss: () -> Unit,
     onSelect: (String) -> Unit
 ) {
@@ -1242,7 +1392,7 @@ private fun SleepDatePickerDialog(
                                 } else {
                                     val ymd = formatYmd(dayCal)
                                     val s = sessionMap[ymd]
-                                    val hasData = s != null
+                                    val hasData = !s.isNullOrEmpty()
                                     val selected = (ymd == initialDate)
 
                                     val shape = RoundedCornerShape(14.dp)
@@ -1477,7 +1627,7 @@ private fun SleepDetailCardForList(
     accent: Color,
     onDelete: (SleepSession) -> Unit
 )
- {
+{
     val q = session.qualityScore.coerceIn(0, 100)
     val start = formatClock(session.startTime)
     val end = formatClock(session.endTime)

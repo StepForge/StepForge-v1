@@ -15,6 +15,12 @@ import com.example.stepforge.widget.StepWidgetProvider
 
 class MidnightResetReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
+
+        android.util.Log.e(
+            "STEPFORGE_MIDNIGHT",
+            "MidnightResetReceiver triggered"
+        )
+
         // 🔹 1) Günlük adımları sıfırlamak için StepCounterService’i başlat
         val serviceIntent = Intent(context, StepCounterService::class.java).apply {
             putExtra("forceReset", true)
@@ -85,6 +91,5 @@ class MidnightResetReceiver : BroadcastReceiver() {
         StepWidgetProvider.notifyRefresh(context)
         StepWidgetCompactProvider.notifyRefresh(context)
         StepWidgetLargeProvider.notifyRefresh(context)
-
     }
 }

@@ -36,18 +36,14 @@ class SleepSyncManager(private val context: Context) {
 
     suspend fun hasMissingPermissions(): Boolean {
         return try {
-            // grantedPermissions her zaman en güncel durumu Health Connect uygulamasından sorgular
             val granted = client.permissionController.getGrantedPermissions()
-            // İhtiyaç duyduğumuz izinlerden hangileri verilmemiş?
-            val missing = permissions.filter { it !in granted }
-            missing.isNotEmpty()
+            permissions.any { it !in granted }
         } catch (e: Exception) {
-            Log.e("SleepSync", "Check error", e)
+            Log.e(TAG, "Check error", e)
             true
         }
     }
 
-    // SleepSyncManager.kt içine, hasMissingPermissions fonksiyonunun altına ekle:
     suspend fun getGrantedPermissions(): Set<String> {
         return try {
             client.permissionController.getGrantedPermissions()
@@ -56,14 +52,6 @@ class SleepSyncManager(private val context: Context) {
         }
     }
 
-
-    /**
-     * Son 7 günün uyku verisini Health Connect'ten çekip Room'a yazar.
-     *
-     * ✅ DATE FIX:
-     * "date" alanını startTime yerine endTime'ın *local* tarihinden üretiriz.
-     * (22:20–04:00 gibi uykular sabah bittiği güne yazılsın)
-     */
     suspend fun syncLast7Days(): Boolean = withContext(Dispatchers.IO) {
         try {
             val granted = client.permissionController.getGrantedPermissions()
@@ -89,14 +77,19 @@ class SleepSyncManager(private val context: Context) {
             val stageDao = db.sleepStageDao()
 
             val sdfDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val fromDate = sdfDate.format(Date(start.toInstant().toEpochMilli()))
+            val toDate = sdfDate.format(Date(end.toInstant().toEpochMilli()))
+
+            // Keep manual records, refresh only Health Connect source rows
+            stageDao.deleteBySourceAndDateRange("health_connect", fromDate, toDate)
+            sessionDao.deleteBySourceAndDateRange("health_connect", fromDate, toDate)
+
             var wroteSessions = 0
             var wroteStages = 0
 
             for (record in sessionResponse.records) {
                 val startMs = record.startTime.toEpochMilli()
                 val endMs = record.endTime.toEpochMilli()
-
-                // ✅ FIX: endTime'ın local tarihine göre kaydet
                 val localDate = sdfDate.format(Date(endMs))
 
                 val durationMin = ChronoUnit.MINUTES.between(
@@ -105,9 +98,6 @@ class SleepSyncManager(private val context: Context) {
                 ).toInt().coerceAtLeast(0)
 
                 val quality = (50 + durationMin / 10).coerceIn(0, 100)
-
-                // date için overwrite
-                sessionDao.deleteByDate(localDate)
 
                 val sessionId = sessionDao.insert(
                     SleepSession(
@@ -121,7 +111,6 @@ class SleepSyncManager(private val context: Context) {
                 )
                 wroteSessions++
 
-                // Stage varsa yazmayı dene (API farklarına dayanıklı)
                 try {
                     val stages = record.stages
                     for (st in stages) {

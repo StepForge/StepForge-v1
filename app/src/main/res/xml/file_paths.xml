@@ -1,3 +1,4 @@
 <paths>
     <files-path name="profile" path="." />
+    <cache-path name="cache" path="." />
 </paths>

@@ -18,7 +18,7 @@
 
         <TextView
             android:id="@+id/textTitleLarge"
-            android:text="Today"
+            android:text="@string/widget_today"
             android:textSize="12sp"
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
@@ -38,7 +38,6 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
 
-            <!-- DÜZELTME: View yerine FrameLayout -->
             <FrameLayout
                 android:layout_width="0dp"
                 android:layout_height="1dp"
@@ -46,7 +45,7 @@
 
             <TextView
                 android:id="@+id/textGoalLarge"
-                android:text="of 10.000"
+                android:text="@string/widget_goal_of_placeholder"
                 android:textSize="12sp"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
@@ -60,22 +59,23 @@
             android:layout_height="10dp"
             android:progressDrawable="@drawable/widget_stepforge_progress" />
 
-        <!-- DÜZELTME: Row etiketi desteklenmez, LinearLayout kullanıldı -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_marginTop="8dp">
+
             <TextView
                 android:id="@+id/textPercentLarge"
-                android:text="0%"
+                android:text="@string/widget_percent_placeholder"
                 android:textSize="11sp"
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content" />
+
             <TextView
                 android:id="@+id/textDistanceLarge"
-                android:text="0 km"
+                android:text="@string/widget_distance_placeholder"
                 android:textSize="11sp"
                 android:gravity="end"
                 android:layout_width="0dp"

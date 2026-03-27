@@ -10,7 +10,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="com.samsung.android.health.permission.READ_STEP_COUNT_DATA" />
@@ -32,12 +31,14 @@
     <uses-permission android:name="android.permission.health.WRITE_SLEEP" />
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
 
-    <!-- ✅ Android 14 öncesi Health Connect uygulamasını görebilmek için şart -->
+    <!-- ✅ Package visibility for Health Connect and Google Play Services -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
+        <package android:name="com.google.android.gms" />
     </queries>
 
     <application
+        android:name=".StepForgeApp"
         android:allowBackup="true"
         android:label="StepForge"
         android:icon="@mipmap/ic_launcher"
@@ -66,8 +67,8 @@
         <activity android:name=".SetPinActivity" android:exported="false" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait" />
         <activity android:name=".WaterReminderActivity" android:exported="false" android:screenOrientation="portrait" android:theme="@style/Theme.StepForge" />
         <activity android:name=".HistoryDetailActivity" android:exported="false" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait" />
-        <activity android:name=".InsightsActivity" />
-
+        <activity android:name=".InsightsActivity" android:exported="false" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait" />
+        <activity android:name=".StreakActivity" android:exported="false" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait" />
         <!-- ✅ SleepActivity: Health Connect İzin Dönüşü İçin Güncellendi -->
         <activity android:name=".SleepActivity" android:exported="true" android:theme="@style/Theme.StepForge" android:screenOrientation="portrait">
             <intent-filter>
@@ -175,6 +176,25 @@
 
         <activity
             android:name=".CustomWaterIntakeActivity"
+            android:exported="false"
+            android:theme="@style/Theme.StepForge"
+            android:screenOrientation="portrait" />
+
+
+        <activity
+            android:name=".WorkoutsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.StepForge"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".debug.DebugPanelActivity"
+            android:exported="false"
+            android:theme="@style/Theme.StepForge"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".debug.DebugPanelActivity"
             android:exported="false"
             android:theme="@style/Theme.StepForge"
             android:screenOrientation="portrait" />

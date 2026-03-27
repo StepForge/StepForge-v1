@@ -16,6 +16,12 @@ class StepCounterRestartWorker(
 ) : Worker(ctx, params) {
 
     override fun doWork(): Result {
+
+        android.util.Log.e(
+            "STEPFORGE_MIDNIGHT",
+            "StepCounterRestartWorker triggered"
+        )
+
         try {
             // Widget refresh her zaman
             StepWidgetProvider.notifyRefresh(ctx)
@@ -24,7 +30,6 @@ class StepCounterRestartWorker(
 
             val intent = Intent(ctx, StepCounterService::class.java)
 
-            // Android 8+ için FGS
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 ctx.startForegroundService(intent)
             } else {
@@ -35,9 +40,14 @@ class StepCounterRestartWorker(
             return Result.success()
 
         } catch (e: Exception) {
+
             Log.e("StepForgeDebug", "RestartWorker failed to start service", e)
 
-            // Android 12+ bazen exception atar ama worker fail olmasın
+            android.util.Log.e(
+                "STEPFORGE_MIDNIGHT",
+                "RestartWorker exception: ${e.message}"
+            )
+
             return Result.success()
         }
     }

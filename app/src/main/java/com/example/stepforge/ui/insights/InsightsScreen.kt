@@ -89,6 +89,7 @@ import com.example.stepforge.data.stepforgeStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 import kotlin.math.roundToInt
+import com.example.stepforge.ui.components.PremiumGateCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -241,7 +242,7 @@ fun InsightsScreen(
                             }
                         )
 
-                        PremiumGate(
+                        PremiumGateCard(
                             premiumEnabled = premiumEnabled,
                             title = "Activity Score",
                             subtitle = "Get a performance score based on consistency and goal success.",
@@ -257,7 +258,7 @@ fun InsightsScreen(
 
                         }
 
-                        PremiumGate(
+                        PremiumGateCard(
                             premiumEnabled = premiumEnabled,
                             title = "Smart Summary",
                             subtitle = "Unlock premium to see advanced insights and coaching tips.",

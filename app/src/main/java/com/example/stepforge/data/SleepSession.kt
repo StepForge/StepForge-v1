@@ -4,9 +4,9 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * Bir uyku oturumu: tek bir gece için toplam uyku süresi.
+ * Bir uyku oturumu. Aynı tarihte birden fazla kayıt olabilir (gece, kısa uyku, nap).
  *
- * source: "manual" | "health_connect"
+ * source: "manual" | "auto" | "health_connect"
  */
 @Entity(tableName = "sleep_session")
 data class SleepSession(

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface DailyWaterDao {
@@ -16,4 +17,8 @@ interface DailyWaterDao {
 
     @Query("SELECT * FROM daily_water")
     suspend fun getAllWater(): List<DailyWater>
+
+    // ✅ LIVE observe (History için)
+    @Query("SELECT * FROM daily_water")
+    fun observeAllWater(): Flow<List<DailyWater>>
 }

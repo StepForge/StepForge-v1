@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -49,6 +51,7 @@ fun AdjustStepsCard(
     val isDark = darkTheme ?: isSystemInDarkTheme()
 
     var text by remember { mutableStateOf("") }
+    var showWarningDialog by remember { mutableStateOf(false) }
 
     // ✅ Light palet (soft)
     val bg = if (isDark) Color(0xFF090A0D) else Color(0xFFFFFFFF)
@@ -78,32 +81,28 @@ fun AdjustStepsCard(
                     if (isDark) Color(0xFF2A2010) else Color(0xFFFFF4E6),
                     RoundedCornerShape(12.dp)
                 )
+                .clickable { showWarningDialog = true }
                 .padding(12.dp),
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = Icons.Outlined.Info,
-                contentDescription = "Info",
+                contentDescription = null,
                 tint = Color(0xFFFFB74D),
-                modifier = Modifier.size(20.dp).padding(top = 2.dp)
+                modifier = Modifier.size(20.dp)
             )
+
             Spacer(Modifier.width(10.dp))
-            Column {
-                Text(
-                    text = "Synchronization Warning",
-                    color = Color(0xFFFFB74D),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "Manually adjusting or resetting steps may cause display inconsistencies if Health Connect is active. The system might override these changes during the next sync.",
-                    color = textSub,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp
-                )
-            }
+
+            Text(
+                text = "Synchronization notice • Tap to read",
+                color = Color(0xFFFFB74D),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
+
+
 
         Spacer(Modifier.height(24.dp))
 
@@ -236,6 +235,8 @@ fun AdjustStepsCard(
             }
         }
 
+
+
         Spacer(Modifier.height(10.dp))
 
         OutlinedButton(
@@ -264,11 +265,44 @@ fun AdjustStepsCard(
             Spacer(Modifier.width(8.dp))
             Text("Reset Steps", fontSize = 15.sp)
         }
+
+        if (showWarningDialog) {
+            AlertDialog(
+                onDismissRequest = { showWarningDialog = false },
+                containerColor = if (isDark) Color(0xFF111318) else Color.White,
+                titleContentColor = if (isDark) Color.White else Color.Black,
+                textContentColor = if (isDark) Color(0xFFBFC4D0) else Color(0xFF444444),
+                confirmButton = {
+                    Button(
+                        onClick = { showWarningDialog = false },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isDark) Color(0xFF00F5FF) else MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text(
+                            "Understood",
+                            color = if (isDark) Color.Black else Color.White
+                        )
+                    }
+                },
+                title = {
+                    Text(
+                        "Synchronization Warning",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        "Manually adjusting or resetting steps may cause display inconsistencies if Health Connect is active. The system might override these changes during the next synchronization cycle."
+                    )
+                }
+            )
+        }
     }
 }
 
 @Composable
-private fun NeonRing(
+fun NeonRing(
     progress: Float,
     startColor: Color,
     endColor: Color,
@@ -341,7 +375,7 @@ private fun NeonRing(
     }
 }
 
-private fun Modifier.drawNeonOuter(
+fun Modifier.drawNeonOuter(
     shape: Shape,
     color: Color
 ): Modifier = this.then(
@@ -373,7 +407,7 @@ private fun Modifier.drawNeonOuter(
     }
 )
 
-private fun Modifier.borderGlow(
+fun Modifier.borderGlow(
     color: Color
 ): Modifier = this.then(
     Modifier.drawBehind {

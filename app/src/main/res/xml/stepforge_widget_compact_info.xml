@@ -3,7 +3,7 @@
     android:minWidth="160dp"
     android:minHeight="60dp"
     android:updatePeriodMillis="0"
-    android:resizeMode="none"
+    android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:initialLayout="@layout/widget_stepforge_compact"
     android:previewImage="@drawable/widget_stepforge_compact_preview" />

@@ -13,4 +13,13 @@ interface SleepStageDao {
 
     @Query("SELECT * FROM sleep_stage WHERE sessionId = :sessionId ORDER BY startTime ASC")
     suspend fun getStagesForSession(sessionId: Long): List<SleepStage>
+
+    @Query("DELETE FROM sleep_stage WHERE sessionId = :sessionId")
+    suspend fun deleteBySessionId(sessionId: Long)
+
+    @Query("DELETE FROM sleep_stage WHERE sessionId IN (SELECT id FROM sleep_session WHERE date = :date)")
+    suspend fun deleteByDate(date: String)
+
+    @Query("DELETE FROM sleep_stage WHERE sessionId IN (SELECT id FROM sleep_session WHERE source = :source AND date BETWEEN :fromDate AND :toDate)")
+    suspend fun deleteBySourceAndDateRange(source: String, fromDate: String, toDate: String)
 }

@@ -7,7 +7,6 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
-    <!-- Oval kapsül (Arka plan kodu ile değişecek) -->
     <LinearLayout
         android:id="@+id/rootWidgetCompactInner"
         android:orientation="vertical"
@@ -18,16 +17,13 @@
         android:paddingTop="10dp"
         android:paddingBottom="10dp"
         android:background="@drawable/widget_compact_bg">
-        <!-- Varsayılan dark kalabilir, kod ile değişecek -->
 
-        <!-- Üst satır: sayı + label -->
         <LinearLayout
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
-            <!-- Büyük steps -->
             <TextView
                 android:id="@+id/textStepsCompact"
                 android:text="0"
@@ -37,10 +33,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
 
-            <!-- Küçük label ("steps") -->
             <TextView
                 android:id="@+id/textLabelCompact"
-                android:text="steps"
+                android:text="@string/widget_steps_label"
                 android:textSize="12sp"
                 android:textColor="#B0BEC5"
                 android:layout_marginStart="6dp"
@@ -48,7 +43,6 @@
                 android:layout_height="wrap_content" />
         </LinearLayout>
 
-        <!-- Alt: progress bar -->
         <ProgressBar
             android:id="@+id/progressBarCompact"
             style="?android:attr/progressBarStyleHorizontal"
@@ -59,6 +53,5 @@
             android:progress="50"
             android:progressDrawable="@drawable/widget_stepforge_progress"
             android:backgroundTint="#303035" />
-        <!-- backgroundTint kod ile değiştirilecek -->
     </LinearLayout>
 </LinearLayout>

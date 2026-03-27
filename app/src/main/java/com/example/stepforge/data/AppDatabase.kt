@@ -14,9 +14,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         HourlySteps::class,
         SleepSession::class,
         SleepStage::class,
-        WaterIntakeEvent::class
+        WaterIntakeEvent::class,
+        WorkoutSession::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -27,6 +28,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun sleepSessionDao(): SleepSessionDao
     abstract fun sleepStageDao(): SleepStageDao
     abstract fun waterIntakeEventDao(): WaterIntakeEventDao
+    abstract fun workoutSessionDao(): WorkoutSessionDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
@@ -139,6 +141,30 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS workout_session (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        date TEXT NOT NULL,
+                        startTime INTEGER NOT NULL,
+                        endTime INTEGER NOT NULL,
+                        durationMinutes INTEGER NOT NULL,
+                        steps INTEGER NOT NULL,
+                        distanceMeters INTEGER NOT NULL,
+                        caloriesKcal INTEGER NOT NULL,
+                        avgStepsPerMinute INTEGER NOT NULL,
+                        source TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_workout_session_date_startTime ON workout_session(date, startTime)"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -153,7 +179,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_4_5,
                         MIGRATION_5_6,
                         MIGRATION_6_7,
-                        MIGRATION_7_8
+                        MIGRATION_7_8,
+                        MIGRATION_8_9
                     )
                     .fallbackToDestructiveMigrationOnDowngrade()
                     .build()

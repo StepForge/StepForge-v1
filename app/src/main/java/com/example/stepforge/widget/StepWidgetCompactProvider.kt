@@ -9,7 +9,9 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.os.Build
+import android.os.Bundle
 import android.util.Log
+import android.util.SizeF
 import android.widget.RemoteViews
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -28,9 +30,7 @@ import java.util.Locale
 class StepWidgetCompactProvider : AppWidgetProvider() {
 
     private fun dotFormatter(): DecimalFormat {
-        val symbols = DecimalFormatSymbols(Locale.getDefault()).apply {
-            groupingSeparator = '.'
-        }
+        val symbols = DecimalFormatSymbols(Locale.getDefault()).apply { groupingSeparator = '.' }
         return DecimalFormat("#,###", symbols)
     }
 
@@ -39,70 +39,50 @@ class StepWidgetCompactProvider : AppWidgetProvider() {
         requestFreshDataFromService(context)
     }
 
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        manager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        updateWidgetFromStore(context, manager, appWidgetId)
+    }
+
     private fun requestFreshDataFromService(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            Log.d("StepWidgetCompact", "Skipping FGS request on Android 12+")
-            return
-        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return
         try {
-            val intent = Intent(context, StepCounterService::class.java)
-            intent.action = "com.example.stepforge.ACTION_WIDGET_REFRESH_REQUEST"
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
+            val intent = Intent(context, StepCounterService::class.java).apply {
+                action = "com.example.stepforge.ACTION_WIDGET_REFRESH_REQUEST"
             }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
+            else context.startService(intent)
         } catch (e: Exception) {
-            Log.e("StepWidgetCompact", "Servisten veri istenemedi: ${e.message}")
+            Log.e("StepWidgetCompact", "FGS request failed: ${e.message}")
         }
     }
 
-    private fun updateWidgetFromStore(
-        context: Context,
-        manager: AppWidgetManager,
-        widgetId: Int
-    ) {
-        CoroutineScope(Dispatchers.IO).launch {
-            val prefs = context.stepforgeStore.data.first()
-            val stepsKey = intPreferencesKey("persisted_total_sum")
-            val themeKey = stringPreferencesKey("theme_mode")
 
-            val totalSteps = prefs[stepsKey] ?: 0
-            val themeMode = prefs[themeKey] ?: "system"
+    private fun chooseLayout(manager: AppWidgetManager, widgetId: Int): Int {
+        val options = manager.getAppWidgetOptions(widgetId)
+        val minH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
+        val minW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
 
-            updateRemoteViews(context, manager, widgetId, totalSteps, themeMode)
+        return when {
+            // XML'de 120dp dedik, 110dp ve üzeri her şeyi Large kabul et (4x2 için)
+            minH >= 110 -> R.layout.widget_stepforge_large
+
+            // XML'de 260dp dedik, 250dp ve üzeri her şeyi Medium kabul et (4x1 için)
+            minW >= 250 -> R.layout.widget_stepforge
+
+            // Diğerleri Compact (2x1 için)
+            else -> R.layout.widget_stepforge_compact
         }
     }
 
-    private fun updateAllWidgetsFromService(
-        context: Context,
-        manager: AppWidgetManager,
-        steps: Int
-    ) {
-        CoroutineScope(Dispatchers.IO).launch {
-            val prefs = context.stepforgeStore.data.first()
-            val themeKey = stringPreferencesKey("theme_mode")
-            val themeMode = prefs[themeKey] ?: "system"
 
-            val ids = manager.getAppWidgetIds(
-                ComponentName(context, StepWidgetCompactProvider::class.java)
-            )
-            ids.forEach { widgetId ->
-                updateRemoteViews(context, manager, widgetId, steps, themeMode)
-            }
-        }
-    }
 
-    private fun updateRemoteViews(
-        context: Context,
-        manager: AppWidgetManager,
-        widgetId: Int,
-        steps: Int,
-        themeMode: String
-    ) {
-        val stepsText = dotFormatter().format(steps)
-
-        val isDark = when (themeMode) {
+    private fun isDark(context: Context, themeMode: String): Boolean {
+        return when (themeMode) {
             "dark" -> true
             "light" -> false
             else -> {
@@ -110,6 +90,71 @@ class StepWidgetCompactProvider : AppWidgetProvider() {
                 mode == Configuration.UI_MODE_NIGHT_YES
             }
         }
+    }
+
+    private fun updateWidgetFromStore(context: Context, manager: AppWidgetManager, widgetId: Int) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val prefs = context.stepforgeStore.data.first()
+            val stepsKey = intPreferencesKey("persisted_total_sum")
+            val goalKey = intPreferencesKey("step_goal")
+            val themeKey = stringPreferencesKey("theme_mode")
+
+            val steps = prefs[stepsKey] ?: 0
+            val goal = prefs[goalKey] ?: 10_000
+            val themeMode = prefs[themeKey] ?: "system"
+
+            updateRemoteViews(context, manager, widgetId, steps, goal, themeMode)
+        }
+    }
+
+    private fun updateAllWidgetsFromService(context: Context, manager: AppWidgetManager, steps: Int) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val prefs = context.stepforgeStore.data.first()
+            val goalKey = intPreferencesKey("step_goal")
+            val themeKey = stringPreferencesKey("theme_mode")
+
+            val goal = prefs[goalKey] ?: 10_000
+            val themeMode = prefs[themeKey] ?: "system"
+
+            val ids = manager.getAppWidgetIds(
+                ComponentName(context, StepWidgetCompactProvider::class.java)
+            )
+            ids.forEach { widgetId ->
+                updateRemoteViews(context, manager, widgetId, steps, goal, themeMode)
+            }
+        }
+    }
+
+    private fun updateRemoteViews(context: Context, manager: AppWidgetManager, widgetId: Int, steps: Int, goal: Int, themeMode: String) {
+        val dark = isDark(context, themeMode)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // ✅ Android 12+ Responsive Layouts
+            val viewMapping = mapOf(
+                SizeF(60f, 60f) to getPopulatedView(context, R.layout.widget_stepforge_compact, steps, goal, dark),
+                SizeF(250f, 60f) to getPopulatedView(context, R.layout.widget_stepforge, steps, goal, dark),
+                SizeF(260f, 100f) to getPopulatedView(context, R.layout.widget_stepforge_large, steps, goal, dark)
+            )
+            manager.updateAppWidget(widgetId, RemoteViews(viewMapping))
+        } else {
+            // ✅ Android 11 ve altı için manuel seçim
+            val layoutId = chooseLayout(manager, widgetId)
+            manager.updateAppWidget(widgetId, getPopulatedView(context, layoutId, steps, goal, dark))
+        }
+    }
+
+    private fun getPopulatedView(
+        context: Context,
+        layoutId: Int,
+        steps: Int,
+        goal: Int,
+        dark: Boolean
+    ): RemoteViews {
+        val rv = RemoteViews(context.packageName, layoutId)
+        val formatter = dotFormatter()
+        val stepsText = formatter.format(steps)
+        val safeGoal = goal.coerceAtLeast(1)
+        val percent = (steps.toFloat() / safeGoal * 100f).coerceIn(0f, 100f).toInt()
 
         val openIntent = PendingIntent.getActivity(
             context,
@@ -118,50 +163,123 @@ class StepWidgetCompactProvider : AppWidgetProvider() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val rv = RemoteViews(context.packageName, R.layout.widget_stepforge_compact).apply {
-            setTextViewText(R.id.textStepsCompact, stepsText)
-
-            val goal = 10_000
-            val percent = (steps.toFloat() / goal.coerceAtLeast(1) * 100).coerceIn(0f, 100f)
-            setProgressBar(R.id.progressBarCompact, 100, percent.toInt(), false)
-
-            if (isDark) {
-                setInt(R.id.rootWidgetCompactInner, "setBackgroundResource", R.drawable.widget_compact_bg)
-                setTextColor(R.id.textStepsCompact, 0xFFFFFFFF.toInt())
-                setTextColor(R.id.textLabelCompact, 0xFFB0BEC5.toInt())
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    setColorStateList(
-                        R.id.progressBarCompact,
-                        "setProgressBackgroundTintList",
-                        ColorStateList.valueOf(0xFF303035.toInt())
-                    )
-                }
-            } else {
-                setInt(R.id.rootWidgetCompactInner, "setBackgroundResource", R.drawable.widget_compact_bg_light)
-                setTextColor(R.id.textStepsCompact, 0xFF0F172A.toInt())
-                setTextColor(R.id.textLabelCompact, 0xFF6B7280.toInt())
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    setColorStateList(
-                        R.id.progressBarCompact,
-                        "setProgressBackgroundTintList",
-                        ColorStateList.valueOf(0xFFE5E7EB.toInt())
-                    )
-                }
+        when (layoutId) {
+            R.layout.widget_stepforge_compact -> {
+                rv.setTextViewText(R.id.textStepsCompact, stepsText)
+                rv.setTextViewText(R.id.textLabelCompact, context.getString(R.string.widget_steps_label))
+                rv.setProgressBar(R.id.progressBarCompact, 100, percent, false)
+                applyTheme(
+                    rv,
+                    dark,
+                    true,
+                    R.id.rootWidgetCompactInner,
+                    R.id.textStepsCompact,
+                    R.id.textLabelCompact,
+                    R.id.progressBarCompact
+                )
+                rv.setOnClickPendingIntent(R.id.rootWidgetCompact, openIntent)
             }
 
-            setOnClickPendingIntent(R.id.rootWidgetCompact, openIntent)
-        }
+            R.layout.widget_stepforge -> {
+                rv.setTextViewText(R.id.textSteps, stepsText)
+                rv.setTextViewText(
+                    R.id.textGoal,
+                    context.getString(R.string.widget_goal_format, formatter.format(goal))
+                )
+                rv.setProgressBar(R.id.progressBar, 100, percent, false)
+                applyTheme(
+                    rv,
+                    dark,
+                    false,
+                    R.id.rootWidgetInner,
+                    R.id.textSteps,
+                    R.id.textGoal,
+                    R.id.progressBar
+                )
+                rv.setOnClickPendingIntent(R.id.rootWidget, openIntent)
+            }
 
-        manager.updateAppWidget(widgetId, rv)
+            R.layout.widget_stepforge_large -> {
+                val dist = (steps * 0.762) / 1000.0
+                rv.setTextViewText(R.id.textTitleLarge, context.getString(R.string.widget_today))
+                rv.setTextViewText(R.id.textStepsLarge, stepsText)
+                rv.setTextViewText(
+                    R.id.textGoalLarge,
+                    context.getString(R.string.widget_goal_of_format, formatter.format(goal))
+                )
+                rv.setProgressBar(R.id.progressBarLarge, 100, percent, false)
+                rv.setTextViewText(
+                    R.id.textPercentLarge,
+                    context.getString(R.string.widget_percent_of_goal_format, percent)
+                )
+                rv.setTextViewText(
+                    R.id.textDistanceLarge,
+                    context.getString(
+                        R.string.widget_distance_approx_km_format,
+                        String.format(Locale.getDefault(), "%.1f", dist)
+                    )
+                )
+                applyThemeLarge(rv, dark)
+                rv.setOnClickPendingIntent(R.id.rootWidgetLarge, openIntent)
+            }
+        }
+        return rv
+    }
+
+    // StepWidgetCompactProvider.kt içine applyTheme fonksiyonunun altına ekleyin:
+
+    private fun applyThemeLarge(rv: RemoteViews, dark: Boolean) {
+        if (dark) {
+            rv.setInt(R.id.cardLarge, "setBackgroundResource", R.drawable.widget_compact_bg)
+            rv.setTextColor(R.id.textStepsLarge, 0xFFFFFFFF.toInt())
+            rv.setTextColor(R.id.textGoalLarge, 0xFFB0BEC5.toInt())
+            rv.setTextColor(R.id.textTitleLarge, 0xFFB0BEC5.toInt())
+            rv.setTextColor(R.id.textPercentLarge, 0xFF00F5FF.toInt())
+            rv.setTextColor(R.id.textDistanceLarge, 0x80FFFFFF.toInt())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                rv.setColorStateList(
+                    R.id.progressBarLarge,
+                    "setProgressBackgroundTintList",
+                    ColorStateList.valueOf(0xFF303035.toInt())
+                )
+            }
+        } else {
+            rv.setInt(R.id.cardLarge, "setBackgroundResource", R.drawable.widget_compact_bg_light)
+            rv.setTextColor(R.id.textStepsLarge, 0xFF0F172A.toInt())
+            rv.setTextColor(R.id.textGoalLarge, 0xFF64748B.toInt())
+            rv.setTextColor(R.id.textTitleLarge, 0xFF64748B.toInt())
+            rv.setTextColor(R.id.textPercentLarge, 0xFF0EA5E9.toInt())
+            rv.setTextColor(R.id.textDistanceLarge, 0xFF64748B.toInt())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                rv.setColorStateList(
+                    R.id.progressBarLarge,
+                    "setProgressBackgroundTintList",
+                    ColorStateList.valueOf(0xFFE5E7EB.toInt())
+                )
+            }
+        }
+    }
+
+    // Tema için yardımcı fonksiyon (Tekrarı önler)
+    private fun applyTheme(rv: RemoteViews, dark: Boolean, isCompact: Boolean, root: Int, steps: Int, label: Int, progress: Int) {
+        if (dark) {
+            rv.setInt(root, "setBackgroundResource", R.drawable.widget_compact_bg)
+            rv.setTextColor(steps, 0xFFFFFFFF.toInt())
+            rv.setTextColor(label, 0xFFB0BEC5.toInt())
+        } else {
+            rv.setInt(root, "setBackgroundResource", R.drawable.widget_compact_bg_light)
+            rv.setTextColor(steps, 0xFF0F172A.toInt())
+            rv.setTextColor(label, if (isCompact) 0xFF6B7280.toInt() else 0xFF64748B.toInt())
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val color = if (dark) 0xFF303035.toInt() else 0xFFE5E7EB.toInt()
+            rv.setColorStateList(progress, "setProgressBackgroundTintList", ColorStateList.valueOf(color))
+        }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         val manager = AppWidgetManager.getInstance(context)
-
-        Log.d("StepWidgetCompact", "onReceive: ${intent.action}")
 
         when (intent.action) {
             Intent.ACTION_CONFIGURATION_CHANGED,
@@ -173,9 +291,7 @@ class StepWidgetCompactProvider : AppWidgetProvider() {
                 )
                 ids.forEach { id -> updateWidgetFromStore(context, manager, id) }
 
-                if (intent.action == ACTION_REFRESH) {
-                    requestFreshDataFromService(context)
-                }
+                if (intent.action == ACTION_REFRESH) requestFreshDataFromService(context)
             }
 
             ACTION_UPDATE_STEPS -> {
@@ -186,7 +302,6 @@ class StepWidgetCompactProvider : AppWidgetProvider() {
     }
 
     companion object {
-        // ✅ Sabit bazen resolve olmuyor, string kullan
         private const val ACTION_APPWIDGET_UPDATE_OPTIONS =
             "android.appwidget.action.APPWIDGET_UPDATE_OPTIONS"
 
@@ -194,18 +309,16 @@ class StepWidgetCompactProvider : AppWidgetProvider() {
         const val ACTION_UPDATE_STEPS = "com.example.stepforge.WIDGET_UPDATE_COMPACT"
 
         fun notifyRefresh(context: Context) {
-            val intent = Intent(context, StepWidgetCompactProvider::class.java).apply {
-                action = ACTION_REFRESH
-            }
-            context.sendBroadcast(intent)
+            context.sendBroadcast(Intent(context, StepWidgetCompactProvider::class.java).apply { action = ACTION_REFRESH })
         }
 
         fun sendStepsUpdate(context: Context, steps: Int) {
-            val intent = Intent(context, StepWidgetCompactProvider::class.java).apply {
-                action = ACTION_UPDATE_STEPS
-                putExtra("steps", steps)
-            }
-            context.sendBroadcast(intent)
+            context.sendBroadcast(
+                Intent(context, StepWidgetCompactProvider::class.java).apply {
+                    action = ACTION_UPDATE_STEPS
+                    putExtra("steps", steps)
+                }
+            )
         }
     }
 }

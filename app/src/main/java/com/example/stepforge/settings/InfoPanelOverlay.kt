@@ -72,12 +72,27 @@ fun InfoPanelOverlay(
             .pointerInput(Unit) { detectTapGestures { onDismiss() } },
         contentAlignment = Alignment.TopStart
     ) {
+        var visible by remember { mutableStateOf(false) }
+
+        LaunchedEffect(Unit) {
+            visible = true
+        }
+
         AnimatedVisibility(
-            visible = true,
-            enter = fadeIn(animationSpec = tween(160, easing = FastOutSlowInEasing)) +
-                    scaleIn(initialScale = 0.95f, animationSpec = tween(200, easing = FastOutSlowInEasing)),
-            exit = fadeOut(animationSpec = tween(120)) +
-                    scaleOut(targetScale = 0.95f, animationSpec = tween(120))
+            visible = visible,
+            enter = fadeIn(
+                animationSpec = tween(220)
+            ) + scaleIn(
+                initialScale = 0.92f,
+                animationSpec = tween(260, easing = FastOutSlowInEasing)
+            ),
+
+            exit = fadeOut(
+                animationSpec = tween(150)
+            ) + scaleOut(
+                targetScale = 0.92f,
+                animationSpec = tween(180)
+            )
         ) {
             Box(
                 Modifier

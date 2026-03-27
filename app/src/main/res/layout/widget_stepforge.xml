@@ -2,12 +2,11 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/rootWidget"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
     android:background="@android:color/transparent"
     android:gravity="center"
     android:orientation="vertical">
 
-    <!-- ASIL KART -->
     <LinearLayout
         android:id="@+id/rootWidgetInner"
         android:layout_width="match_parent"
@@ -32,7 +31,6 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
 
-            <!-- DÜZELTME: View yerine FrameLayout kullanıldı (RemoteViews uyumluluğu için) -->
             <FrameLayout
                 android:layout_width="0dp"
                 android:layout_height="1dp"
@@ -40,7 +38,7 @@
 
             <TextView
                 android:id="@+id/textGoal"
-                android:text="Goal 10.000"
+                android:text="@string/widget_goal_placeholder"
                 android:textColor="#B0BEC5"
                 android:textSize="12sp"
                 android:layout_width="wrap_content"

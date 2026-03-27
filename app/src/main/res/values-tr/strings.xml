@@ -1,0 +1,170 @@
+<resources>
+    <string name="app_name">StepForge</string>
+    <string name="common_close">Kapat</string>
+    <string name="runner_icon">Koşucu İkonu</string>
+
+    <string name="settings_language_title">Dil</string>
+    <string name="settings_language_info">Telefon dilini değiştirmeden uygulama dilini değiştir.</string>
+    <string name="settings_language_change_button">Dili Değiştir</string>
+    <string name="settings_language_dialog_title">Dil seç</string>
+
+    <string name="settings_language_system_default">Sistem dili</string>
+    <string name="settings_language_turkish">Türkçe</string>
+
+    <string name="settings_language_current">Mevcut: %1$s</string>
+
+    <string name="streak_analytics">Seri Analizi</string>
+    <string name="premium_enabled">Premium aktif</string>
+    <string name="premium_preview">Premium önizleme</string>
+    <string name="current_streak">Mevcut seri</string>
+    <string name="days">gün</string>
+    <string name="goal">Hedef</string>
+    <string name="goal_completed_today">Bugünkü hedef tamamlandı ✅</string>
+    <string name="not_completed_yet">Henüz tamamlanmadı</string>
+    <string name="longest_streak">En uzun seri</string>
+    <string name="perfect_threshold">Mükemmel gün eşiği</string>
+    <string name="weekly_analysis">Haftalık Analiz</string>
+    <string name="avg_day">ORT./GÜN</string>
+    <string name="goal_hit">HEDEF BAŞARISI</string>
+    <string name="trend">TREND</string>
+    <string name="activity_behavior">Aktivite Davranışı</string>
+    <string name="peak_hour">ZİRVE SAAT</string>
+    <string name="most_active">EN AKTİF GÜN</string>
+
+    <string name="today">Bugün</string>
+    <string name="premium_analytics">Premium Analizler</string>
+    <string name="premium_analytics_subtitle">Haftalık ve aylık kırılımlar, tutarlılık puanı, risk analizi ve hedef tahmini.</string>
+    <string name="monthly_heatmap">Aylık Isı Haritası (30 gün)</string>
+    <string name="active">Aktif</string>
+    <string name="perfect">Mükemmel</string>
+    <string name="consistency">Tutarlılık</string>
+    <string name="consistency_note">Günlük adım düzeninizin zaman içindeki istikrarını gösterir</string>
+    <string name="activity">Aktivite</string>
+    <string name="activity_note">Tutarlılık ve hedef tamamlama performansını bir araya getiren puan</string>
+    <string name="activity_insight">Aktiviteniz geçen haftaya göre %2$d oranında %1$s.</string>
+    <string name="trend_up">artışta</string>
+    <string name="trend_down">düşüşte</string>
+    <string name="trend_stable">stabil</string>
+    <string name="trend_new">yeni</string>
+    <string name="activity_rhythm_daytime">gündüz saatlerinde</string>
+    <string name="activity_rhythm_evening">akşam saatlerinde</string>
+    <string name="activity_behavior_note">Aktiviteniz en çok %1$s yoğunlaşıyor. Günlük ritminiz tutarlı görünüyor.</string>
+    <string name="streak_risk">Seri Riski</string>
+    <string name="goal_prediction">Hedef tahmini</string>
+    <string name="chance">Olasılık</string>
+    <string name="less">Düşük</string>
+    <string name="more">Yüksek</string>
+    <string name="perfect_day">Mükemmel Gün</string>
+    <string name="days_suffix">%1$d gün</string>
+
+    <string name="risk_note_not_enough_data">Henüz yeterli veri yok.</string>
+    <string name="risk_note_goal_safe">Bugünkü hedef tamamlandı. Seriniz güvende.</string>
+    <string name="risk_note_high">Son dönemde aktiviteniz yaklaşık %1$d azaldı. Serinizi kaybetme riski yüksek görünüyor.</string>
+    <string name="risk_note_medium">Son dönemde aktivitenizde yaklaşık %1$d düşüş var. Serinizi korumak için aktif kalmaya devam edin.</string>
+    <string name="risk_note_low">Hedefe oldukça yakınsınız. Serinizi sürdürmek için hareket etmeye devam edin.</string>
+
+    <string name="prediction_note_goal_not_set">Hedef ayarlanmamış.</string>
+    <string name="prediction_note_goal_reached">Hedefe ulaşıldı.</string>
+    <string name="prediction_note_on_track">Gidişatınız iyi. Hedefe ulaşmanız büyük ölçüde bekleniyor.</string>
+    <string name="prediction_note_possible">Biraz geridesiniz, ancak hedefe ulaşmanız hâlâ oldukça mümkün.</string>
+    <string name="prediction_note_behind">Programın gerisindesiniz. Kısa bir yürüyüş faydalı olacaktır.</string>
+    <string name="prediction_note_risk">Risk altındasınız. Odaklı bir yürüyüş seansı yapmayı düşünebilirsiniz.</string>
+
+    <!--Egzersizler-->
+    <string name="workouts_title">Egzersizler</string>
+    <string name="workouts_today_summary">Bugünkü egzersiz özeti</string>
+    <string name="workouts_today_duration">Egzersiz süresi</string>
+    <string name="workouts_today_steps">Egzersiz adımı</string>
+    <string name="workouts_today_calories">Kalori</string>
+    <string name="workouts_today_distance">Mesafe</string>
+    <string name="workouts_recent_sessions">Son egzersizler</string>
+    <string name="workouts_no_sessions">Henüz egzersiz oturumu yok.</string>
+    <string name="workouts_open_subtitle">Yürüyüş egzersizlerinizi ve oturum detaylarını görüntüleyin.</string>
+    <string name="workouts_selected_session">Seçili egzersiz</string>
+    <string name="workouts_avg_pace">Ortalama tempo</string>
+    <string name="workouts_started_at">Başlangıç</string>
+    <string name="workouts_finished_at">Bitiş</string>
+    <string name="workouts_source_auto">Otomatik algılandı</string>
+    <string name="workouts_today_card_title">Bugünkü egzersizler</string>
+    <string name="workouts_today_card_empty">Bugün henüz egzersiz kaydı yok.</string>
+    <string name="workouts_today_card_minutes">Bugün %1$d dk yüründü</string>
+    <string name="workouts_today_card_steps">%1$d adım • %2$s km • %3$d kcal</string>
+    <string name="workouts_filter_all">Tümü</string>
+    <string name="workouts_filter_today">Bugün</string>
+    <string name="workouts_filter_week">7 gün</string>
+    <string name="workouts_filter_test">Testler</string>
+    <string name="workouts_show_more">Tüm egzersizleri göster (%1$d)</string>
+    <string name="workouts_show_less">Daha az göster</string>
+    <string name="workouts_live_selection">Canlı seçim</string>
+    <string name="workouts_no_session">Oturum yok</string>
+    <string name="workouts_focused_session_details">Odaklanılan oturum ayrıntıları</string>
+    <string name="workouts_no_recorded_sessions">Kaydedilmiş egzersiz oturumu yok</string>
+    <string name="workouts_session_source">Kaynak</string>
+    <string name="workouts_workout_timeline">Egzersiz zaman çizelgesi</string>
+    <string name="workouts_select_day_hint">Oturumlarını incelemek için bir gün seçin.</string>
+    <string name="workouts_selected_day">Seçili gün</string>
+    <string name="workouts_sessions_on_selected_day">Seçili günün oturumları</string>
+    <string name="workouts_tap_session_hint">Ayrıntıları görmek için bir oturuma dokunun.</string>
+    <string name="workouts_weekly_insight">Haftalık egzersiz özeti</string>
+    <string name="workouts_weekly_insight_subtitle">Son egzersiz düzeninizin kısa bir değerlendirmesi.</string>
+    <string name="workouts_no_recent_activity">Yakın zamanda aktivite yok</string>
+    <string name="workouts_high_momentum">Yüksek tempo</string>
+    <string name="workouts_balanced_week">Dengeli hafta</string>
+    <string name="workouts_building_routine">Rutin oluşuyor</string>
+    <string name="workouts_low_activity">Düşük aktivite</string>
+    <string name="workouts_best_recent_session">En iyi son oturum</string>
+
+    <string name="workouts_intensity_high">Yüksek</string>
+    <string name="workouts_intensity_moderate">Orta</string>
+    <string name="workouts_intensity_light">Hafif</string>
+
+    <string name="workouts_consistency_strong">Güçlü</string>
+    <string name="workouts_consistency_building">Gelişiyor</string>
+    <string name="workouts_consistency_starting">Başlangıç</string>
+    <string name="workouts_consistency_none">Yok</string>
+
+    <string name="workouts_coaching_strong">Bu oturum, güçlü tempo ve süre ile sürdürülebilir bir efor gösteriyor.</string>
+    <string name="workouts_coaching_balanced">Sağlıklı ritme ve iyi sürekliliğe sahip dengeli bir oturum.</string>
+    <string name="workouts_coaching_short">Kısa ama etkili bir hareket molası için uygun bir oturum.</string>
+    <string name="workouts_coaching_steady">Dengeli bir oturum. Süreyi biraz artırmak antrenman etkisini güçlendirebilir.</string>
+
+    <string name="workouts_weekly_note_empty">Henüz yakın tarihli egzersiz oturumu yok. Oturumlar biriktikçe bu alan haftalık hareket düzeninizi gösterecek.</string>
+    <string name="workouts_weekly_note_strong">Haftalık profiliniz güçlü tutarlılık, iyi hacim ve sürdürülebilir hareket kalitesi gösteriyor.</string>
+    <string name="workouts_weekly_note_balanced">Dengeli bir haftalık düzen sürdürüyorsunuz. Biraz daha uzun oturumlar toplam çıktıyı artırabilir.</string>
+    <string name="workouts_weekly_note_building">Bir rutin oluşturmaya başlıyorsunuz. Daha sık oturumlar haftalık yapınızı güçlendirebilir.</string>
+    <string name="workouts_weekly_note_light">Mevcut yükünüz hâlâ hafif. Kısa ama düzenli yürüyüşler bu alanı hızla geliştirebilir.</string>
+    <string name="workouts_sessions_label">Oturumlar</string>
+    <string name="workouts_steps_label">Adımlar</string>
+    <string name="workouts_duration_label">Süre</string>
+    <string name="workouts_distance_label">Mesafe</string>
+    <string name="workouts_calories_label">Kalori</string>
+    <string name="workouts_weekly_rhythm_subtitle">Haftalık hareket ritminize hızlı bir bakış.</string>
+    <string name="workouts_day_state_no_sessions">Oturum yok</string>
+    <string name="workouts_day_state_strong">Güçlü gün</string>
+    <string name="workouts_day_state_balanced">Dengeli gün</string>
+    <string name="workouts_day_state_light">Hafif gün</string>
+    <string name="workouts_score">Skor</string>
+    <string name="workouts_longest_label">En uzun</string>
+    <string name="m">dk</string>
+    <string name="workouts_previous_week">Önceki hafta</string>
+    <string name="workouts_next_week">Sonraki hafta</string>
+    <string name="workouts_this_week">Bu hafta</string>
+    <string name="workouts_selected_day_subtitle">Seçilen günün odaklı özeti.</string>
+    <string name="workouts_weekly_strip_subtitle">Haftalık hareket özeti</string>
+    <string name="workouts_week_range">%1$s - %2$s</string>
+    <string name="workouts_week_sessions_short">%1$d oturum</string>
+    <string name="workouts_week_duration_short">%1$d dk</string>
+    <string name="workouts_week_steps_short">%1$d adım</string>
+
+    <!--Widget-->
+    <string name="widget_today">Bugün</string>
+    <string name="widget_goal_placeholder">Hedef 10.000</string>
+    <string name="widget_goal_format">Hedef %1$s</string>
+    <string name="widget_goal_of_placeholder">10.000 hedef</string>
+    <string name="widget_goal_of_format">%1$s hedef</string>
+    <string name="widget_percent_placeholder">0%%</string>
+    <string name="widget_percent_of_goal_format">Hedefin %%%1$d kadarı</string>
+    <string name="widget_distance_placeholder">0 km</string>
+    <string name="widget_distance_approx_km_format">~%1$s km</string>
+    <string name="widget_steps_label">adım</string>
+</resources>

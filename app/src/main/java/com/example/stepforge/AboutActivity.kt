@@ -15,6 +15,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Policy
 import androidx.compose.material.icons.outlined.PrivacyTip
@@ -76,6 +78,11 @@ import androidx.compose.ui.unit.sp
 import com.example.stepforge.ui.stepforgeTheme
 import com.example.stepforge.ui.rememberUseDarkTheme
 import kotlin.random.Random
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import com.example.stepforge.debug.DebugPanelActivity
 
 class AboutActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -174,7 +181,19 @@ fun AboutScreen(onBack: () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                SimpleLogo(neonA = neonA, neonB = neonB, isDark = isDark)
+                var logoTapCount by rememberSaveable { mutableStateOf(0) }
+                val debugUnlocked = logoTapCount >= 7
+
+                SimpleLogo(
+                    neonA = neonA,
+                    neonB = neonB,
+                    isDark = isDark,
+                    onTap = {
+                        if (logoTapCount < 7) {
+                            logoTapCount += 1
+                        }
+                    }
+                )
 
                 AboutCard(
                     bg = cardBg,
@@ -184,7 +203,8 @@ fun AboutScreen(onBack: () -> Unit) {
                     isDark = isDark,
                     privacyUrl = privacyUrl,
                     termsUrl = termsUrl,
-                    supportEmail = supportEmail
+                    supportEmail = supportEmail,
+                    debugUnlocked = debugUnlocked
                 )
 
                 Spacer(Modifier.height(8.dp))
@@ -197,7 +217,8 @@ fun AboutScreen(onBack: () -> Unit) {
 private fun SimpleLogo(
     neonA: Color,
     neonB: Color,
-    isDark: Boolean
+    isDark: Boolean,
+    onTap: () -> Unit
 ) {
     val scale by animateFloatAsState(
         targetValue = 1f,
@@ -211,7 +232,8 @@ private fun SimpleLogo(
     Box(
         modifier = Modifier
             .size(140.dp)
-            .graphicsLayer(scaleX = scale, scaleY = scale),
+            .graphicsLayer(scaleX = scale, scaleY = scale)
+            .clickable { onTap() },
         contentAlignment = Alignment.Center
     ) {
         Box(
@@ -246,7 +268,8 @@ private fun AboutCard(
     isDark: Boolean,
     privacyUrl: String,
     termsUrl: String,
-    supportEmail: String
+    supportEmail: String,
+    debugUnlocked: Boolean
 ) {
     val ctx = LocalContext.current
 
@@ -391,6 +414,23 @@ private fun AboutCard(
                 borderBrush = neon,
                 textColor = textMain,
                 onClick = { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(termsUrl))) }
+            )
+        }
+
+        if (debugUnlocked) {
+            Divider(color = if (isDark) Color(0xFF1E222B) else Color(0xFFE0E5EC))
+
+            SectionTitle("Developer Tools", textMain)
+
+            ActionOutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                label = "Open Debug Console",
+                icon = Icons.Outlined.Info,
+                borderBrush = neon,
+                textColor = textMain,
+                onClick = {
+                    ctx.startActivity(Intent(ctx, DebugPanelActivity::class.java))
+                }
             )
         }
 

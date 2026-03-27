@@ -3,7 +3,6 @@ package com.example.stepforge
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -13,36 +12,96 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Create
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.LocalDrink
+import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.core.content.ContextCompat
+import androidx.datastore.preferences.core.intPreferencesKey
 import com.example.stepforge.data.AppDatabase
 import com.example.stepforge.data.DailySteps
 import com.example.stepforge.data.DailyWater
 import com.example.stepforge.data.SleepSession
+import com.example.stepforge.data.stepforgeStore
+import com.example.stepforge.settings.AdjustStepsCard
+import com.example.stepforge.settings.NeonRing
+import com.example.stepforge.settings.borderGlow
+import com.example.stepforge.settings.drawNeonOuter
+import com.example.stepforge.steps.StepEvents
 import com.example.stepforge.ui.rememberUseDarkTheme
 import com.example.stepforge.ui.stepforgeTheme
+import com.example.stepforge.widget.StepWidgetCompactProvider
+import com.example.stepforge.widget.StepWidgetLargeProvider
+import com.example.stepforge.widget.StepWidgetProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.DecimalFormat
@@ -56,30 +115,27 @@ private const val TEST_PREFIX = "TEST-"
 class HistoryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         val db = AppDatabase.getDatabase(this)
         val stepsDao = db.dailyStepsDao()
         val waterDao = db.dailyWaterDao()
         val sleepDao = db.sleepSessionDao()
 
         setContent {
-            var history by remember { mutableStateOf<List<DailySteps>>(emptyList()) }
-            var waterMap by remember { mutableStateOf<Map<String, DailyWater>>(emptyMap()) }
-            var sleepMap by remember { mutableStateOf<Map<String, SleepSession>>(emptyMap()) }
-
             val scope = rememberCoroutineScope()
 
-            LaunchedEffect(Unit) {
-                val (steps, waterList, sleepList) = withContext(Dispatchers.IO) {
-                    Triple(
-                        stepsDao.getAllSteps(),
-                        waterDao.getAllWater(),
-                        sleepDao.getRecentSessions(365)
-                    )
-                }
-                history = steps
-                waterMap = waterList.associateBy { it.date }
-                sleepMap = sleepList.associateBy { it.date }
+            // ✅ LIVE: Room Flow
+            val history: List<DailySteps> by stepsDao.observeAllSteps().collectAsState(initial = emptyList())
+            val waterList: List<DailyWater> by waterDao.observeAllWater().collectAsState(initial = emptyList())
+
+            // Sleep için şimdilik eski (Flow yok) — istersen bunu da Flow yaparız
+            var sleepMap by remember { mutableStateOf<Map<String, SleepSession>>(emptyMap()) }
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                val list = withContext(Dispatchers.IO) { sleepDao.getRecentSessions(365) }
+                sleepMap = list.associateBy { it.date }
             }
+
+            val waterMap = remember(waterList) { waterList.associateBy { it.date } }
 
             stepforgeTheme(darkTheme = rememberUseDarkTheme(this)) {
                 NeonHistoryScreen(
@@ -87,15 +143,11 @@ class HistoryActivity : ComponentActivity() {
                     waterMap = waterMap,
                     activity = this@HistoryActivity,
                     onForceReload = {
+                        // Artık gerek yok; ama dursun.
                         scope.launch(Dispatchers.IO) {
-                            val steps = stepsDao.getAllSteps()
-                            val waterList = waterDao.getAllWater()
-                            val sleepList = sleepDao.getRecentSessions(365)
-
+                            val list = sleepDao.getRecentSessions(365)
                             withContext(Dispatchers.Main) {
-                                history = steps
-                                waterMap = waterList.associateBy { it.date }
-                                sleepMap = sleepList.associateBy { it.date }
+                                sleepMap = list.associateBy { it.date }
                             }
                         }
                     },
@@ -567,6 +619,10 @@ private fun YearHeader(year: String) {
     }
 }
 
+private enum class EditMode {
+    ACTIVITY,
+    HYDRATION
+}
 @Composable
 private fun HistoryEntryCard(
     date: String,
@@ -584,12 +640,29 @@ private fun HistoryEntryCard(
     val waterDao = remember { AppDatabase.getDatabase(ctx).dailyWaterDao() }
 
     var showEditSheet by remember { mutableStateOf(false) }
+    var mode by remember { mutableStateOf(EditMode.ACTIVITY) }
     var editableSteps by remember { mutableStateOf(steps) }
     var editableWaterMl by remember { mutableStateOf(waterMl) }
 
     val distance = (steps * 0.75) / 1000.0
     val neon = Brush.linearGradient(listOf(Color(0xFF00FFA3), Color(0xFF00F5FF)))
     val grayBorder = if (isDark) Color(0x20FFFFFF) else Color(0x14000000)
+
+    val KEY_WATER_GOAL = intPreferencesKey("water_goal_ml")
+    var waterGoal by remember { mutableStateOf(2000) }
+
+    LaunchedEffect(Unit) {
+        val prefs = ctx.stepforgeStore.data.first()
+        waterGoal = prefs[KEY_WATER_GOAL] ?: 2000
+    }
+
+    val KEY_STEP_GOAL = intPreferencesKey("step_goal")
+    var stepGoal by remember { mutableStateOf(10000) }
+
+    LaunchedEffect(Unit) {
+        val prefs = ctx.stepforgeStore.data.first()
+        stepGoal = prefs[KEY_STEP_GOAL] ?: 10000
+    }
 
     // ✅ Daha belirgin focus anim
     val scale by animateFloatAsState(
@@ -760,90 +833,198 @@ private fun HistoryEntryCard(
     }
 
     if (showEditSheet) {
+        val today = java.time.LocalDate.now().toString()
+        val isToday = (date == today)
+
         Dialog(onDismissRequest = { showEditSheet = false }) {
             Surface(
-                shape = RoundedCornerShape(22.dp),
+                shape = RoundedCornerShape(26.dp),
                 color = cs.surface,
-                shadowElevation = 18.dp,
-                modifier = Modifier.fillMaxWidth(0.92f)
+                shadowElevation = 20.dp,
+                modifier = Modifier.fillMaxWidth(0.95f)
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = { showEditSheet = false }) {
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = { showEditSheet = false }
+                        ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
-                                tint = Color(0xFF00F5FF)
+                                tint = cs.onSurface
                             )
                         }
 
+                        Spacer(Modifier.width(4.dp))
+
                         Text(
                             text = "Edit Day",
-                            fontSize = 18.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = cs.onSurface
                         )
                     }
 
-                    OutlinedTextField(
-                        value = editableSteps.toString(),
-                        onValueChange = {
-                            if (it.all(Char::isDigit)) {
-                                editableSteps = it.toIntOrNull() ?: editableSteps
-                            }
-                        },
-                        singleLine = true,
-                        label = { Text("Steps") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = editableWaterMl.toString(),
-                        onValueChange = {
-                            if (it.all(Char::isDigit)) {
-                                editableWaterMl = it.toIntOrNull() ?: editableWaterMl
-                            }
-                        },
-                        singleLine = true,
-                        label = { Text("Water (ml)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Button(
-                        onClick = {
-                            CoroutineScope(Dispatchers.IO).launch {
-                                dao.insertDailySteps(DailySteps(date, editableSteps))
-                                waterDao.insertDailyWater(DailyWater(date = date, waterMl = editableWaterMl))
-                                withContext(Dispatchers.Main) { onChanged() }
-                            }
-
-                            val intent = Intent(ctx, StepCounterService::class.java).apply {
-                                putExtra("manualSteps", editableSteps)
-                            }
-                            ctx.startService(intent)
-
-                            Toast.makeText(ctx, "Day updated", Toast.LENGTH_SHORT).show()
-                            showEditSheet = false
-                        },
+                    // SEGMENTED HEADER
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
-                        shape = RoundedCornerShape(999.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF00F5FF),
-                            contentColor = Color.Black
-                        )
+                            .background(
+                                if (isDark) Color(0xFF101215) else Color(0xFFF1F4F8),
+                                RoundedCornerShape(999.dp)
+                            )
+                            .padding(4.dp)
                     ) {
-                        Text("Save Changes", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+
+                        SegmentButton(
+                            text = "Activity",
+                            selected = mode == EditMode.ACTIVITY,
+                            onClick = { mode = EditMode.ACTIVITY }
+                        )
+
+                        SegmentButton(
+                            text = "Hydration",
+                            selected = mode == EditMode.HYDRATION,
+                            onClick = { mode = EditMode.HYDRATION }
+                        )
+                    }
+
+                    when (mode) {
+
+                        EditMode.ACTIVITY -> {
+                            AdjustStepsCard(
+                                currentSteps = steps,
+                                dailyGoal = stepGoal,
+                                onApply = { newValue ->
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        dao.insertDailySteps(DailySteps(date, newValue))
+
+                                        if (isToday) {
+                                            val intent = Intent(ctx, StepCounterService::class.java).apply {
+                                                putExtra("manualSteps", newValue)
+                                            }
+
+                                            // ✅ Android O+ güvenli: foreground service olarak başlat
+                                            ContextCompat.startForegroundService(ctx, intent)
+
+                                            // ✅ Bildirim + widgetlar anında güncellensin
+                                            StepCounterService.updateServiceNotification(ctx, newValue, stepGoal)
+                                            StepWidgetProvider.sendStepsUpdate(ctx, newValue)
+                                            StepWidgetCompactProvider.sendStepsUpdate(ctx, newValue)
+                                            StepWidgetLargeProvider.sendStepsUpdate(ctx, newValue)
+
+                                            // ✅ UI flow (MainHomeScreen vs) hemen görsün
+                                            StepEvents.emitTodaySteps(newValue)
+                                        }
+
+                                        withContext(Dispatchers.Main) {
+                                            onChanged()
+                                            showEditSheet = false
+                                        }
+                                    }
+                                },
+                                onReset = {
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        dao.insertDailySteps(DailySteps(date, 0))
+
+                                        if (isToday) {
+                                            val intent = Intent(ctx, StepCounterService::class.java).apply {
+                                                putExtra("manualSteps", 0)
+                                            }
+                                            ContextCompat.startForegroundService(ctx, intent)
+
+                                            StepCounterService.updateServiceNotification(ctx, 0, stepGoal)
+                                            StepWidgetProvider.sendStepsUpdate(ctx, 0)
+                                            StepWidgetCompactProvider.sendStepsUpdate(ctx, 0)
+                                            StepWidgetLargeProvider.sendStepsUpdate(ctx, 0)
+                                            StepEvents.emitTodaySteps(0)
+                                        }
+
+                                        withContext(Dispatchers.Main) {
+                                            onChanged()
+                                            showEditSheet = false
+                                        }
+                                    }
+                                },
+                                darkTheme = isDark
+                            )
+                        }
+
+                        EditMode.HYDRATION -> {
+                            AdjustWaterCard(
+                                currentWater = waterMl,
+                                dailyGoal = waterGoal,
+                                onApply = { newValue ->
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        waterDao.insertDailyWater(
+                                            DailyWater(date = date, waterMl = newValue)
+                                        )
+
+                                        withContext(Dispatchers.Main) {
+                                            onChanged()
+                                            showEditSheet = false
+                                        }
+                                    }
+                                },
+                                onReset = {
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        waterDao.insertDailyWater(
+                                            DailyWater(date = date, waterMl = 0)
+                                        )
+                                        withContext(Dispatchers.Main) {
+                                            onChanged()
+                                            showEditSheet = false
+                                        }
+                                    }
+                                },
+                                darkTheme = isDark
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+
+@Composable
+private fun RowScope.SegmentButton(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val neon = Brush.horizontalGradient(
+        listOf(Color(0xFF00FFC3), Color(0xFF00E0FF))
+    )
+
+    val bgModifier = if (selected) {
+        Modifier.background(neon)
+    } else {
+        Modifier.background(Color.Transparent)
+    }
+
+    Box(
+        modifier = Modifier
+            .weight(1f)
+            .clip(RoundedCornerShape(999.dp))
+            .then(bgModifier)
+            .clickable { onClick() }
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontWeight = FontWeight.SemiBold,
+            color = if (selected) Color.Black else MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
@@ -942,6 +1123,234 @@ private fun ColumnScope.HistoryTimelineContainer(
                     }
                 }
             }
+        }
+    }
+}
+
+
+@Composable
+fun AdjustWaterCard(
+    modifier: Modifier = Modifier,
+    currentWater: Int,
+    dailyGoal: Int = 2500, // default 2.5L
+    onApply: (Int) -> Unit,
+    onReset: () -> Unit,
+    darkTheme: Boolean? = null
+) {
+    val isDark = darkTheme ?: isSystemInDarkTheme()
+
+    var text by remember { mutableStateOf("") }
+    var showWarningDialog by remember { mutableStateOf(false) }
+
+    val bg = if (isDark) Color(0xFF090A0D) else Color(0xFFFFFFFF)
+    val cardShape = RoundedCornerShape(26.dp)
+
+    val neonA = if (isDark) Color(0xFF00E0FF) else Color(0xFF38BDF8)
+    val neonB = if (isDark) Color(0xFF00B8FF) else Color(0xFF0EA5E9)
+
+    val textMain = if (isDark) Color.White else Color(0xFF1A202C)
+    val textSub = if (isDark) Color(0xFFBFC4D0) else Color(0xFF5B6472)
+
+    val innerBg = if (isDark) Color(0xFF050608) else Color(0xFFF0F3F7)
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(bg, cardShape)
+            .drawNeonOuter(cardShape, neonB.copy(alpha = if (isDark) 1f else 0.7f))
+            .padding(horizontal = 22.dp, vertical = 20.dp)
+    ) {
+
+        // HYDRATION WARNING
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    if (isDark) Color(0xFF151A22) else Color(0xFFF0F6FF),
+                    RoundedCornerShape(12.dp)
+                )
+                .clickable { showWarningDialog = true }
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = null,
+                tint = neonB,
+                modifier = Modifier.size(20.dp)
+            )
+
+            Spacer(Modifier.width(10.dp))
+
+            Text(
+                text = "Hydration notice • Tap to read",
+                color = neonB,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f),
+            contentAlignment = Alignment.Center
+        ) {
+            val target = (text.toIntOrNull() ?: currentWater).coerceAtLeast(0)
+
+            NeonRing(
+                progress = (target.toFloat() / dailyGoal.toFloat()).coerceIn(0f, 1f),
+                startColor = neonA,
+                endColor = neonB,
+                isDark = isDark
+            )
+
+            Column(
+                modifier = Modifier.fillMaxWidth(0.7f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp)
+                        .background(innerBg, RoundedCornerShape(16.dp))
+                        .borderGlow(neonB),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.LocalDrink,
+                        contentDescription = null,
+                        tint = neonB,
+                        modifier = Modifier.padding(start = 12.dp, end = 8.dp)
+                    )
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { v ->
+                            text = v.filter { it.isDigit() }.take(5)
+                        },
+                        singleLine = true,
+                        placeholder = {
+                            Text(
+                                if (currentWater > 0) currentWater.toString()
+                                else "Enter ml",
+                                color = textSub
+                            )
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number
+                        ),
+                        textStyle = MaterialTheme.typography.titleMedium.copy(
+                            color = textMain,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent,
+                            cursorColor = neonB,
+                            focusedTextColor = textMain,
+                            unfocusedTextColor = textMain
+                        )
+                    )
+                }
+
+                Spacer(Modifier.height(10.dp))
+
+                val liters = (target / 1000f)
+
+                Text(
+                    text = "Preview: ${String.format("%.1f", liters)} L",
+                    color = textSub,
+                    fontSize = 13.sp
+                )
+            }
+        }
+
+        Spacer(Modifier.height(22.dp))
+
+        Button(
+            onClick = {
+                val final = text.toIntOrNull()
+                if (final != null) onApply(final)
+            },
+            enabled = text.isNotBlank(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp),
+            shape = RoundedCornerShape(32.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+            contentPadding = PaddingValues()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(listOf(neonA, neonB)),
+                        RoundedCornerShape(32.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "APPLY",
+                    color = if (isDark) Color.Black else Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp
+                )
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        OutlinedButton(
+            onClick = {
+                text = ""
+                onReset()
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+            shape = RoundedCornerShape(32.dp),
+            border = BorderStroke(
+                1.dp,
+                if (isDark) Color(0xFF3A3D46) else Color(0x1A1A202C)
+            ),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = innerBg,
+                contentColor = textMain
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Restore,
+                contentDescription = null,
+                tint = textMain
+            )
+            Spacer(Modifier.width(8.dp))
+            Text("Reset Water", fontSize = 15.sp)
+        }
+
+        if (showWarningDialog) {
+            AlertDialog(
+                onDismissRequest = { showWarningDialog = false },
+                confirmButton = {
+                    Button(onClick = { showWarningDialog = false }) {
+                        Text("Understood")
+                    }
+                },
+                title = {
+                    Text(
+                        "Hydration Adjustment",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        "Manual changes will override the stored hydration value for this day. If tracking is connected to external health services, values may resynchronize later."
+                    )
+                }
+            )
         }
     }
 }

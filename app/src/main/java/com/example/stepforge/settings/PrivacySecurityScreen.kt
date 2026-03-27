@@ -568,7 +568,7 @@ fun PrivacySecurityScreen(
                             try {
                                 val intent = Intent(
                                     Intent.ACTION_VIEW,
-                                    "https://stepforge0.github.io/Privacy-Terms/privacy.html".toUri()
+                                    "https://stepforge.github.io/Privacy-Terms/privacy.html".toUri()
                                 )
                                 ctxLocal.startActivity(intent)
                             } catch (_: Exception) {

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface DailyStepsDao {
@@ -13,12 +14,13 @@ interface DailyStepsDao {
     @Query("SELECT * FROM daily_steps ORDER BY date DESC")
     suspend fun getAllSteps(): List<DailySteps>
 
+    // ✅ LIVE observe (History için)
+    @Query("SELECT * FROM daily_steps ORDER BY date DESC")
+    fun observeAllSteps(): Flow<List<DailySteps>>
+
     @Query("DELETE FROM daily_steps")
     suspend fun clearAll()
 
-    // TEST günlerini silmek için
     @Query("DELETE FROM daily_steps WHERE date LIKE 'TEST-%'")
     suspend fun deleteTestDays()
-
-
 }

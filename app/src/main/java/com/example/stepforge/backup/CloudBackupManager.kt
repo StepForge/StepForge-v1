@@ -23,6 +23,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import com.example.stepforge.data.WaterIntakeEvent
+import com.example.stepforge.debug.DebugLogger
 
 class CloudBackupManager(private val context: Context) {
 
@@ -67,7 +69,11 @@ class CloudBackupManager(private val context: Context) {
     private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
     private val KEY_NOTIF_TIME = stringPreferencesKey("notif_time")
     private val KEY_SYNC_AUTO = intPreferencesKey("sync_auto_enabled")
-
+    private val KEY_WATER_ENABLED = androidx.datastore.preferences.core.booleanPreferencesKey("water_enabled")
+    private val KEY_WATER_INTERVAL_MIN = intPreferencesKey("water_interval_min")
+    private val KEY_WATER_START_HOUR = intPreferencesKey("water_start_hour")
+    private val KEY_WATER_END_HOUR = intPreferencesKey("water_end_hour")
+    private val KEY_WATER_GOAL = intPreferencesKey("water_goal_ml")
     // --------- PUBLIC API ---------
 
     suspend fun uploadToCloud(): Boolean = withContext(Dispatchers.IO) {
@@ -87,6 +93,8 @@ class CloudBackupManager(private val context: Context) {
                 .document("latest")
                 .set(doc)
                 .await()
+
+            DebugLogger.d(TAG, "Cloud backup uploaded for uid=$uid")
 
             Log.d(TAG, "Cloud backup uploaded for uid=$uid")
             true
@@ -183,6 +191,17 @@ class CloudBackupManager(private val context: Context) {
                         }
                     }
 
+                    // 5) WaterEvents
+                    val waterEventsArray = root.optJSONArray("waterEvents")
+                    if (waterEventsArray != null) {
+                        try {
+                            restoreWaterEvents(waterEventsArray)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "restoreWaterEvents error", e)
+                            return@withContext RestoreResult.CORRUPT_DATA
+                        }
+                    }
+
                     // 5) SleepSessions
                     val sleepArray = root.optJSONArray("sleepSessions")
                     if (sleepArray != null) {
@@ -190,6 +209,18 @@ class CloudBackupManager(private val context: Context) {
                             restoreSleep(sleepArray)
                         } catch (e: Exception) {
                             Log.e(TAG, "restoreSleep error", e)
+                            return@withContext RestoreResult.CORRUPT_DATA
+                        }
+                    }
+
+
+                    // 6) WorkoutSessions
+                    val workoutArray = root.optJSONArray("workoutSessions")
+                    if (workoutArray != null) {
+                        try {
+                            restoreWorkoutSessions(workoutArray)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "restoreWorkoutSessions error", e)
                             return@withContext RestoreResult.CORRUPT_DATA
                         }
                     }
@@ -277,6 +308,8 @@ class CloudBackupManager(private val context: Context) {
         val prefs = context.stepforgeStore.data.first()
         val prefsJson = preferencesToJson(prefs)
 
+        Log.d(TAG, "Backup prefs built")
+
         val db = AppDatabase.getDatabase(context)
 
         // daily_steps
@@ -290,6 +323,52 @@ class CloudBackupManager(private val context: Context) {
         // daily_water
         val waterDao = db.dailyWaterDao()
         val waterList = waterDao.getAllWater()
+
+        // water_intake_event
+        val waterEventDao = db.waterIntakeEventDao()
+        val allWaterDates = waterList.map { it.date }.distinct()
+
+        val waterEvents = mutableListOf<WaterIntakeEvent>()
+        allWaterDates.forEach { date ->
+            waterEvents += waterEventDao.getAllForDate(date)
+        }
+
+        val waterEventsArray = JSONArray().apply {
+            waterEvents.forEach { event ->
+                put(
+                    JSONObject().apply {
+                        put("date", event.date)
+                        put("timeMillis", event.timeMillis)
+                        put("amountMl", event.amountMl)
+                    }
+                )
+            }
+        }
+        Log.d(TAG, "Water event backup count=${waterEvents.size}")
+
+        // workout_session
+        val workoutDao = db.workoutSessionDao()
+        val workoutList = workoutDao.getAll()
+            .filter { it.source != "test" } // ✅ test veriler cloud'a gitmesin
+
+        val workoutArray = JSONArray().apply {
+            workoutList.forEach { w ->
+                put(
+                    JSONObject().apply {
+                        put("date", w.date)
+                        put("startTime", w.startTime)
+                        put("endTime", w.endTime)
+                        put("durationMinutes", w.durationMinutes)
+                        put("steps", w.steps)
+                        put("distanceMeters", w.distanceMeters)
+                        put("caloriesKcal", w.caloriesKcal)
+                        put("avgStepsPerMinute", w.avgStepsPerMinute)
+                        put("source", w.source)
+                    }
+                )
+            }
+        }
+        Log.d(TAG, "Workout backup count=${workoutList.size}")
 
         // sleep_session + sleep_stage
         val sleepSessionDao = db.sleepSessionDao()
@@ -372,7 +451,7 @@ class CloudBackupManager(private val context: Context) {
                 )
             }
         }
-
+        Log.d(TAG, "Backup JSON includes workoutSessions + waterEvents + water prefs")
         JSONObject().apply {
             put("version", BackupVersion.V1.code)
             put("generatedAt", System.currentTimeMillis())
@@ -380,6 +459,8 @@ class CloudBackupManager(private val context: Context) {
             put("dailySteps", stepsArray)
             put("hourlySteps", hourlyArray)
             put("dailyWater", waterArray)
+            put("workoutSessions", workoutArray)
+            put("waterEvents", waterEventsArray)
             put("sleepSessions", sleepArray)
         }
     }
@@ -403,6 +484,11 @@ class CloudBackupManager(private val context: Context) {
             put("theme_mode", prefs[KEY_THEME_MODE] ?: "system")
             put("notif_time", prefs[KEY_NOTIF_TIME] ?: "09:00")
             put("sync_auto_enabled", prefs[KEY_SYNC_AUTO] ?: 0)
+            put("water_enabled", prefs[KEY_WATER_ENABLED] ?: false)
+            put("water_interval_min", prefs[KEY_WATER_INTERVAL_MIN] ?: 60)
+            put("water_start_hour", prefs[KEY_WATER_START_HOUR] ?: 8)
+            put("water_end_hour", prefs[KEY_WATER_END_HOUR] ?: 22)
+            put("water_goal_ml", prefs[KEY_WATER_GOAL] ?: 2000)
         }
     }
 
@@ -430,6 +516,22 @@ class CloudBackupManager(private val context: Context) {
             if (!p.isNull("theme_mode")) prefs[KEY_THEME_MODE] = p.optString("theme_mode", "system")
             if (!p.isNull("notif_time")) prefs[KEY_NOTIF_TIME] = p.optString("notif_time", "09:00")
             if (p.has("sync_auto_enabled")) prefs[KEY_SYNC_AUTO] = p.optInt("sync_auto_enabled", 0)
+
+            if (p.has("water_enabled")) {
+                prefs[KEY_WATER_ENABLED] = p.optBoolean("water_enabled", false)
+            }
+            if (p.has("water_interval_min")) {
+                prefs[KEY_WATER_INTERVAL_MIN] = p.optInt("water_interval_min", 60)
+            }
+            if (p.has("water_start_hour")) {
+                prefs[KEY_WATER_START_HOUR] = p.optInt("water_start_hour", 8)
+            }
+            if (p.has("water_end_hour")) {
+                prefs[KEY_WATER_END_HOUR] = p.optInt("water_end_hour", 22)
+            }
+            if (p.has("water_goal_ml")) {
+                prefs[KEY_WATER_GOAL] = p.optInt("water_goal_ml", 2000)
+            }
         }
     }
 
@@ -486,6 +588,31 @@ class CloudBackupManager(private val context: Context) {
         list.forEach { dao.insertDailyWater(it) }
     }
 
+    /** JSON array -> Room.water_intake_event */
+    private suspend fun restoreWaterEvents(array: JSONArray) {
+        val dao = AppDatabase.getDatabase(context).waterIntakeEventDao()
+
+        // event timeline tamamen restore edilsin
+        dao.clearAll()
+
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i) ?: continue
+            val date = obj.optString("date", "")
+            val timeMillis = obj.optLong("timeMillis", 0L)
+            val amountMl = obj.optInt("amountMl", 0)
+
+            if (date.isNotEmpty() && timeMillis > 0L && amountMl > 0) {
+                dao.insert(
+                    WaterIntakeEvent(
+                        date = date,
+                        timeMillis = timeMillis,
+                        amountMl = amountMl
+                    )
+                )
+            }
+        }
+    }
+
     /** JSON array -> Room.sleep_session + sleep_stage */
     private suspend fun restoreSleep(array: JSONArray) {
         val db = AppDatabase.getDatabase(context)
@@ -520,6 +647,7 @@ class CloudBackupManager(private val context: Context) {
 
         // Eski kayıtları temizle (date bazlı)
         sessions.map { it.date }.distinct().forEach { d ->
+            stageDao.deleteByDate(d)
             sessionDao.deleteByDate(d)
         }
 
@@ -561,6 +689,45 @@ class CloudBackupManager(private val context: Context) {
                         stageType = stageType,
                         startTime = stStart,
                         endTime = stEnd
+                    )
+                )
+            }
+        }
+    }
+
+    /** JSON array -> Room.workout_session */
+    private suspend fun restoreWorkoutSessions(array: JSONArray) {
+        val dao = AppDatabase.getDatabase(context).workoutSessionDao()
+
+        // mevcut tüm gerçek workout kayıtlarını temizle
+        val existing = dao.getAll().filter { it.source != "test" }
+        existing.forEach { dao.deleteById(it.id) }
+
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i) ?: continue
+
+            val date = obj.optString("date", "")
+            val startTime = obj.optLong("startTime", 0L)
+            val endTime = obj.optLong("endTime", 0L)
+            val durationMinutes = obj.optInt("durationMinutes", 0)
+            val steps = obj.optInt("steps", 0)
+            val distanceMeters = obj.optInt("distanceMeters", 0)
+            val caloriesKcal = obj.optInt("caloriesKcal", 0)
+            val avgStepsPerMinute = obj.optInt("avgStepsPerMinute", 0)
+            val source = obj.optString("source", "auto_walk")
+
+            if (date.isNotEmpty() && startTime > 0L && endTime >= startTime) {
+                dao.insert(
+                    com.example.stepforge.data.WorkoutSession(
+                        date = date,
+                        startTime = startTime,
+                        endTime = endTime,
+                        durationMinutes = durationMinutes,
+                        steps = steps,
+                        distanceMeters = distanceMeters,
+                        caloriesKcal = caloriesKcal,
+                        avgStepsPerMinute = avgStepsPerMinute,
+                        source = source
                     )
                 )
             }

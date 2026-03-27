@@ -2,4 +2,170 @@
     <string name="app_name">StepForge</string>
     <string name="runner_icon">Runner Icon</string>
     <string name="default_web_client_id">8469604814-evv9ekaemtdh1vtbf6e0dfh470e62hu8.apps.googleusercontent.com</string>
+    <string name="common_close">Close</string>
+
+    <string name="settings_language_title">Language</string>
+    <string name="settings_language_info">Change the app language without changing your phone language.</string>
+    <string name="settings_language_change_button">Change Language</string>
+    <string name="settings_language_dialog_title">Choose language</string>
+
+    <string name="settings_language_system_default">System default</string>
+    <string name="settings_language_turkish">Türkçe</string>
+
+    <string name="settings_language_current">Current: %1$s</string>
+
+    <string name="streak_analytics">Streak Analytics</string>
+    <string name="premium_enabled">Premium enabled</string>
+    <string name="premium_preview">Premium preview</string>
+    <string name="current_streak">Current streak</string>
+    <string name="days">days</string>
+    <string name="goal">Goal</string>
+    <string name="goal_completed_today">Goal completed today ✅</string>
+    <string name="not_completed_yet">Not completed yet</string>
+    <string name="longest_streak">Longest streak</string>
+    <string name="perfect_threshold">Perfect threshold</string>
+    <string name="weekly_analysis">Weekly Analysis</string>
+    <string name="avg_day">AVG/DAY</string>
+    <string name="goal_hit">GOAL HIT</string>
+    <string name="trend">TREND</string>
+    <string name="activity_behavior">Activity Behavior</string>
+    <string name="peak_hour">PEAK HOUR</string>
+    <string name="most_active">MOST ACTIVE</string>
+
+    <string name="today">Today</string>
+    <string name="premium_analytics">Premium Analytics</string>
+    <string name="premium_analytics_subtitle">Weekly and monthly breakdowns, consistency score, risk analysis, and goal prediction.</string>
+    <string name="monthly_heatmap">Monthly Heatmap (30d)</string>
+    <string name="active">Active</string>
+    <string name="perfect">Perfect</string>
+    <string name="consistency">Consistency</string>
+    <string name="consistency_note">Shows how stable your daily step pattern is over time</string>
+    <string name="activity">Activity</string>
+    <string name="activity_note">A combined score based on consistency and goal completion</string>
+    <string name="activity_insight">Your activity is %1$s by %2$d%% compared to last week.</string>
+    <string name="trend_up">up</string>
+    <string name="trend_down">down</string>
+    <string name="trend_stable">stable</string>
+    <string name="trend_new">new</string>
+    <string name="activity_rhythm_daytime">daytime</string>
+    <string name="activity_rhythm_evening">evening</string>
+    <string name="activity_behavior_note">Your activity peaks during the %1$s. Your routine looks consistent.</string>
+    <string name="streak_risk">Streak Risk</string>
+    <string name="goal_prediction">Goal prediction</string>
+    <string name="chance">Chance</string>
+    <string name="less">Less</string>
+    <string name="more">More</string>
+    <string name="perfect_day">Perfect Day</string>
+    <string name="days_suffix">%1$d days</string>
+
+    <string name="risk_note_not_enough_data">Not enough data yet.</string>
+    <string name="risk_note_goal_safe">Goal completed today. Your streak is safe.</string>
+    <string name="risk_note_high">Recent activity dropped by about %1$d%%. There is a high risk of losing your streak.</string>
+    <string name="risk_note_medium">Recent activity is down by about %1$d%%. Stay active to protect your streak.</string>
+    <string name="risk_note_low">You are close. Keep moving to maintain your streak.</string>
+
+    <string name="prediction_note_goal_not_set">Goal is not set.</string>
+    <string name="prediction_note_goal_reached">Goal reached.</string>
+    <string name="prediction_note_on_track">You are on track. Reaching your goal looks very likely.</string>
+    <string name="prediction_note_possible">You are slightly behind, but reaching your goal is still very possible.</string>
+    <string name="prediction_note_behind">You are behind schedule. A short walk now would help.</string>
+    <string name="prediction_note_risk">You are at risk. Consider a focused walking session.</string>
+
+    <!--Workouts-->
+    <string name="workouts_title">Workouts</string>
+    <string name="workouts_today_summary">Today’s workout summary</string>
+    <string name="workouts_today_duration">Workout time</string>
+    <string name="workouts_today_steps">Workout steps</string>
+    <string name="workouts_today_calories">Calories</string>
+    <string name="workouts_today_distance">Distance</string>
+    <string name="workouts_recent_sessions">Recent workouts</string>
+    <string name="workouts_no_sessions">No workout sessions yet.</string>
+    <string name="workouts_open_subtitle">View your walking workouts and session details.</string>
+    <string name="workouts_selected_session">Selected workout</string>
+    <string name="workouts_avg_pace">Average pace</string>
+    <string name="workouts_started_at">Started at</string>
+    <string name="workouts_finished_at">Finished at</string>
+    <string name="workouts_source_auto">Auto detected</string>
+    <string name="workouts_today_card_title">Today’s workouts</string>
+    <string name="workouts_today_card_empty">No workout recorded yet today.</string>
+    <string name="workouts_today_card_minutes">%1$d min walked today</string>
+    <string name="workouts_today_card_steps">%1$d steps • %2$s km • %3$d kcal</string>
+    <string name="workouts_filter_all">All</string>
+    <string name="workouts_filter_today">Today</string>
+    <string name="workouts_filter_week">7 days</string>
+    <string name="workouts_filter_test">Tests</string>
+    <string name="workouts_show_more">Show all workouts (%1$d)</string>
+    <string name="workouts_show_less">Show less</string>
+    <string name="workouts_live_selection">Live selection</string>
+    <string name="workouts_no_session">No session</string>
+    <string name="workouts_focused_session_details">Focused session details</string>
+    <string name="workouts_no_recorded_sessions">No recorded workout sessions</string>
+    <string name="workouts_session_source">Source</string>
+    <string name="workouts_workout_timeline">Workout timeline</string>
+    <string name="workouts_select_day_hint">Select a day to inspect its sessions.</string>
+    <string name="workouts_selected_day">Selected day</string>
+    <string name="workouts_sessions_on_selected_day">Sessions on selected day</string>
+    <string name="workouts_tap_session_hint">Tap a session to inspect its details below.</string>
+    <string name="workouts_weekly_insight">Weekly workout insight</string>
+    <string name="workouts_weekly_insight_subtitle">A compact read of your recent workout pattern.</string>
+    <string name="workouts_no_recent_activity">No recent activity</string>
+    <string name="workouts_high_momentum">High momentum</string>
+    <string name="workouts_balanced_week">Balanced week</string>
+    <string name="workouts_building_routine">Building routine</string>
+    <string name="workouts_low_activity">Low activity</string>
+    <string name="workouts_best_recent_session">Best recent session</string>
+
+    <string name="workouts_intensity_high">High</string>
+    <string name="workouts_intensity_moderate">Moderate</string>
+    <string name="workouts_intensity_light">Light</string>
+
+    <string name="workouts_consistency_strong">Strong</string>
+    <string name="workouts_consistency_building">Building</string>
+    <string name="workouts_consistency_starting">Starting</string>
+    <string name="workouts_consistency_none">None</string>
+
+    <string name="workouts_coaching_strong">This session shows sustained effort with strong pace and duration.</string>
+    <string name="workouts_coaching_balanced">A balanced session with healthy rhythm and good continuity.</string>
+    <string name="workouts_coaching_short">A short burst session that works well for quick movement breaks.</string>
+    <string name="workouts_coaching_steady">A steady session. Extending duration slightly could improve its training value.</string>
+
+    <string name="workouts_weekly_note_empty">No recent workout sessions yet. As sessions build up, this section will surface your weekly movement pattern.</string>
+    <string name="workouts_weekly_note_strong">Your weekly profile shows strong consistency, good volume, and sustained movement quality.</string>
+    <string name="workouts_weekly_note_balanced">You are maintaining a balanced weekly pattern. Slightly longer sessions could improve overall output.</string>
+    <string name="workouts_weekly_note_building">You are building a routine. More frequent sessions would make your weekly pattern stronger and more stable.</string>
+    <string name="workouts_weekly_note_light">Your current workload is still light. Short but regular walks can quickly improve this trend.</string>
+    <string name="workouts_sessions_label">Sessions</string>
+    <string name="workouts_steps_label">Steps</string>
+    <string name="workouts_duration_label">Duration</string>
+    <string name="workouts_distance_label">Distance</string>
+    <string name="workouts_calories_label">Calories</string>
+    <string name="workouts_weekly_rhythm_subtitle">Your weekly movement rhythm at a glance.</string>
+    <string name="workouts_day_state_no_sessions">No sessions</string>
+    <string name="workouts_day_state_strong">Strong day</string>
+    <string name="workouts_day_state_balanced">Balanced day</string>
+    <string name="workouts_day_state_light">Light day</string>
+    <string name="workouts_score">Score</string>
+    <string name="workouts_longest_label">Longest</string>
+    <string name="m">min</string>
+    <string name="workouts_previous_week">Previous week</string>
+    <string name="workouts_next_week">Next week</string>
+    <string name="workouts_this_week">This week</string>
+    <string name="workouts_selected_day_subtitle">A focused summary of the selected day.</string>
+    <string name="workouts_weekly_strip_subtitle">Weekly movement overview</string>
+    <string name="workouts_week_range">%1$s - %2$s</string>
+    <string name="workouts_week_sessions_short">%1$d sessions</string>
+    <string name="workouts_week_duration_short">%1$d min</string>
+    <string name="workouts_week_steps_short">%1$d steps</string>
+
+    <!--Widget-->
+    <string name="widget_today">Today</string>
+    <string name="widget_goal_placeholder">Goal 10,000</string>
+    <string name="widget_goal_format">Goal %1$s</string>
+    <string name="widget_goal_of_placeholder">of 10,000</string>
+    <string name="widget_goal_of_format">of %1$s</string>
+    <string name="widget_percent_placeholder">0%%</string>
+    <string name="widget_percent_of_goal_format">%1$d%% of goal</string>
+    <string name="widget_distance_placeholder">0 km</string>
+    <string name="widget_distance_approx_km_format">~%1$s km</string>
+    <string name="widget_steps_label">steps</string>
 </resources>

@@ -1,4 +1,4 @@
-package com.example.stepforge.ui.insights
+package com.example.stepforge.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,78 +29,77 @@ fun PremiumGate(
     onUnlockClick: () -> Unit,
     content: @Composable () -> Unit
 ) {
+
     val cs = MaterialTheme.colorScheme
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
+            .wrapContentHeight() // Sadece içeriği kadar yer kaplasın
     ) {
 
-        // MAIN CONTENT (blurred)
+        // CONTENT
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .then(if (!premiumEnabled) Modifier.blur(22.dp) else Modifier)
+                .then(
+                    if (!premiumEnabled) Modifier.height(260.dp).blur(16.dp)
+                    else Modifier.wrapContentHeight()
+                )
         ) {
             content()
         }
 
-        // PREMIUM LOCK OVERLAY
+        // OVERLAY
         if (!premiumEnabled) {
-
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
                     .matchParentSize()
-                    // this blocks ALL clicks from going through
-                    .pointerInput(Unit) {}
                     .background(
                         Brush.verticalGradient(
                             listOf(
-                                Color.Black.copy(alpha = 0.70f),
-                                Color.Black.copy(alpha = 0.92f)
+                                cs.background.copy(alpha = 0.85f),
+                                cs.background.copy(alpha = 0.98f)
                             )
                         )
                     )
                     .clickable(
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() }
-                    ) {
-                        onUnlockClick()
-                    }
-                    .padding(18.dp),
+                    ) { onUnlockClick() },
                 contentAlignment = Alignment.Center
             ) {
 
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(22.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
 
                     Icon(
                         imageVector = Icons.Outlined.Lock,
                         contentDescription = null,
                         tint = Color(0xFF00FFA3),
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(26.dp)
                     )
 
                     Text(
                         text = title,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = Color.White
+                        fontSize = 18.sp,
+                        color = cs.onBackground
                     )
 
                     Text(
                         text = subtitle,
-                        fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.72f),
-                        lineHeight = 16.sp
+                        fontSize = 13.sp,
+                        color = cs.onBackground.copy(alpha = 0.75f),
+                        lineHeight = 18.sp
                     )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(Modifier.height(6.dp))
 
                     Button(
                         onClick = onUnlockClick,
@@ -111,19 +110,19 @@ fun PremiumGate(
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp)
+                            .height(54.dp)
                     ) {
                         Text(
                             text = "Unlock Premium",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                            fontSize = 15.sp
                         )
                     }
 
                     Text(
                         text = "Tap anywhere to unlock",
-                        fontSize = 10.sp,
-                        color = Color.White.copy(alpha = 0.55f)
+                        fontSize = 11.sp,
+                        color = cs.onBackground.copy(alpha = 0.55f)
                     )
                 }
             }
