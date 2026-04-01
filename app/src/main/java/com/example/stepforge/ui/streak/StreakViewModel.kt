@@ -81,10 +81,44 @@ class StreakViewModel(
                 val last14 = listForDates(dates14)
                 val last30 = listForDates(dates30)
 
-                val currentStreak = StreakAnalyticsEngine.computeCurrentStreakIncludingToday(
+                val shieldTodayMinutesLeft = prefs[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] ?: 0
+                val shieldTodayMaxMinutes = prefs[StreakShieldPrefs.SHIELD_TODAY_MAX_MINUTES] ?: 0
+
+                val shieldTomorrowBaseHours = prefs[StreakShieldPrefs.SHIELD_TOMORROW_BASE_HOURS] ?: 0
+                val shieldTomorrowGoalBonusHours = prefs[StreakShieldPrefs.SHIELD_TOMORROW_GOAL_BONUS_HOURS] ?: 0
+                val shieldTomorrowFinalHours = prefs[StreakShieldPrefs.SHIELD_TOMORROW_FINAL_HOURS] ?: 0
+                val shieldTomorrowMaxHours = prefs[StreakShieldPrefs.SHIELD_TOMORROW_MAX_HOURS] ?: 0
+
+                val premiumAutoRescueEnabled = prefs[StreakShieldPrefs.PREMIUM_AUTO_RESCUE_ENABLED] ?: false
+                val premiumAiCoachEnabled = prefs[StreakShieldPrefs.PREMIUM_AI_COACH_ENABLED] ?: false
+
+                val isPremium = (prefs[intPreferencesKey("premium_enabled")] ?: 0) == 1
+
+                val currentMonth = java.time.LocalDate.now().let { "%04d-%02d".format(it.year, it.monthValue) }
+                val savedMonth = prefs[StreakShieldPrefs.PREMIUM_RESCUE_MONTH] ?: currentMonth
+                val usedCount = if (savedMonth == currentMonth) {
+                    prefs[StreakShieldPrefs.PREMIUM_RESCUE_USED_COUNT] ?: 0
+                } else {
+                    0
+                }
+                val premiumRescuesLeft =
+                    (StreakShieldEngine.getMonthlyPremiumRescueLimit() - usedCount).coerceAtLeast(0)
+
+                val rescueUsedDate = prefs[StreakShieldPrefs.PREMIUM_RESCUE_USED_FOR_DATE] ?: ""
+                val rescueUsedToday = rescueUsedDate == today
+
+                val todayCountsForStreak = StreakDayQualifier.qualifyDay(
+                    steps = todaySteps,
+                    goal = goal,
+                    shieldMinutesLeft = shieldTodayMinutesLeft,
+                    rescueUsedForDay = rescueUsedToday
+                ).countsForStreak
+
+                val currentStreak = StreakAnalyticsEngine.computeCurrentStreakWithTodayOverride(
                     dailyByDate = mapByDate,
                     goal = goal,
-                    today = today
+                    today = today,
+                    todayCountsForStreak = todayCountsForStreak
                 )
                 val longestStreak = StreakAnalyticsEngine.computeLongestStreak(
                     dailySortedAsc = sortedAsc,
@@ -163,7 +197,21 @@ class StreakViewModel(
                     goalPredictionNoteType = chanceNoteType,
 
                     last7Steps = StreakAnalyticsEngine.buildLast7Points(last7, goal),
-                    last30Heat = StreakAnalyticsEngine.buildHeat30(last30, goal)
+                    last30Heat = StreakAnalyticsEngine.buildHeat30(last30, goal),
+
+                    isPremium = isPremium,
+
+                    shieldTodayMinutesLeft = shieldTodayMinutesLeft,
+                    shieldTodayMaxMinutes = shieldTodayMaxMinutes,
+
+                    shieldTomorrowBaseHours = shieldTomorrowBaseHours,
+                    shieldTomorrowGoalBonusHours = shieldTomorrowGoalBonusHours,
+                    shieldTomorrowFinalHours = shieldTomorrowFinalHours,
+                    shieldTomorrowMaxHours = shieldTomorrowMaxHours,
+
+                    premiumRescuesLeft = premiumRescuesLeft,
+                    premiumAutoRescueEnabled = premiumAutoRescueEnabled,
+                    premiumAiCoachEnabled = premiumAiCoachEnabled
                 )
             }
 

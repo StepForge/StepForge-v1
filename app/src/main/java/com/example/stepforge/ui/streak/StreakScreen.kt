@@ -259,6 +259,30 @@ private fun StreakScreenContent(
                 }
             }
 
+            item(key = "shieldStatus") {
+                ShieldStatusCard(
+                    todayShieldMinutesLeft = state.shieldTodayMinutesLeft,
+                    todayShieldMaxMinutes = state.shieldTodayMaxMinutes,
+                    tomorrowBaseHours = state.shieldTomorrowBaseHours,
+                    tomorrowGoalBonusHours = state.shieldTomorrowGoalBonusHours,
+                    tomorrowFinalHours = state.shieldTomorrowFinalHours,
+                    isPremium = state.isPremium,
+                    shadow = cardShadow,
+                    border = border
+                )
+            }
+
+            if (state.isPremium) {
+                item(key = "premiumRescue") {
+                    PremiumRescueCard(
+                        rescuesLeft = state.premiumRescuesLeft,
+                        enabled = state.premiumAutoRescueEnabled,
+                        shadow = cardShadow,
+                        border = border
+                    )
+                }
+            }
+
             item(key = "premiumGate") {
                 PremiumGate(
                     premiumEnabled = premiumEnabled,
@@ -1035,3 +1059,145 @@ private fun Modifier.debugOutline(color: Color): Modifier = this.then(
         drawRect(color = color, style = Stroke(width = 2f))
     }
 )
+
+@Composable
+private fun ShieldStatusCard(
+    todayShieldMinutesLeft: Int,
+    todayShieldMaxMinutes: Int,
+    tomorrowBaseHours: Int,
+    tomorrowGoalBonusHours: Int,
+    tomorrowFinalHours: Int,
+    isPremium: Boolean,
+    shadow: androidx.compose.ui.unit.Dp,
+    border: Color
+) {
+    val cs = MaterialTheme.colorScheme
+
+    val totalProgress = if (todayShieldMaxMinutes <= 0) {
+        0f
+    } else {
+        (todayShieldMinutesLeft.toFloat() / todayShieldMaxMinutes.toFloat()).coerceIn(0f, 1f)
+    }
+
+    ElevatedPremiumCard(shadow = shadow, border = border, bg = cs.surface) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.streak_shield_title),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = cs.onSurface
+            )
+
+            Text(
+                text = stringResource(
+                    R.string.streak_shield_left_format,
+                    todayShieldMinutesLeft / 60,
+                    todayShieldMinutesLeft % 60
+                ),
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF00FFA3)
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(cs.onSurface.copy(alpha = 0.08f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(totalProgress.coerceIn(0.02f, 1f))
+                        .height(10.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color(0xFF00FFA3), Color(0xFF00F5FF))
+                            )
+                        )
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = stringResource(R.string.streak_shield_tomorrow),
+                    fontSize = 12.sp,
+                    color = cs.onSurface.copy(alpha = 0.65f)
+                )
+
+                Text(
+                    text = stringResource(R.string.streak_shield_hours_format, tomorrowFinalHours),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = cs.onSurface
+                )
+
+                Text(
+                    text = stringResource(
+                        R.string.streak_shield_breakdown_format,
+                        tomorrowBaseHours,
+                        tomorrowGoalBonusHours
+                    ),
+                    fontSize = 11.sp,
+                    color = cs.onSurface.copy(alpha = 0.72f)
+                )
+
+                if (isPremium) {
+                    Text(
+                        text = stringResource(R.string.streak_shield_premium_cap_active),
+                        fontSize = 11.sp,
+                        color = Color(0xFF00F5FF)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PremiumRescueCard(
+    rescuesLeft: Int,
+    enabled: Boolean,
+    shadow: androidx.compose.ui.unit.Dp,
+    border: Color
+) {
+    val cs = MaterialTheme.colorScheme
+
+    ElevatedPremiumCard(shadow = shadow, border = border, bg = cs.surface) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.premium_rescue_title),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = cs.onSurface
+            )
+
+            Text(
+                text = stringResource(R.string.premium_rescue_left_format, rescuesLeft),
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF00F5FF)
+            )
+
+            Text(
+                text = if (enabled) {
+                    stringResource(R.string.premium_rescue_auto_enabled)
+                } else {
+                    stringResource(R.string.premium_rescue_auto_disabled)
+                },
+                fontSize = 12.sp,
+                color = cs.onSurface.copy(alpha = 0.72f)
+            )
+        }
+    }
+}

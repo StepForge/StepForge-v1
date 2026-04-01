@@ -32,7 +32,6 @@ data class StreakUiState(
     val peakHourLabel: String = "-",
     val mostActiveDayLabel: String = "-",
 
-    // ✅ bunu geri koy
     val streakRiskLevel: StreakRiskLevel = StreakRiskLevel.LOW,
     val streakRiskNoteType: RiskNoteType = RiskNoteType.NOT_ENOUGH_DATA,
     val streakRiskDropPercent: Int = 0,
@@ -41,7 +40,21 @@ data class StreakUiState(
     val goalPredictionNoteType: PredictionNoteType = PredictionNoteType.GOAL_NOT_SET,
 
     val last7Steps: List<DayPoint> = emptyList(),
-    val last30Heat: List<HeatCell> = emptyList()
+    val last30Heat: List<HeatCell> = emptyList(),
+
+    val isPremium: Boolean = false,
+
+    val shieldTodayMinutesLeft: Int = 0,
+    val shieldTodayMaxMinutes: Int = 0,
+
+    val shieldTomorrowBaseHours: Int = 0,
+    val shieldTomorrowGoalBonusHours: Int = 0,
+    val shieldTomorrowFinalHours: Int = 0,
+    val shieldTomorrowMaxHours: Int = 0,
+
+    val premiumRescuesLeft: Int = 0,
+    val premiumAutoRescueEnabled: Boolean = false,
+    val premiumAiCoachEnabled: Boolean = false
 )
 
 @Immutable

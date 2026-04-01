@@ -1,14 +1,11 @@
 package com.example.stepforge.settings
 
-import androidx.compose.ui.res.stringResource
-import com.example.stepforge.R
-import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.os.LocaleListCompat
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -79,6 +76,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.os.LocaleListCompat
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -87,6 +85,7 @@ import com.example.stepforge.AboutActivity
 import com.example.stepforge.FeedbackActivity
 import com.example.stepforge.PrivacySecurityActivity
 import com.example.stepforge.ProfileSettingsActivity
+import com.example.stepforge.R
 import com.example.stepforge.SettingsActivity
 import com.example.stepforge.SleepActivity
 import com.example.stepforge.StepCounterService
@@ -98,10 +97,10 @@ import com.example.stepforge.notification.WaterReminderScheduler
 import com.example.stepforge.steps.StepEvents
 import com.example.stepforge.ui.components.CustomTimePicker
 import com.example.stepforge.ui.components.HealthSyncManager
+import com.example.stepforge.ui.streak.StreakShieldPrefs
 import com.example.stepforge.widget.StepWidgetCompactProvider
 import com.example.stepforge.widget.StepWidgetLargeProvider
 import com.example.stepforge.widget.StepWidgetProvider
-import com.google.firebase.appcheck.interop.BuildConfig
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -736,6 +735,23 @@ fun SettingsScreen(
                 }
 
 
+                SettingItem(
+                    icon = Icons.Outlined.Info,
+                    title = "Smart Coach Alerts",
+                    infoText = stringResource(R.string.premium_ai_info_text),
+                    openInfoCard = openInfoCard,
+                    onInfoAnchor = { rect, text ->
+                        infoAnchor = rect
+                        infoText = text
+                        openInfoCard.value = text
+                    },
+                    alwaysExpanded = true,
+                    darkTheme = isDark
+                ) {
+                    PremiumAiCoachToggle(darkTheme = isDark)
+                }
+
+
 
 
 
@@ -1080,10 +1096,11 @@ private fun PremiumDebugToggle(darkTheme: Boolean) {
 
     val premiumKey = intPreferencesKey("premium_enabled")
 
-    val premiumFlow = ctx.stepforgeStore.data.map { prefs ->
-        (prefs[premiumKey] ?: 0) == 1
+    val premiumFlow = remember(ctx) {
+        ctx.stepforgeStore.data.map { prefs ->
+            (prefs[premiumKey] ?: 0) == 1
+        }
     }
-
     val isPremium by premiumFlow.collectAsState(initial = false)
 
     val rowBg = if (darkTheme) Color(0xFF101218) else Color(0xFFFFFFFF)
@@ -1123,6 +1140,87 @@ private fun PremiumDebugToggle(darkTheme: Boolean) {
                     }
                 }
             },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color(0xFF00FFA3),
+                checkedTrackColor = Color(0xFF004D40)
+            )
+        )
+    }
+}
+
+
+@Composable
+private fun PremiumAiCoachToggle(
+    darkTheme: Boolean
+) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    val premiumKey = intPreferencesKey("premium_enabled")
+    val aiCoachKey = StreakShieldPrefs.PREMIUM_AI_COACH_ENABLED
+
+    val premiumFlow = remember(ctx) {
+        ctx.stepforgeStore.data.map { prefs ->
+            (prefs[premiumKey] ?: 0) == 1
+        }
+    }
+    val isPremium by premiumFlow.collectAsState(initial = false)
+
+    val aiCoachFlow = remember(ctx) {
+        ctx.stepforgeStore.data.map { prefs ->
+            prefs[aiCoachKey] ?: false
+        }
+    }
+    val aiCoachEnabled by aiCoachFlow.collectAsState(initial = false)
+
+    val rowBg = if (darkTheme) Color(0xFF101218) else Color(0xFFFFFFFF)
+    val rowBorder = if (darkTheme) Color.Transparent else Color(0x1A1A202C)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(rowBg, RoundedCornerShape(18.dp))
+            .border(1.dp, rowBorder, RoundedCornerShape(18.dp))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = if (isPremium) {
+                    stringResource(R.string.premium_ai_toggle_title)
+                } else {
+                    stringResource(R.string.premium_ai_toggle_title_locked)
+                },
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Text(
+                text = if (isPremium) {
+                    stringResource(R.string.premium_ai_toggle_desc_enabled)
+                } else {
+                    stringResource(R.string.premium_ai_toggle_desc_locked)
+                },
+                fontSize = 11.sp,
+                color = if (darkTheme) Color.White.copy(alpha = 0.75f) else Color.Black.copy(alpha = 0.7f)
+            )
+        }
+
+        Switch(
+            checked = isPremium && aiCoachEnabled,
+            onCheckedChange = { enabled ->
+                if (!isPremium) return@Switch
+
+                scope.launch {
+                    ctx.stepforgeStore.edit { prefs ->
+                        prefs[aiCoachKey] = enabled
+                    }
+                }
+            },
+            enabled = isPremium,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color(0xFF00FFA3),
                 checkedTrackColor = Color(0xFF004D40)

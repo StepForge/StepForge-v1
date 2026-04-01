@@ -263,4 +263,37 @@ object StreakAnalyticsEngine {
             "?"
         }
     }
+
+
+    fun computeCurrentStreakWithTodayOverride(
+        dailyByDate: Map<String, Int>,
+        goal: Int,
+        today: String,
+        todayCountsForStreak: Boolean
+    ): Int {
+        var streak = 0
+        var cal = Calendar.getInstance().apply { time = ymd.parse(today) ?: time }
+        var firstDay = true
+
+        while (true) {
+            val d = ymd.format(cal.time)
+
+            val counts = if (firstDay) {
+                todayCountsForStreak
+            } else {
+                val steps = dailyByDate[d] ?: 0
+                steps >= goal
+            }
+
+            if (counts) {
+                streak++
+                cal.add(Calendar.DAY_OF_YEAR, -1)
+                firstDay = false
+            } else {
+                break
+            }
+        }
+
+        return streak
+    }
 }

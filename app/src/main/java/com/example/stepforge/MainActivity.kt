@@ -111,6 +111,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.lifecycleScope
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -128,7 +129,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.concurrent.TimeUnit
@@ -148,33 +148,33 @@ class MainActivity : AppCompatActivity() {
     @Volatile
     private var isLockScreenShowing: Boolean = false
 
-    private fun getAppLockTimeoutSeconds(): Int = runBlocking {
+    private suspend fun getAppLockTimeoutSeconds(): Int {
         val prefs = applicationContext.stepforgeStore.data.first()
-        prefs[KEY_APP_LOCK_TIMEOUT] ?: 0
+        return prefs[KEY_APP_LOCK_TIMEOUT] ?: 0
     }
 
-    private fun getLastBackgroundTime(): Long = runBlocking {
+    private suspend fun getLastBackgroundTime(): Long {
         val prefs = applicationContext.stepforgeStore.data.first()
-        prefs[KEY_APP_LOCK_LAST_BG] ?: 0L
+        return prefs[KEY_APP_LOCK_LAST_BG] ?: 0L
     }
 
-    private fun setLastBackgroundTime(value: Long) = runBlocking {
+    private suspend fun setLastBackgroundTime(value: Long) {
         applicationContext.stepforgeStore.edit { prefs ->
             prefs[KEY_APP_LOCK_LAST_BG] = value
         }
     }
 
-    private fun isAppLockEnabled(): Boolean = runBlocking {
+    private suspend fun isAppLockEnabled(): Boolean {
         val prefs = applicationContext.stepforgeStore.data.first()
-        (prefs[KEY_APP_LOCK_ENABLED] ?: 0) == 1
+        return (prefs[KEY_APP_LOCK_ENABLED] ?: 0) == 1
     }
 
-    private fun isSessionUnlocked(): Boolean = runBlocking {
+    private suspend fun isSessionUnlocked(): Boolean {
         val prefs = applicationContext.stepforgeStore.data.first()
-        (prefs[KEY_APP_LOCK_SESSION_UNLOCKED] ?: 0) == 1
+        return (prefs[KEY_APP_LOCK_SESSION_UNLOCKED] ?: 0) == 1
     }
 
-    private fun setSessionUnlocked(unlocked: Boolean) = runBlocking {
+    private suspend fun setSessionUnlocked(unlocked: Boolean) {
         applicationContext.stepforgeStore.edit { prefs ->
             prefs[KEY_APP_LOCK_SESSION_UNLOCKED] = if (unlocked) 1 else 0
         }
@@ -187,7 +187,9 @@ class MainActivity : AppCompatActivity() {
         if (result.resultCode != RESULT_OK) {
             finish()
         } else {
-            setSessionUnlocked(true)
+            lifecycleScope.launch {
+                setSessionUnlocked(true)
+            }
         }
     }
 
@@ -201,15 +203,15 @@ class MainActivity : AppCompatActivity() {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
 
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-            val packageName = packageName
+            val pkg = packageName
 
-            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            if (!pm.isIgnoringBatteryOptimizations(pkg)) {
                 Log.w("StepForge", "Battery optimization is ON. Requesting whitelist...")
 
                 prefs.edit().putBoolean("battery_opt_asked", true).apply()
 
                 val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                    data = Uri.parse("package:$packageName")
+                    data = Uri.parse("package:$pkg")
                 }
                 startActivity(intent)
             } else {
@@ -228,43 +230,38 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val seen = runBlocking {
+        lifecycleScope.launch {
             val prefs = applicationContext.stepforgeStore.data.first()
-            (prefs[KEY_ONBOARDING_DONE] ?: 0) == 1
-        }
+            val seen = (prefs[KEY_ONBOARDING_DONE] ?: 0) == 1
 
-        if (!seen) {
-            startActivity(Intent(this, OnboardingActivity::class.java))
-            finish()
-            return
-        }
+            if (!seen) {
+                startActivity(Intent(this@MainActivity, OnboardingActivity::class.java))
+                finish()
+                return@launch
+            }
 
-        // 1) Battery optimization önce
-        requestIgnoreBatteryOptimizationsOnce()
+            requestIgnoreBatteryOptimizationsOnce()
 
-        // 2) Exact alarm isteği
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val am = getSystemService(AlarmManager::class.java)
-            if (am != null && !am.canScheduleExactAlarms()) {
-                try {
-                    val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                    intent.data = Uri.parse("package:$packageName")
-                    startActivity(intent)
-                } catch (_: Exception) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val am = getSystemService(AlarmManager::class.java)
+                if (am != null && !am.canScheduleExactAlarms()) {
+                    try {
+                        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                        intent.data = Uri.parse("package:$packageName")
+                        startActivity(intent)
+                    } catch (_: Exception) {
+                    }
                 }
             }
+
+            askPermissionsAndStartService()
+
+            setContent {
+                MainRoot()
+            }
+
+            analytics = Firebase.analytics
         }
-
-        // 3) Permission check + service start
-        askPermissionsAndStartService()
-
-        // 4) UI
-        setContent {
-            MainRoot()
-        }
-
-        // Obtain the FirebaseAnalytics instance.
-        analytics = Firebase.analytics
     }
 
 
@@ -272,34 +269,39 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
 
-        ensureMidnightResetConsistency()
+        lifecycleScope.launch {
+            ensureMidnightResetConsistency()
 
-        if (!isAppLockEnabled()) return
-        if (isLockScreenShowing) return
+            if (!isAppLockEnabled()) return@launch
+            if (isLockScreenShowing) return@launch
 
-        val timeout = getAppLockTimeoutSeconds()
-        val lastBg = getLastBackgroundTime()
-        val now = System.currentTimeMillis()
+            val timeout = getAppLockTimeoutSeconds()
+            val lastBg = getLastBackgroundTime()
+            val now = System.currentTimeMillis()
 
-        if (lastBg == 0L) return
+            if (lastBg == 0L) return@launch
 
-        val diffSeconds = (now - lastBg) / 1000L
-        val shouldLock = when (timeout) {
-            0 -> true
-            else -> diffSeconds >= timeout
-        }
+            val diffSeconds = (now - lastBg) / 1000L
+            val shouldLock = when (timeout) {
+                0 -> true
+                else -> diffSeconds >= timeout
+            }
 
-        if (shouldLock && !isSessionUnlocked()) {
-            isLockScreenShowing = true
-            val intent = Intent(this, LockActivity::class.java)
-            lockLauncher.launch(intent)
+            if (shouldLock && !isSessionUnlocked()) {
+                isLockScreenShowing = true
+                val intent = Intent(this@MainActivity, LockActivity::class.java)
+                lockLauncher.launch(intent)
+            }
         }
     }
 
     override fun onStop() {
         super.onStop()
-        setLastBackgroundTime(System.currentTimeMillis())
-        setSessionUnlocked(false)
+
+        lifecycleScope.launch {
+            setLastBackgroundTime(System.currentTimeMillis())
+            setSessionUnlocked(false)
+        }
     }
 
     private fun askPermissionsAndStartService() {
@@ -367,42 +369,32 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun hasServiceResetToday(): Boolean = runBlocking {
+    private suspend fun hasServiceResetToday(): Boolean {
         val prefs = applicationContext.stepforgeStore.data.first()
         val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
             .format(java.util.Date())
-        (prefs[StepCounterService.LAST_RESET_DATE] ?: "") == today
+        return (prefs[StepCounterService.LAST_RESET_DATE] ?: "") == today
     }
 
-    private fun ensureMidnightResetConsistency() {
+    private suspend fun ensureMidnightResetConsistency() {
         try {
             val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
             val today = sdf.format(java.util.Date())
 
-            // ✅ 1) Eğer servis zaten bugün reset yaptıysa çık
             if (hasServiceResetToday()) {
                 Log.d("StepForge", "ensureMidnightResetConsistency: already reset today, skipping.")
                 return
             }
 
-            // ✅ 2) DataStore bazen 00:00 civarı gecikmeli güncellenebiliyor.
-            // Bu yüzden "missed" demeden önce 1 kez daha kontrol et.
-            val last = runBlocking {
-                val prefs = applicationContext.stepforgeStore.data.first()
-                prefs[StepCounterService.LAST_RESET_DATE] ?: ""
-            }
+            val prefs = applicationContext.stepforgeStore.data.first()
+            val last = prefs[StepCounterService.LAST_RESET_DATE] ?: ""
 
             if (last == today) {
                 Log.d("StepForge", "ensureMidnightResetConsistency: LAST_RESET_DATE already today, skipping.")
                 return
             }
 
-            // ✅ 3) Ek güvenlik: Eğer persisted_total_sum zaten 0 ise (yeni gün başlamış gibi),
-            // tekrar reset tetikleme.
-            val persistedSum = runBlocking {
-                val prefs = applicationContext.stepforgeStore.data.first()
-                prefs[intPreferencesKey("persisted_total_sum")] ?: -1
-            }
+            val persistedSum = prefs[intPreferencesKey("persisted_total_sum")] ?: -1
             if (persistedSum == 0) {
                 Log.d("StepForge", "ensureMidnightResetConsistency: persisted_total_sum=0, skipping force reset.")
                 return
@@ -413,6 +405,7 @@ class MainActivity : AppCompatActivity() {
             val resetIntent = Intent(this, StepCounterService::class.java).apply {
                 putExtra("forceReset", true)
             }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(resetIntent)
             } else {

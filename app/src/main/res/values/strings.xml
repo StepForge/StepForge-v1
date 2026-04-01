@@ -14,6 +14,8 @@
 
     <string name="settings_language_current">Current: %1$s</string>
 
+    <!--Streak-->
+
     <string name="streak_analytics">Streak Analytics</string>
     <string name="premium_enabled">Premium enabled</string>
     <string name="premium_preview">Premium preview</string>
@@ -71,6 +73,25 @@
     <string name="prediction_note_behind">You are behind schedule. A short walk now would help.</string>
     <string name="prediction_note_risk">You are at risk. Consider a focused walking session.</string>
 
+
+    <string name="streak_shield_title">Streak Shield</string>
+    <string name="streak_shield_left_format">%1$dh %2$dm left</string>
+    <string name="streak_shield_tomorrow">Tomorrow shield</string>
+    <string name="streak_shield_hours_format">%1$d h</string>
+    <string name="streak_shield_breakdown_format">Base: %1$dh • Goal bonus: +%2$dh</string>
+    <string name="streak_shield_premium_cap_active">Premium cap active</string>
+
+    <string name="premium_rescue_title">Premium Rescue</string>
+    <string name="premium_rescue_left_format">%1$d / 5 left</string>
+    <string name="premium_rescue_auto_enabled">Auto rescue is enabled.</string>
+    <string name="premium_rescue_auto_disabled">Auto rescue is disabled.</string>
+
+    <string name="premium_ai_toggle_title">Smart Coach Alerts</string>
+    <string name="premium_ai_toggle_title_locked">Smart Coach Alerts (Premium)</string>
+    <string name="premium_ai_toggle_desc_enabled">Receive premium streak protection and milestone notifications.</string>
+    <string name="premium_ai_toggle_desc_locked">Unlock premium to enable AI-style streak guidance notifications.</string>
+
+    <string name="premium_ai_info_text">Premium-only smart notifications for streak risk, protection milestones and goal proximity.</string>
     <!--Workouts-->
     <string name="workouts_title">Workouts</string>
     <string name="workouts_today_summary">Today’s workout summary</string>
@@ -156,6 +177,23 @@
     <string name="workouts_week_sessions_short">%1$d sessions</string>
     <string name="workouts_week_duration_short">%1$d min</string>
     <string name="workouts_week_steps_short">%1$d steps</string>
+
+    <!--Premium Coauch-->
+    <string name="premium_coach_channel_name">Smart Coach Alerts</string>
+    <string name="premium_coach_channel_desc">Premium streak and shield guidance notifications</string>
+
+    <string name="premium_coach_title_streak_risk">Streak at risk</string>
+    <string name="premium_coach_title_next_shield">Shield milestone nearby</string>
+    <string name="premium_coach_title_goal_close">Goal almost complete</string>
+    <string name="premium_coach_title_rescue_ready">Protection running low</string>
+    <string name="premium_coach_title_low_activity">Low activity today</string>
+
+    <string name="premium_coach_body_streak_risk">Low activity today. A short walk can protect your streak.</string>
+    <string name="premium_coach_body_next_shield">%1$d more steps unlock the next shield hour.</string>
+    <string name="premium_coach_body_goal_close">Finish today’s goal to secure bonus protection.</string>
+    <string name="premium_coach_body_rescue_ready">Your shield is almost empty (%1$dh %2$dm left). Premium rescue is available.</string>
+    <string name="premium_coach_body_low_activity">You are quieter than usual. A short walk now helps keep your rhythm stable.</string>
+
 
     <!--Widget-->
     <string name="widget_today">Today</string>

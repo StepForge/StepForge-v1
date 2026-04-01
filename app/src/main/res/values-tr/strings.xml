@@ -70,6 +70,25 @@
     <string name="prediction_note_behind">Programın gerisindesiniz. Kısa bir yürüyüş faydalı olacaktır.</string>
     <string name="prediction_note_risk">Risk altındasınız. Odaklı bir yürüyüş seansı yapmayı düşünebilirsiniz.</string>
 
+
+    <string name="streak_shield_title">Seri Koruması</string>
+    <string name="streak_shield_left_format">%1$dsa %2$ddk kaldı</string>
+    <string name="streak_shield_tomorrow">Yarının koruması</string>
+    <string name="streak_shield_hours_format">%1$d sa</string>
+    <string name="streak_shield_breakdown_format">Temel: %1$dsa • Hedef bonusu: +%2$dsa</string>
+    <string name="streak_shield_premium_cap_active">Premium üst sınırı aktif</string>
+
+    <string name="premium_rescue_title">Premium Kurtarma</string>
+    <string name="premium_rescue_left_format">%1$d / 5 kaldı</string>
+    <string name="premium_rescue_auto_enabled">Otomatik kurtarma açık.</string>
+    <string name="premium_rescue_auto_disabled">Otomatik kurtarma kapalı.</string>
+
+    <string name="premium_ai_toggle_title">Akıllı Koç Bildirimleri</string>
+    <string name="premium_ai_toggle_title_locked">Akıllı Koç Bildirimleri (Premium)</string>
+    <string name="premium_ai_toggle_desc_enabled">Premium seri koruması ve kilometre taşı bildirimleri al.</string>
+    <string name="premium_ai_toggle_desc_locked">Yapay zekâ tarzı seri rehberliği bildirimlerini açmak için premium kilidini aç.</string>
+
+    <string name="premium_ai_info_text">Seri riski, koruma kilometre taşları ve hedef yakınlığı için premium akıllı bildirimler.</string>
     <!--Egzersizler-->
     <string name="workouts_title">Egzersizler</string>
     <string name="workouts_today_summary">Bugünkü egzersiz özeti</string>
@@ -155,6 +174,24 @@
     <string name="workouts_week_sessions_short">%1$d oturum</string>
     <string name="workouts_week_duration_short">%1$d dk</string>
     <string name="workouts_week_steps_short">%1$d adım</string>
+
+
+    <!-->Akıllı Koç-->
+    <string name="premium_coach_channel_name">Akıllı Koç Bildirimleri</string>
+    <string name="premium_coach_channel_desc">Premium seri ve koruma rehberliği bildirimleri</string>
+
+    <string name="premium_coach_title_streak_risk">Seri riskte</string>
+    <string name="premium_coach_title_next_shield">Koruma seviyesi yakın</string>
+    <string name="premium_coach_title_goal_close">Hedef tamamlanmak üzere</string>
+    <string name="premium_coach_title_rescue_ready">Koruma azalıyor</string>
+    <string name="premium_coach_title_low_activity">Bugün aktivite düşük</string>
+
+    <string name="premium_coach_body_streak_risk">Bugünkü aktiviten düşük. Kısa bir yürüyüş serini koruyabilir.</string>
+    <string name="premium_coach_body_next_shield">Sonraki koruma saati için %1$d adım kaldı.</string>
+    <string name="premium_coach_body_goal_close">Bonus koruma için bugünkü hedefi tamamla.</string>
+    <string name="premium_coach_body_rescue_ready">Koruman neredeyse bitti (%1$dsa %2$ddk kaldı). Premium kurtarma hazır.</string>
+    <string name="premium_coach_body_low_activity">Her zamankinden daha az aktifsin. Kısa bir yürüyüş ritmini korumana yardımcı olur.</string>
+
 
     <!--Widget-->
     <string name="widget_today">Bugün</string>
