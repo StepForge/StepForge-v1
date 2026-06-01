@@ -18,25 +18,43 @@ android {
     defaultConfig {
         applicationId = "com.example.stepforge"
         minSdk = 29
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
     }
 
     buildFeatures {
         compose = true
-    }
-
-
-    kotlinOptions {
-        jvmTarget = "17"
+        buildConfig = true
     }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    kotlin {
+        compilerOptions {
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            buildConfigField("boolean", "ENABLE_LOGGING", "false")
+        }
+        debug {
+            buildConfigField("boolean", "ENABLE_LOGGING", "true")
+        }
+    }
 }
+
+
 
 dependencies {
     // --- Compose: hepsini 1.7.5 setine çektik ---
@@ -45,8 +63,8 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.7.5")
     implementation("androidx.compose.material3:material3:1.3.1")
     implementation("androidx.compose.foundation:foundation:1.7.5")
-    implementation("androidx.activity:activity-compose:1.8.2")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+    implementation("androidx.activity:activity-compose:1.9.3")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.compose.animation.core)
     implementation(libs.androidx.compose.remote.creation.core)
@@ -55,7 +73,7 @@ dependencies {
     implementation(libs.firebase.analytics)
     debugImplementation("androidx.compose.ui:ui-tooling:1.7.5")
     implementation("com.google.accompanist:accompanist-swiperefresh:0.34.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.appcompat:appcompat:1.7.0")
 
     // Diğer Compose foundation dependency'leri (lib'lerden gelen)
@@ -66,7 +84,7 @@ dependencies {
     implementation(libs.firebase.crashlytics)
 
     // Biometric
-    implementation("androidx.biometric:biometric:1.2.0-alpha05")
+    implementation("androidx.biometric:biometric:1.1.0")
 
     // OkHttp
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
@@ -103,5 +121,8 @@ dependencies {
 
     // Firebase Auth + Firestore
     implementation("com.google.firebase:firebase-auth-ktx:23.0.0")
+    implementation(platform("com.google.firebase:firebase-bom:34.12.0"))
     implementation("com.google.firebase:firebase-firestore-ktx:25.0.0")
+    implementation("com.google.firebase:firebase-crashlytics")
+    implementation("com.google.firebase:firebase-analytics")
 }

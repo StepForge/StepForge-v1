@@ -96,6 +96,7 @@ import com.example.stepforge.data.stepforgeStore
 import com.example.stepforge.notification.WaterReminderScheduler
 import com.example.stepforge.steps.StepEvents
 import com.example.stepforge.ui.components.CustomTimePicker
+import com.example.stepforge.ui.components.HealthConnectState
 import com.example.stepforge.ui.components.HealthSyncManager
 import com.example.stepforge.ui.streak.StreakShieldPrefs
 import com.example.stepforge.widget.StepWidgetCompactProvider
@@ -156,7 +157,8 @@ fun SettingsScreen(
     var infoText by remember { mutableStateOf("") }
     var rootSize by remember { mutableStateOf(IntSize.Zero) }
     var rootWindowOffset by remember { mutableStateOf(Offset.Zero) }
-    var isHealthConnected by remember { mutableStateOf(false) }
+    val hcStatus by HealthConnectState.status.collectAsState()
+    val isHealthConnected = hcStatus.permissionsGranted
     var sheet by rememberSaveable { mutableStateOf<IntegrationSheet?>(null) }
 
     val context = LocalContext.current
@@ -170,7 +172,6 @@ fun SettingsScreen(
             gender = prefs[stringPreferencesKey("gender")] ?: ""
             themeMode = prefs[THEME_MODE] ?: "system"
             notifTime = prefs[NOTIF_TIME] ?: "09:00"
-            isHealthConnected = healthManager.isFullyConnected()
 
             val birth = prefs[stringPreferencesKey("birth_date")] ?: ""
             age = if (birth.isNotEmpty()) {
@@ -689,10 +690,12 @@ fun SettingsScreen(
                     darkTheme = isDark
                 ) {
                     val currentTags = AppCompatDelegate.getApplicationLocales().toLanguageTags()
-                    val currentLabel = if (currentTags.isBlank()) {
-                        stringResource(R.string.settings_language_system_default)
-                    } else {
-                        currentTags
+                    val currentLabel = when {
+                        currentTags.isBlank() -> stringResource(R.string.settings_language_system_default)
+                        currentTags.startsWith("en") -> stringResource(R.string.settings_language_english)
+                        currentTags.startsWith("tr") -> stringResource(R.string.settings_language_turkish)
+                        currentTags.startsWith("de") -> stringResource(R.string.settings_language_german)
+                        else -> currentTags
                     }
 
                     Text(
@@ -1067,9 +1070,23 @@ fun SettingsScreen(
                             )
                         }
 
+                        TextButton(onClick = { apply("en") }) {
+                            Text(
+                                text = stringResource(R.string.settings_language_english),
+                                color = if (isDark) Color(0xFF00F5FF) else Color(0xFF2CB6AE)
+                            )
+                        }
+
                         TextButton(onClick = { apply("tr") }) {
                             Text(
                                 text = stringResource(R.string.settings_language_turkish),
+                                color = if (isDark) Color(0xFF00F5FF) else Color(0xFF2CB6AE)
+                            )
+                        }
+
+                        TextButton(onClick = { apply("de") }) {
+                            Text(
+                                text = stringResource(R.string.settings_language_german),
                                 color = if (isDark) Color(0xFF00F5FF) else Color(0xFF2CB6AE)
                             )
                         }

@@ -15,6 +15,8 @@ import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.view.ViewGroup
+import android.widget.Button
 import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -119,7 +121,10 @@ import com.example.stepforge.data.AppDatabase
 import com.example.stepforge.data.stepforgeStore
 import com.example.stepforge.steps.StepEvents
 import com.example.stepforge.ui.components.GoalKonfetti
+import com.example.stepforge.ui.components.HealthConnectImportCoordinator
+import com.example.stepforge.ui.components.HealthConnectState
 import com.example.stepforge.ui.components.HealthSyncManager
+import com.example.stepforge.steps.CentralStepState
 import com.example.stepforge.ui.stepforgeTheme
 import com.google.firebase.Firebase
 import com.google.firebase.analytics.FirebaseAnalytics
@@ -132,6 +137,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.concurrent.TimeUnit
+import kotlin.jvm.java
 import kotlin.math.roundToInt
 
 
@@ -230,6 +236,13 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // ✅ Hemen UI'ı aç, loading göster
+        setContent {
+            MainRoot()
+        }
+
+        analytics = Firebase.analytics
+
         lifecycleScope.launch {
             val prefs = applicationContext.stepforgeStore.data.first()
             val seen = (prefs[KEY_ONBOARDING_DONE] ?: 0) == 1
@@ -255,12 +268,6 @@ class MainActivity : AppCompatActivity() {
             }
 
             askPermissionsAndStartService()
-
-            setContent {
-                MainRoot()
-            }
-
-            analytics = Firebase.analytics
         }
     }
 
@@ -454,19 +461,15 @@ private fun MainHomeScreen() {
     }
     val manualOverrideEnabled by manualOverrideFlow.collectAsState(initial = 0)
 
-    val realSteps by StepEvents.todaySteps.collectAsState(initial = 0)
-    val target by StepCounterService.targetFlow.collectAsState()
+    val stepSnapshot by CentralStepState.snapshot.collectAsState()
+    val realSteps = stepSnapshot.steps
+    val target = stepSnapshot.goal
 
-    val healthManager = remember { HealthSyncManager(ctx) }
-    var healthConnectSteps by remember { mutableLongStateOf(0L) }
+    val hcCoordinator = remember { HealthConnectImportCoordinator(ctx) }
+    val hcStatus by HealthConnectState.status.collectAsState()
 
-    val displaySteps = remember(realSteps, healthConnectSteps, manualOverrideEnabled) {
-        if (manualOverrideEnabled == 1) {
-            realSteps
-        } else {
-            val healthVal = healthConnectSteps.toInt()
-            if (realSteps >= healthVal) realSteps else healthVal
-        }
+    val displaySteps = remember(realSteps, manualOverrideEnabled) {
+        realSteps // Artık CentralStepState tüm kaynakları (sensor + HC) birleştirmiş olmalı
     }
 
     val vibrationContext = ctx
@@ -484,13 +487,27 @@ private fun MainHomeScreen() {
         streak = calculateStreak(ctx, target)
     }
 
-    DisposableEffect(healthManager) {
+    DisposableEffect(hcCoordinator) {
         val lifecycleObserver = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 scope.launch {
                     try {
-                        val steps = healthManager.readSteps()
-                        if (steps > 0) healthConnectSteps = steps
+                        val healthManager = HealthSyncManager(ctx)
+                        val connected = healthManager.isFullyConnected()
+                        val permissions = healthManager.hasEssentialPermissions()
+                        
+                        HealthConnectState.update(
+                            HealthConnectState.Status(
+                                isInstalled = true, // Client created successfully
+                                isConnected = connected,
+                                permissionsGranted = permissions,
+                                lastSyncTime = System.currentTimeMillis()
+                            )
+                        )
+                        
+                        if (permissions && manualOverrideEnabled == 0) {
+                            hcCoordinator.syncSteps()
+                        }
                     } catch (_: Exception) {
                     }
                 }
@@ -1357,7 +1374,7 @@ private fun WorkoutsHomeCard() {
                         )
                     )
                 )
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 18.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(

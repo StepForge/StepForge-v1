@@ -226,6 +226,7 @@ class CloudBackupManager(private val context: Context) {
                     }
 
                     Log.d(TAG, "restoreFromCloud completed")
+                    notifyServiceReload()
                     RestoreResult.SUCCESS
                 }
             }
@@ -236,6 +237,21 @@ class CloudBackupManager(private val context: Context) {
             } else {
                 RestoreResult.UNKNOWN_ERROR
             }
+        }
+    }
+
+    private fun notifyServiceReload() {
+        try {
+            val intent = android.content.Intent(context, com.example.stepforge.StepCounterService::class.java).apply {
+                action = com.example.stepforge.StepCounterService.ACTION_RELOAD
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to notify service reload", e)
         }
     }
 
@@ -385,6 +401,7 @@ class CloudBackupManager(private val context: Context) {
                     JSONObject().apply {
                         put("date", daily.date)
                         put("steps", daily.steps)
+                        put("source", daily.source)
                     }
                 )
             }
@@ -404,6 +421,7 @@ class CloudBackupManager(private val context: Context) {
                         put("date", h.date)
                         put("hour", h.hour)
                         put("steps", h.steps)
+                        put("source", h.source)
                     }
                 )
             }
@@ -543,8 +561,9 @@ class CloudBackupManager(private val context: Context) {
             val obj = array.optJSONObject(i) ?: continue
             val date = obj.optString("date", "")
             val steps = obj.optInt("steps", 0)
+            val source = obj.optString("source", "backup")
             if (date.isNotEmpty()) {
-                list.add(DailySteps(date = date, steps = steps))
+                list.add(DailySteps(date = date, steps = steps, source = source))
             }
         }
         list.forEach { dao.insertDailySteps(it) }
@@ -560,13 +579,15 @@ class CloudBackupManager(private val context: Context) {
             val date = obj.optString("date", "")
             val hour = obj.optInt("hour", -1)
             val steps = obj.optInt("steps", 0)
+            val source = obj.optString("source", "backup")
 
             if (date.isNotEmpty() && hour in 0..23) {
                 dao.upsert(
                     HourlySteps(
                         date = date,
                         hour = hour,
-                        steps = steps
+                        steps = steps,
+                        source = source
                     )
                 )
             }

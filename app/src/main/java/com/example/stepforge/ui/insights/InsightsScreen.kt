@@ -52,6 +52,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -113,8 +114,18 @@ fun InsightsScreen(
     val scope = rememberCoroutineScope()
 
     var sheet by remember { mutableStateOf<InsightsSheet?>(null) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val allowDismiss = remember { mutableStateOf(true) }
 
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { target ->
+            if (target == SheetValue.Hidden) {
+                allowDismiss.value
+            } else {
+                true
+            }
+        }
+    )
     // Premium top subtitle anim
     val subtitleAlpha by animateFloatAsState(
         targetValue = 1f,
@@ -182,16 +193,21 @@ fun InsightsScreen(
             )
         }
     ) { pad ->
+        val scrollState = rememberScrollState()
 
+        LaunchedEffect(scrollState.isScrollInProgress) {
+            allowDismiss.value = !scrollState.isScrollInProgress
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(pad)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 10.dp)
                 .padding(bottom = 120.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+
 
             // Tabs
             PremiumTabs(

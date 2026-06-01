@@ -64,11 +64,12 @@ class MidnightResetReceiver : BroadcastReceiver() {
                         pending
                     )
                 } else {
-                    // izin verilmemiş ama SecurityException atmadan fallback
-                    Log.w("MidnightReset", "Exact alarm permission not granted")
-                    am.set(
+                    Log.w("MidnightReset", "Exact alarm permission not granted, using setWindow fallback")
+                    // ✅ setWindow: gece 12:00 ile 12:05 arası tetikle, Doze'dan etkilenmez
+                    am.setWindow(
                         AlarmManager.RTC_WAKEUP,
                         nextMidnight.timeInMillis,
+                        5 * 60 * 1000L,  // 5 dakika pencere
                         pending
                     )
                 }

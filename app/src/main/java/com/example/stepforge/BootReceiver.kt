@@ -17,9 +17,8 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
 
-        if (action != Intent.ACTION_BOOT_COMPLETED &&
-            action != Intent.ACTION_LOCKED_BOOT_COMPLETED
-        ) return
+        // ✅ LOCKED_BOOT_COMPLETED'da DataStore erişilemez, sadece BOOT_COMPLETED kullan
+        if (action != Intent.ACTION_BOOT_COMPLETED) return
 
         // ✅ 1) Boot sonrası: midnight reset alarmını yeniden kur (kritik)
         scheduleNextMidnightReset(context)
@@ -61,10 +60,12 @@ class BootReceiver : BroadcastReceiver() {
                         pi
                     )
                 } else {
-                    Log.w("BootReceiver", "Exact alarm permission missing; scheduling inexact midnight reset.")
-                    am.set(
+                    Log.w("BootReceiver", "Exact alarm permission missing; using setWindow fallback")
+                    // ✅ 5 dakikalık pencere, Doze modunda bile çalışır
+                    am.setWindow(
                         AlarmManager.RTC_WAKEUP,
                         nextMidnight.timeInMillis,
+                        5 * 60 * 1000L,
                         pi
                     )
                 }

@@ -1,17 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.stepforge">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- build.gradle içindeki namespace ile aynı olmalı -->
 
     <!-- Permissions (Aynen Korundu) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="com.samsung.android.health.permission.READ_STEP_COUNT_DATA" />
     <uses-permission android:name="com.samsung.android.health.permission.WRITE_STEP_COUNT_DATA" />
     <uses-permission android:name="com.samsung.android.providers.context.permission.WRITE_USE_APP_FEATURE_SURVEY" />
@@ -80,17 +84,16 @@
             android:name=".StepCounterService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="health|dataSync" />
+            android:foregroundServiceType="health" />
 
 
         <receiver android:name=".BootReceiver" android:enabled="true" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
 
-        <receiver android:name=".notification.ReminderReceiver" android:enabled="true" android:exported="true" />
+        <receiver android:name=".notification.ReminderReceiver" android:enabled="true" android:exported="false" />
         <receiver android:name=".notification.WaterReminderReceiver" android:enabled="true" android:exported="false" />
         <receiver android:name=".MidnightResetReceiver" android:enabled="true" android:exported="false" />
 
@@ -187,6 +190,7 @@
             android:theme="@style/Theme.StepForge"
             android:screenOrientation="portrait" />
 
+        <!-- Debug paneli sadece debug build'de aktif -->
         <activity
             android:name=".debug.DebugPanelActivity"
             android:exported="false"
@@ -194,9 +198,45 @@
             android:screenOrientation="portrait" />
 
         <activity
-            android:name=".debug.DebugPanelActivity"
+            android:name=".ui.sleep.alarm.AlarmRingActivity"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.StepForge" />
+
+        <service
+            android:name=".ui.sleep.alarm.AlarmService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback|microphone"/>
+
+        <receiver
+            android:name=".ui.sleep.alarm.AlarmReceiver"
+            android:exported="false"/>
+
+        <receiver
+            android:name=".ui.sleep.alarm.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
+
+        <activity
+            android:name=".ui.sleep.alarm.SleepReminderActivity"
             android:exported="false"
             android:theme="@style/Theme.StepForge"
             android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".ui.sleep.alarm.AlarmActivity"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.StepForge" />
     </application>
 </manifest>

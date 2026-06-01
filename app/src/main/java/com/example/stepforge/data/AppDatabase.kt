@@ -17,7 +17,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         WaterIntakeEvent::class,
         WorkoutSession::class
     ],
-    version = 9,
+    version = 14,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -165,6 +165,62 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE sleep_session ADD COLUMN type TEXT NOT NULL DEFAULT 'main'")
+            }
+        }
+
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // version increase only to clear corrupt data
+            }
+        }
+
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE daily_steps ADD COLUMN source TEXT NOT NULL DEFAULT 'sensor'")
+                database.execSQL("ALTER TABLE hourly_steps ADD COLUMN source TEXT NOT NULL DEFAULT 'sensor'")
+            }
+        }
+
+        private fun hasColumn(
+            database: SupportSQLiteDatabase,
+            tableName: String,
+            columnName: String
+        ): Boolean {
+            val cursor = database.query("PRAGMA table_info($tableName)")
+            return try {
+                val nameIndex = cursor.getColumnIndex("name")
+                while (cursor.moveToNext()) {
+                    if (nameIndex >= 0 && cursor.getString(nameIndex) == columnName) {
+                        return true
+                    }
+                }
+                false
+            } finally {
+                cursor.close()
+            }
+        }
+
+        private fun ensureSleepSessionNotesColumn(database: SupportSQLiteDatabase) {
+            if (!hasColumn(database, "sleep_session", "notes")) {
+                database.execSQL("ALTER TABLE sleep_session ADD COLUMN notes TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        private val MIGRATION_12_13_ADD_SLEEP_SESSION_NOTES = object : Migration(12, 13) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                ensureSleepSessionNotesColumn(database)
+            }
+        }
+
+        private val MIGRATION_13_14_ENSURE_SLEEP_SESSION_NOTES = object : Migration(13, 14) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                ensureSleepSessionNotesColumn(database)
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -180,9 +236,13 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_5_6,
                         MIGRATION_6_7,
                         MIGRATION_7_8,
-                        MIGRATION_8_9
+                        MIGRATION_8_9,
+                        MIGRATION_9_10,
+                        MIGRATION_10_11,
+                        MIGRATION_11_12,
+                        MIGRATION_12_13_ADD_SLEEP_SESSION_NOTES,
+                        MIGRATION_13_14_ENSURE_SLEEP_SESSION_NOTES
                     )
-                    .fallbackToDestructiveMigrationOnDowngrade()
                     .build()
                 INSTANCE = instance
                 instance

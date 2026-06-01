@@ -14,5 +14,6 @@ import androidx.room.Entity
 data class HourlySteps(
     val date: String,   // "yyyy-MM-dd"
     val hour: Int,      // 0..23
-    val steps: Int      // o ana kadarki toplam adım (snapshot)
+    val steps: Int,     // o ana kadarki toplam adım (snapshot)
+    val source: String = "sensor"
 )

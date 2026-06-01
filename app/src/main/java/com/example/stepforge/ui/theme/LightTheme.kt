@@ -8,9 +8,11 @@ import androidx.compose.ui.graphics.Color
  * Referans: off-white / blue-gray background + mat turquoise accents.
  */
 val LightColors = lightColorScheme(
-    // Accent (mat turkuaz)
-    primary = Color(0xFF4FD1C5),        // mat turquoise
-    secondary = Color(0xFF2CB6AE),      // biraz daha koyu turkuaz
+    // Accent (mat, göz yormayan mavi-yeşil)
+    primary = Color(0xFF2B6F7B),
+    primaryContainer = Color(0xFFE3F0F3),
+    onPrimaryContainer = Color(0xFF1F4F58),
+    secondary = Color(0xFF3D8491),
 
     // Surfaces
     background = Color(0xFFF5F7FA),     // açık gri-mavi (sende örnek)
@@ -18,8 +20,8 @@ val LightColors = lightColorScheme(
     surfaceVariant = Color(0xFFF0F3F7), // kart ayrımı
 
     // Text
-    onPrimary = Color(0xFF0F172A),
-    onSecondary = Color(0xFF0F172A),
+    onPrimary = Color.White,
+    onSecondary = Color.White,
 
     onBackground = Color(0xFF1A202C),   // lacivertimsi siyah (örnek)
     onSurface = Color(0xFF1A202C),

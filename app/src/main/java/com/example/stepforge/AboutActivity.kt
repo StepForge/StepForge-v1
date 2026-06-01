@@ -91,10 +91,13 @@ class AboutActivity : ComponentActivity() {
             val useDark = rememberUseDarkTheme(this)
             stepforgeTheme(darkTheme = useDark) {
                 AboutScreen(onBack = { finish() })
+
             }
         }
     }
 }
+
+
 
 private data class Star(
     val x: Float, // 0..1
@@ -417,7 +420,7 @@ private fun AboutCard(
             )
         }
 
-        if (debugUnlocked) {
+        if (debugUnlocked && BuildConfig.DEBUG) {
             Divider(color = if (isDark) Color(0xFF1E222B) else Color(0xFFE0E5EC))
 
             SectionTitle("Developer Tools", textMain)

@@ -269,7 +269,8 @@ object StreakAnalyticsEngine {
         dailyByDate: Map<String, Int>,
         goal: Int,
         today: String,
-        todayCountsForStreak: Boolean
+        todayCountsForStreak: Boolean,
+        protectedDates: Set<String> = emptySet()
     ): Int {
         var streak = 0
         var cal = Calendar.getInstance().apply { time = ymd.parse(today) ?: time }
@@ -282,7 +283,7 @@ object StreakAnalyticsEngine {
                 todayCountsForStreak
             } else {
                 val steps = dailyByDate[d] ?: 0
-                steps >= goal
+                steps >= goal || protectedDates.contains(d)
             }
 
             if (counts) {

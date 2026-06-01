@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -28,8 +29,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.LocalFireDepartment
 import androidx.compose.material.icons.outlined.Route
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,12 +47,13 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -65,12 +65,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.stepforge.data.AppDatabase
 import com.example.stepforge.data.WorkoutSession
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.WeekFields
 import java.util.Date
@@ -83,18 +82,29 @@ fun WorkoutsScreen(
     highlightedSessionId: Long = -1L
 ) {
     val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
     val cs = MaterialTheme.colorScheme
     val isDark = cs.background.luminance() < 0.5f
 
-    val bg = if (isDark) cs.background else Color(0xFFF3F6FB)
-    val cardBg = if (isDark) cs.surface else Color(0xFFFFFFFF)
-    val panelBg = if (isDark) Color(0xFF10131A) else Color(0xFFF0F4FA)
-    val panelBgStrong = if (isDark) Color(0xFF131821) else Color(0xFFE6EDF7)
-    val borderSoft = if (isDark) Color.White.copy(alpha = 0.06f) else Color(0x160F172A)
+    // ✅ Premium Light Theme Colors
+    val lightPrimaryGradientStart = Color(0xFF0EA5E9)  // Sky blue
+    val lightPrimaryGradientEnd = Color(0xFF06B6D4)    // Cyan
+    val lightSecondaryGradientStart = Color(0xFF10B981) // Emerald
+    val lightSecondaryGradientEnd = Color(0xFF14B8A6)   // Teal
 
-    val neonA = if (isDark) Color(0xFF00FFA3) else Color(0xFF34D399)
-    val neonB = if (isDark) Color(0xFF00F5FF) else Color(0xFF38BDF8)
+    val lightCardBg = if (isDark) cs.surface else Color(0xFFFFFFFF)
+    val lightPanelBg = if (isDark) Color(0xFF121821) else Color(0xFFF0F9FF)  // ✅ Hafif mavi tonu
+    val lightPanelBgStrong = if (isDark) Color(0xFF161D27) else Color(0xFFE0F2FE)  // ✅ Daha kuvvetli mavi
+    val lightBorderSoft = if (isDark) Color.White.copy(alpha = 0.06f) else Color(0xFF0EA5E9).copy(alpha = 0.15f)  // ✅ Mavi border
+
+    // Neon colors
+    val neonA = if (isDark) Color(0xFF00FFA3) else Color(0xFF10B981)  // ✅ Emerald (daha canlı)
+    val neonB = if (isDark) Color(0xFF00F5FF) else Color(0xFF0EA5E9)  // ✅ Sky blue (daha canlı)
+
+    val bg = if (isDark) cs.background else Color(0xFFF8FAFD)
+    val cardBg = if (isDark) cs.surface else Color(0xFFFFFFFF)
+    val panelBg = if (isDark) Color(0xFF121821) else Color(0xFFF5F9FF)
+    val panelBgStrong = if (isDark) Color(0xFF161D27) else Color(0xFFEDF2F9)
+    val borderSoft = if (isDark) Color.White.copy(alpha = 0.06f) else Color(0xFFE2E8F0)
 
     val db = remember { AppDatabase.getDatabase(ctx) }
     val dao = remember { db.workoutSessionDao() }
@@ -102,63 +112,18 @@ fun WorkoutsScreen(
     var sessions by remember { mutableStateOf<List<WorkoutSession>>(emptyList()) }
     var selectedId by remember { mutableLongStateOf(highlightedSessionId) }
 
-
-    //Gecici fake veri
-    fun addFakeWorkout() {
-        scope.launch(Dispatchers.IO) {
-            val now = System.currentTimeMillis()
-
-            val durationMinOptions = listOf(12, 18, 24, 31, 42)
-            val stepsOptions = listOf(1200, 1850, 2400, 3200, 4100)
-
-            val durationMin = durationMinOptions.random()
-            val steps = stepsOptions.random()
-            val distanceMeters = (steps * 0.75f).toInt()
-            val calories = (steps * 0.04f).toInt()
-            val avgSpm = (steps / durationMin.toFloat()).toInt().coerceAtLeast(1)
-
-            val endTime = now
-            val startTime = now - (durationMin * 60_000L)
-
-            val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(startTime))
-
-            dao.insert(
-                com.example.stepforge.data.WorkoutSession(
-                    date = dateStr,
-                    startTime = startTime,
-                    endTime = endTime,
-                    durationMinutes = durationMin,
-                    steps = steps,
-                    distanceMeters = distanceMeters,
-                    caloriesKcal = calories,
-                    avgStepsPerMinute = avgSpm,
-                    source = "test"
-                )
-            )
-        }
-    }
-
-    fun deleteFakeWorkouts() {
-        scope.launch(Dispatchers.IO) {
-            dao.deleteTestSessions()
-        }
-    }
-
-    val todayKey = remember {
-        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-    }
-
-    val today = remember { LocalDate.now() }
+    val today = LocalDate.now(ZoneId.systemDefault())
+    val todayKey = today.toString()
     val dateFormatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd") }
     val firstDayOfWeek = remember { WeekFields.of(Locale.getDefault()).firstDayOfWeek }
 
-    var selectedWeekOffset by remember { mutableIntStateOf(0) }
+    var selectedWeekOffset by rememberSaveable { mutableIntStateOf(0) }
 
     val sessionsByDate = remember(sessions) {
         sessions.groupBy { it.date }
     }
 
-    val currentWeekDays = remember(selectedWeekOffset) {
+    val currentWeekDays = remember(today, selectedWeekOffset, firstDayOfWeek) {
         val baseDate = today.plusWeeks(selectedWeekOffset.toLong())
         val startOfWeek = baseDate.with(firstDayOfWeek)
         (0..6).map { startOfWeek.plusDays(it.toLong()) }
@@ -168,20 +133,12 @@ fun WorkoutsScreen(
         mutableStateOf(todayKey)
     }
 
-    LaunchedEffect(selectedWeekOffset, currentWeekDays) {
-        val weekKeys = currentWeekDays.map { it.format(dateFormatter) }
-
-        if (selectedDate !in weekKeys) {
-            selectedDate = when {
-                weekKeys.contains(todayKey) -> todayKey
-                weekKeys.isNotEmpty() -> weekKeys.first()
-                else -> todayKey
-            }
+    LaunchedEffect(todayKey, selectedWeekOffset, currentWeekDays) {
+        selectedDate = if (selectedWeekOffset == 0) {
+            todayKey
+        } else {
+            currentWeekDays.lastOrNull()?.format(dateFormatter) ?: todayKey
         }
-    }
-
-    LaunchedEffect(Unit) {
-        selectedDate = todayKey
     }
 
     val selectedDaySessions = remember(selectedDate, sessionsByDate) {
@@ -200,16 +157,15 @@ fun WorkoutsScreen(
 
     LaunchedEffect(Unit) {
         dao.observeAll().collectLatest { list ->
-            sessions = list
-                .filter { it.steps > 0 && it.durationMinutes > 0 }
-                .sortedByDescending { it.startTime }
-
+            sessions = list.filter { it.isMeaningfulWorkoutSession() }
             if (selectedId == -1L && sessions.isNotEmpty()) {
-                selectedId = sessions.first().id
+                selectedId = sessions.firstOrNull()?.id ?: -1L
             }
-
             if (highlightedSessionId != -1L && sessions.any { it.id == highlightedSessionId }) {
                 selectedId = highlightedSessionId
+                sessions.firstOrNull { it.id == highlightedSessionId }?.let { highlighted ->
+                    selectedDate = highlighted.date
+                }
             }
         }
     }
@@ -234,13 +190,16 @@ fun WorkoutsScreen(
                         Text(
                             text = stringResource(R.string.workouts_title),
                             color = cs.onBackground,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold
+                            fontSize = 23.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-0.2).sp
                         )
                         Text(
                             text = stringResource(R.string.workouts_open_subtitle),
-                            color = cs.onBackground.copy(alpha = 0.65f),
-                            fontSize = 12.sp
+                            color = cs.onBackground.copy(alpha = 0.72f),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            lineHeight = 16.sp
                         )
                     }
                 },
@@ -257,149 +216,101 @@ fun WorkoutsScreen(
             )
         }
     ) { pad ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(bg)
                 .padding(pad)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            contentPadding = PaddingValues(bottom = 28.dp)
         ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Button(
-                        onClick = { addFakeWorkout() },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent
-                        ),
-                        contentPadding = PaddingValues()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.horizontalGradient(listOf(neonA, neonB)),
-                                    RoundedCornerShape(16.dp)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "TEST ADD",
-                                color = if (isDark) Color.Black else Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            )
-                        }
-                    }
+            WorkoutPremiumBackground()
 
-                    Button(
-                        onClick = { deleteFakeWorkouts() },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isDark) Color(0xFF1A1E26) else Color.White
-                        )
-                    ) {
-                        Text(
-                            text = "DELETE TESTS",
-                            color = Color(0xFFFF6B6B),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        )
-                    }
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                contentPadding = PaddingValues(bottom = 28.dp)
+            ) {
+                item {
+                    WorkoutHeroCard(
+                        minutes = todayMinutes,
+                        steps = todaySteps,
+                        distanceMeters = todayDistanceMeters,
+                        calories = todayCalories,
+                        sessionCount = todaySessions.size,
+                        cardBg = cardBg,
+                        neonA = neonA,
+                        neonB = neonB
+                    )
                 }
-            }
 
-            item {
-                WorkoutHeroCard(
-                    minutes = todayMinutes,
-                    steps = todaySteps,
-                    distanceMeters = todayDistanceMeters,
-                    calories = todayCalories,
-                    sessionCount = todaySessions.size,
-                    cardBg = cardBg,
-                    neonA = neonA,
-                    neonB = neonB
-                )
-            }
+                item {
+                    WorkoutTodayStatsRow(
+                        todaySessions = todaySessions,
+                        cardBg = cardBg,
+                        panelBg = panelBg
+                    )
+                }
 
-            item {
-                WorkoutTodayStatsRow(
-                    todaySessions = todaySessions,
-                    cardBg = cardBg,
-                    panelBg = panelBg
-                )
-            }
+                item {
+                    SelectedWorkoutCard(
+                        session = selectedSession,
+                        cardBg = cardBg,
+                        panelBg = panelBg,
+                        neonA = neonA,
+                        neonB = neonB
+                    )
+                }
 
-            item {
-                SelectedWorkoutCard(
-                    session = selectedSession,
-                    cardBg = cardBg,
-                    panelBg = panelBg,
-                    neonA = neonA,
-                    neonB = neonB
-                )
-            }
+                item {
+                    WorkoutsWeeklyInsightCard(
+                        sessions = sessions,
+                        cardBg = cardBg,
+                        panelBg = panelBg,
+                        panelBgStrong = panelBgStrong,
+                        borderSoft = borderSoft,
+                        neonA = neonA,
+                        neonB = neonB
+                    )
+                }
 
-            item {
-                WorkoutsWeeklyInsightCard(
-                    sessions = sessions,
-                    cardBg = cardBg,
-                    panelBg = panelBg,
-                    panelBgStrong = panelBgStrong,
-                    borderSoft = borderSoft,
-                    neonA = neonA,
-                    neonB = neonB
-                )
-            }
+                item {
+                    WorkoutWeekTimelineCard(
+                        weekDays = currentWeekDays,
+                        sessionsByDate = sessionsByDate,
+                        selectedDate = selectedDate,
+                        onSelectDate = { selectedDate = it },
+                        onPrevWeek = { selectedWeekOffset -= 1 },
+                        onNextWeek = {
+                            if (selectedWeekOffset < 0) selectedWeekOffset += 1
+                        },
+                        cardBg = cardBg,
+                        panelBg = panelBg,
+                        borderSoft = borderSoft
+                    )
+                }
 
-            item {
-                WorkoutWeekTimelineCard(
-                    weekDays = currentWeekDays,
-                    sessionsByDate = sessionsByDate,
-                    selectedDate = selectedDate,
-                    onSelectDate = { selectedDate = it },
-                    onPrevWeek = { selectedWeekOffset -= 1 },
-                    onNextWeek = {
-                        if (selectedWeekOffset < 0) selectedWeekOffset += 1
-                    },
-                    cardBg = cardBg,
-                    panelBg = panelBg,
-                    borderSoft = borderSoft
-                )
-            }
+                item {
+                    SelectedDaySummaryCard(
+                        selectedDate = selectedDate,
+                        sessions = selectedDaySessions,
+                        totalMinutes = selectedDaySessions.sumOf { it.durationMinutes },
+                        totalSteps = selectedDaySessions.sumOf { it.steps },
+                        totalDistanceMeters = selectedDaySessions.sumOf { it.distanceMeters },
+                        totalCalories = selectedDaySessions.sumOf { it.caloriesKcal },
+                        cardBg = cardBg,
+                        panelBg = panelBgStrong
+                    )
+                }
 
-            item {
-                SelectedDaySummaryCard(
-                    selectedDate = selectedDate,
-                    sessions = selectedDaySessions,
-                    totalMinutes = selectedDaySessions.sumOf { it.durationMinutes },
-                    totalSteps = selectedDaySessions.sumOf { it.steps },
-                    totalDistanceMeters = selectedDaySessions.sumOf { it.distanceMeters },
-                    totalCalories = selectedDaySessions.sumOf { it.caloriesKcal },
-                    cardBg = cardBg,
-                    panelBg = panelBgStrong
-                )
-            }
-
-            item {
-                SelectedDaySessionsCard(
-                    sessions = selectedDaySessions,
-                    selectedSessionId = selectedId,
-                    onSelectSession = { selectedId = it },
-                    cardBg = cardBg,
-                    borderSoft = borderSoft
-                )
+                item {
+                    SelectedDaySessionsCard(
+                        sessions = selectedDaySessions,
+                        selectedSessionId = selectedId,
+                        onSelectSession = { selectedId = it },
+                        cardBg = cardBg,
+                        borderSoft = borderSoft
+                    )
+                }
             }
         }
     }
@@ -434,26 +345,30 @@ private fun WorkoutHeroCard(
         label = "workoutHeroProgress"
     )
 
-    val heroSurface = Brush.verticalGradient(
-        listOf(
-            if (isDark) neonB.copy(alpha = 0.16f) else Color(0xFFE9F8FF),
-            if (isDark) neonA.copy(alpha = 0.12f) else Color(0xFFEAFBF5),
-            cardBg
+    val heroSurface = if (isDark) {
+        Brush.verticalGradient(
+            listOf(
+                neonB.copy(alpha = 0.14f),
+                neonA.copy(alpha = 0.10f),
+                cardBg
+            )
         )
-    )
+    } else {
+        // ✅ Light: Daha canlı gradyan
+        Brush.verticalGradient(
+            listOf(
+                Color(0xFFDCF2FF),  // Açık sky blue
+                Color(0xFFD1FAE5),  // Açık emerald
+                Color.White
+            )
+        )
+    }
 
     val metricBg = if (isDark) Color(0xFF131821) else Color.White
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(if (isDark) 18.dp else 14.dp, RoundedCornerShape(30.dp)),
-        colors = CardDefaults.cardColors(containerColor = cardBg),
-        shape = RoundedCornerShape(30.dp),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            if (isDark) Color.White.copy(alpha = 0.04f) else Color(0x120F172A)
-        )
+    HeroSurfaceCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(30.dp)
     ) {
         Column(
             modifier = Modifier
@@ -471,13 +386,16 @@ private fun WorkoutHeroCard(
                     Text(
                         text = stringResource(R.string.workouts_today_summary),
                         color = cs.onSurface.copy(alpha = 0.72f),
-                        fontSize = 13.sp
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.2.sp
                     )
                     Text(
                         text = if (minutes > 0) "$minutes min" else "0 min",
                         color = cs.onSurface,
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.ExtraBold
+                        fontSize = 38.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.4).sp
                     )
                     Text(
                         text = "$sessionCount ${stringResource(R.string.workouts_sessions_label).lowercase(Locale.getDefault())} • $steps ${stringResource(R.string.workouts_steps_label).lowercase(Locale.getDefault())}",
@@ -553,6 +471,344 @@ private fun WorkoutHeroCard(
     }
 }
 
+
+@Composable
+private fun WorkoutPremiumBackground(
+    modifier: Modifier = Modifier
+) {
+    val cs = MaterialTheme.colorScheme
+    val isDark = cs.background.luminance() < 0.5f
+
+    val lightA = if (isDark) {
+        cs.primary.copy(alpha = 0.10f)
+    } else {
+        Color(0xFF0EA5E9).copy(alpha = 0.08f)  // ✅ Daha güçlü mavi glow
+    }
+
+    val lightB = if (isDark) {
+        cs.secondary.copy(alpha = 0.08f)
+    } else {
+        Color(0xFF10B981).copy(alpha = 0.06f)  // ✅ Hafif yeşil glow
+    }
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        cs.background,
+                        cs.background.copy(alpha = 0.992f),
+                        cs.background
+                    )
+                )
+            )
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+
+            // Sol üst ana ışık
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(lightA, Color.Transparent),
+                    center = Offset(w * 0.16f, h * 0.10f),
+                    radius = w * 0.48f
+                ),
+                radius = w * 0.48f,
+                center = Offset(w * 0.16f, h * 0.10f)
+            )
+
+            // Sağ üst ikincil çok hafif ışık
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(lightB, Color.Transparent),
+                    center = Offset(w * 0.82f, h * 0.24f),
+                    radius = w * 0.34f
+                ),
+                radius = w * 0.34f,
+                center = Offset(w * 0.82f, h * 0.24f)
+            )
+        }
+
+        WorkoutNoiseOverlay(
+            modifier = Modifier.fillMaxSize(),
+            alpha = if (isDark) 0.030f else 0.012f
+        )
+    }
+}
+
+@Composable
+private fun WorkoutNoiseOverlay(
+    modifier: Modifier = Modifier,
+    alpha: Float
+) {
+    val points = remember {
+        List(180) {
+            Offset(
+                x = kotlin.random.Random.nextFloat(),
+                y = kotlin.random.Random.nextFloat()
+            )
+        }
+    }
+
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        points.forEachIndexed { index, p ->
+            val a = alpha * (0.65f + ((index % 5) * 0.08f))
+            drawCircle(
+                color = Color.White.copy(alpha = a),
+                radius = 0.8f,
+                center = Offset(p.x * w, p.y * h)
+            )
+        }
+    }
+}
+
+
+@Composable
+private fun HeroSurfaceCard(
+    modifier: Modifier = Modifier,
+    shape: RoundedCornerShape = RoundedCornerShape(28.dp),
+    content: @Composable BoxScope.() -> Unit
+) {
+    val cs = MaterialTheme.colorScheme
+    val isDark = cs.background.luminance() < 0.5f
+
+    val bgBrush = if (isDark) {
+        Brush.linearGradient(
+            listOf(
+                cs.surface.copy(alpha = 0.99f),
+                cs.surfaceVariant.copy(alpha = 0.80f),
+                cs.surface.copy(alpha = 0.98f)
+            ),
+            start = Offset.Zero,
+            end = Offset(1200f, 1800f)
+        )
+    } else {
+        Brush.linearGradient(
+            listOf(
+                Color.White,
+                Color(0xFFF9FBFF),
+                Color.White
+            ),
+            start = Offset.Zero,
+            end = Offset(1200f, 1800f)
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .shadow(
+                elevation = if (isDark) 16.dp else 12.dp,  // ✅ 6dp → 12dp
+                shape = shape,
+                clip = false,
+                ambientColor = if (isDark) Color.Black else Color(0xFF0EA5E9).copy(alpha = 0.15f),  // ✅ Mavi glow
+                spotColor = if (isDark) Color.Black else Color(0xFF0EA5E9).copy(alpha = 0.20f)
+            )
+            .clip(shape)
+            .background(bgBrush)
+            .border(
+                1.dp,
+                if (isDark) Color.White.copy(alpha = 0.05f)
+                else Color(0xFFEEF2F7),
+                shape
+            )
+            .drawBehind {
+                if (isDark) {
+                    drawRoundRect(
+                        brush = Brush.linearGradient(
+                            listOf(Color.White.copy(alpha = 0.05f), Color.Transparent),
+                            start = Offset.Zero,
+                            end = Offset(size.width * 0.70f, size.height * 0.36f)
+                        ),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(60f, 60f)
+                    )
+                }
+            }
+    ) {
+        content()
+    }
+}
+
+
+@Composable
+private fun SecondarySurfacePanel(
+    modifier: Modifier = Modifier,
+    bg: Color,
+    shape: RoundedCornerShape = RoundedCornerShape(18.dp),
+    content: @Composable BoxScope.() -> Unit
+) {
+    val cs = MaterialTheme.colorScheme
+    val isDark = cs.background.luminance() < 0.5f
+
+    val panelBrush = if (isDark) {
+        Brush.linearGradient(
+            listOf(
+                bg.copy(alpha = 0.985f),
+                bg.copy(alpha = 0.92f)
+            ),
+            start = Offset.Zero,
+            end = Offset(400f, 480f)
+        )
+    } else {
+        Brush.linearGradient(
+            listOf(
+                bg,
+                bg.copy(alpha = 0.97f)
+            ),
+            start = Offset.Zero,
+            end = Offset(400f, 480f)
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(panelBrush)
+            .border(
+                1.dp,
+                if (isDark) Color.White.copy(alpha = 0.045f)
+                else Color(0xFFF1F5F9),
+                shape
+            )
+            .drawBehind {
+                if (isDark) {
+                    drawRoundRect(
+                        brush = Brush.linearGradient(
+                            listOf(Color.White.copy(alpha = 0.03f), Color.Transparent),
+                            start = Offset.Zero,
+                            end = Offset(size.width * 0.72f, size.height * 0.38f)
+                        ),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(40f, 40f)
+                    )
+                }
+            }
+    ) {
+        content()
+    }
+}
+
+
+@Composable
+private fun PassiveSurfacePanel(
+    modifier: Modifier = Modifier,
+    bg: Color,
+    shape: RoundedCornerShape = RoundedCornerShape(16.dp),
+    content: @Composable BoxScope.() -> Unit
+) {
+    val cs = MaterialTheme.colorScheme
+    val isDark = cs.background.luminance() < 0.5f
+
+    val brush = if (isDark) {
+        Brush.linearGradient(
+            listOf(
+                bg.copy(alpha = 0.96f),
+                bg.copy(alpha = 0.90f)
+            ),
+            start = Offset.Zero,
+            end = Offset(280f, 280f)
+        )
+    } else {
+        Brush.linearGradient(
+            listOf(
+                bg.copy(alpha = 0.98f),
+                bg.copy(alpha = 0.94f)
+            ),
+            start = Offset.Zero,
+            end = Offset(280f, 280f)
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(brush)
+            .border(
+                1.dp,
+                if (isDark) Color.White.copy(alpha = 0.035f)
+                else Color.Black.copy(alpha = 0.045f),
+                shape
+            )
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun PremiumSurfaceCard(
+    modifier: Modifier = Modifier,
+    shape: RoundedCornerShape = RoundedCornerShape(24.dp),
+    content: @Composable BoxScope.() -> Unit
+) {
+    val cs = MaterialTheme.colorScheme
+    val isDark = cs.background.luminance() < 0.5f
+
+    val cardGradient = if (isDark) {
+        Brush.linearGradient(
+            listOf(
+                cs.surface.copy(alpha = 0.985f),
+                cs.surfaceVariant.copy(alpha = 0.72f),
+                cs.surface.copy(alpha = 0.975f)
+            ),
+            start = Offset.Zero,
+            end = Offset(900f, 1400f)
+        )
+    } else {
+        Brush.linearGradient(
+            listOf(
+                cs.surface.copy(alpha = 1f),
+                cs.surfaceVariant.copy(alpha = 0.52f),
+                cs.surface.copy(alpha = 0.995f)
+            ),
+            start = Offset.Zero,
+            end = Offset(900f, 1400f)
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .shadow(
+                elevation = if (isDark) 14.dp else 10.dp,  // ✅ 8dp → 10dp
+                shape = shape,
+                clip = false,
+                ambientColor = if (isDark) Color.Black else Color(0xFF0EA5E9).copy(alpha = 0.12f),
+                spotColor = if (isDark) Color.Black else Color(0xFF0EA5E9).copy(alpha = 0.18f)
+            )
+            .clip(shape)
+            .background(cardGradient)
+            .border(
+                width = 1.dp,
+                color = if (isDark) {
+                    Color.White.copy(alpha = 0.055f)
+                } else {
+                    Color.Black.copy(alpha = 0.06f)
+                },
+                shape = shape
+            )
+            .drawBehind {
+                drawRoundRect(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            if (isDark) {
+                                Color.White.copy(alpha = 0.05f)
+                            } else {
+                                Color.White.copy(alpha = 0.38f)
+                            },
+                            Color.Transparent
+                        ),
+                        start = Offset(0f, 0f),
+                        end = Offset(size.width * 0.75f, size.height * 0.42f)
+                    ),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(34f, 34f)
+                )
+            }
+    ) {
+        content()
+    }
+}
+
 @Composable
 private fun WorkoutTodayStatsRow(
     todaySessions: List<WorkoutSession>,
@@ -570,16 +826,9 @@ private fun WorkoutTodayStatsRow(
     }
     val longest = todaySessions.maxByOrNull { it.durationMinutes }?.durationMinutes ?: 0
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(if (isDark) 8.dp else 6.dp, RoundedCornerShape(22.dp)),
-        colors = CardDefaults.cardColors(containerColor = cardBg),
-        shape = RoundedCornerShape(22.dp),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            if (isDark) Color.White.copy(alpha = 0.04f) else Color(0x120F172A)
-        )
+    PremiumSurfaceCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp)
     ) {
         Row(
             modifier = Modifier
@@ -619,35 +868,34 @@ private fun TodayStatPill(
     bg: Color
 ) {
     val cs = MaterialTheme.colorScheme
-    val isDark = cs.background.luminance() < 0.5f
 
-    Column(
-        modifier = modifier
-            .height(82.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(bg)
-            .border(
-                1.dp,
-                if (isDark) Color.White.copy(alpha = 0.04f) else Color(0x120F172A),
-                RoundedCornerShape(18.dp)
-            )
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.SpaceBetween
+    SecondarySurfacePanel(
+        modifier = modifier.height(84.dp),
+        bg = bg,
+        shape = RoundedCornerShape(18.dp)
     ) {
-        Text(
-            text = title,
-            color = cs.onSurface.copy(alpha = 0.62f),
-            fontSize = 10.sp,
-            maxLines = 1
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = title,
+                color = cs.onSurface.copy(alpha = 0.60f),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1
+            )
 
-        Text(
-            text = value,
-            color = cs.onSurface,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1
-        )
+            Text(
+                text = value,
+                color = cs.onSurface,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1
+            )
+        }
     }
 }
 
@@ -665,19 +913,12 @@ private fun SelectedWorkoutCard(
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
     val df = remember { DecimalFormat("#.#") }
 
-    val topPanelBg = if (isDark) Color(0xFF121822) else Color(0xFFF4F8FD)
-    val bottomPanelBg = if (isDark) Color(0xFF131821) else Color(0xFFEAF0F8)
+    val topPanelBg = if (isDark) Color(0xFF121822) else Color(0xFFF6F9FD)
+    val bottomPanelBg = if (isDark) Color(0xFF151B24) else Color(0xFFF0F4FA)
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(if (isDark) 14.dp else 12.dp, RoundedCornerShape(28.dp)),
-        colors = CardDefaults.cardColors(containerColor = cardBg),
-        shape = RoundedCornerShape(28.dp),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            if (isDark) Color.White.copy(alpha = 0.05f) else Color(0x120F172A)
-        )
+    HeroSurfaceCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp)
     ) {
         Column(
             modifier = Modifier
@@ -696,13 +937,16 @@ private fun SelectedWorkoutCard(
                     Text(
                         text = stringResource(R.string.workouts_selected_session),
                         color = cs.onSurface.copy(alpha = 0.68f),
-                        fontSize = 12.sp
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.3.sp
                     )
                     Text(
                         text = stringResource(R.string.workouts_focused_session_details),
                         color = cs.onSurface,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.2).sp
                     )
                 }
 
@@ -710,12 +954,22 @@ private fun SelectedWorkoutCard(
                     modifier = Modifier
                         .clip(RoundedCornerShape(999.dp))
                         .background(
-                            Brush.horizontalGradient(
-                                listOf(
-                                    neonA.copy(alpha = 0.18f),
-                                    neonB.copy(alpha = 0.18f)
+                            if (isDark) {
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        neonA.copy(alpha = 0.18f),
+                                        neonB.copy(alpha = 0.18f)
+                                    )
                                 )
-                            )
+                            } else {
+                                // ✅ Light: Daha kuvvetli gradyan
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Color(0xFF10B981).copy(alpha = 0.25f),
+                                        Color(0xFF0EA5E9).copy(alpha = 0.25f)
+                                    )
+                                )
+                            }
                         )
                         .padding(horizontal = 12.dp, vertical = 7.dp)
                 ) {
@@ -737,7 +991,14 @@ private fun SelectedWorkoutCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(22.dp))
-                        .background(topPanelBg)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    topPanelBg.copy(alpha = 0.98f),
+                                    topPanelBg.copy(alpha = 0.92f)
+                                )
+                            )
+                        )
                         .padding(20.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -750,7 +1011,7 @@ private fun SelectedWorkoutCard(
             } else {
                 val distanceKm = session.distanceMeters / 1000f
                 val start = timeFormat.format(Date(session.startTime))
-                val end = timeFormat.format(Date(session.safeEndTime()))
+                val end = timeFormat.format(Date(session.endTime))
                 val dateText = dateFormat.format(Date(session.startTime))
 
                 val intensityHigh = stringResource(R.string.workouts_intensity_high)
@@ -784,7 +1045,14 @@ private fun SelectedWorkoutCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(24.dp))
-                        .background(topPanelBg)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    topPanelBg.copy(alpha = 0.98f),
+                                    topPanelBg.copy(alpha = 0.92f)
+                                )
+                            )
+                        )
                         .border(
                             1.dp,
                             if (isDark) Color.White.copy(alpha = 0.04f) else Color(0x120F172A),
@@ -802,8 +1070,9 @@ private fun SelectedWorkoutCard(
                         Text(
                             text = "${session.durationMinutes} min • ${session.steps} steps",
                             color = cs.onSurface,
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.ExtraBold
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-0.3).sp
                         )
 
                         Row(
@@ -840,7 +1109,19 @@ private fun SelectedWorkoutCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(999.dp))
-                            .background(intensityColor.copy(alpha = 0.14f))
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(
+                                        intensityColor.copy(alpha = 0.18f),
+                                        intensityColor.copy(alpha = 0.10f)
+                                    )
+                                )
+                            )
+                            .border(
+                                1.dp,
+                                intensityColor.copy(alpha = 0.18f),
+                                RoundedCornerShape(999.dp)
+                            )
                             .padding(horizontal = 12.dp, vertical = 7.dp)
                     ) {
                         Text(
@@ -941,10 +1222,48 @@ private fun WorkoutMetricCapsule(
         modifier = modifier
             .height(88.dp)
             .clip(RoundedCornerShape(20.dp))
-            .background(bg)
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        bg.copy(alpha = 0.98f),
+                        bg.copy(alpha = 0.92f)
+                    ),
+                    start = Offset.Zero,
+                    end = Offset(300f, 300f)
+                )
+            )
+            .drawBehind {
+                // ✅ 1. İç ışıltı (her iki tema için)
+                drawRoundRect(
+                    brush = Brush.linearGradient(
+                        listOf(
+                            Color.White.copy(alpha = if (isDark) 0.04f else 0.10f),
+                            Color.Transparent
+                        ),
+                        start = Offset.Zero,
+                        end = Offset(size.width * 0.7f, size.height * 0.4f)
+                    ),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(24f, 24f)
+                )
+
+                // ✅ 2. Dış gradient border (sadece light tema)
+                if (!isDark) {
+                    drawRoundRect(
+                        brush = Brush.linearGradient(
+                            listOf(
+                                Color(0xFF0EA5E9).copy(alpha = 0.25f),
+                                Color(0xFF10B981).copy(alpha = 0.20f)
+                            )
+                        ),
+                        size = size,
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(40f, 40f),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f)
+                    )
+                }
+            }
             .border(
                 1.dp,
-                if (isDark) Color.White.copy(alpha = 0.04f) else Color(0x140F172A),
+                if (isDark) Color.White.copy(alpha = 0.05f) else Color.Transparent,  // ✅ Light'ta transparent (gradient border kullanıyoruz)
                 RoundedCornerShape(20.dp)
             )
             .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -1021,39 +1340,38 @@ private fun WorkoutInfoTile(
     bg: Color
 ) {
     val cs = MaterialTheme.colorScheme
-    val isDark = cs.background.luminance() < 0.5f
 
-    Column(
-        modifier = modifier
-            .heightIn(min = 112.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(bg)
-            .border(
-                1.dp,
-                if (isDark) Color.White.copy(alpha = 0.04f) else Color(0x120F172A),
-                RoundedCornerShape(18.dp)
-            )
-            .padding(12.dp),
-        verticalArrangement = Arrangement.SpaceBetween
+    SecondarySurfacePanel(
+        modifier = modifier.heightIn(min = 112.dp),
+        bg = bg,
+        shape = RoundedCornerShape(18.dp)
     ) {
-        Text(
-            text = title,
-            color = cs.onSurface.copy(alpha = 0.65f),
-            fontSize = 10.sp,
-            lineHeight = 12.sp,
-            minLines = 2,
-            maxLines = 2
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = title,
+                color = cs.onSurface.copy(alpha = 0.60f),
+                fontSize = 10.sp,
+                lineHeight = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                minLines = 2,
+                maxLines = 2
+            )
 
-        Text(
-            text = value,
-            color = cs.onSurface,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            lineHeight = 18.sp,
-            minLines = 2,
-            maxLines = 2
-        )
+            Text(
+                text = value,
+                color = cs.onSurface,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.ExtraBold,
+                lineHeight = 18.sp,
+                minLines = 2,
+                maxLines = 2
+            )
+        }
     }
 }
 
@@ -1070,19 +1388,7 @@ private fun WorkoutsWeeklyInsightCard(
     val cs = MaterialTheme.colorScheme
     val isDark = cs.background.luminance() < 0.5f
 
-    val last7Days = remember(sessions) {
-        val today = LocalDate.now()
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-
-        (0..6).map { offset ->
-            val date = today.minusDays(offset.toLong()).format(formatter)
-            sessions.filter { it.date == date }
-        }
-    }
-
-    val last7 = remember(last7Days) {
-        last7Days.flatten().sortedByDescending { it.startTime }
-    }
+    val last7 = remember(sessions) { sessions.take(7) }
 
     val totalMinutes = remember(last7) { last7.sumOf { it.durationMinutes } }
     val totalSteps = remember(last7) { last7.sumOf { it.steps } }
@@ -1116,13 +1422,9 @@ private fun WorkoutsWeeklyInsightCard(
         else -> stringResource(R.string.workouts_weekly_note_light)
     }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(if (isDark) 14.dp else 12.dp, RoundedCornerShape(28.dp)),
-        colors = CardDefaults.cardColors(containerColor = cardBg),
-        shape = RoundedCornerShape(28.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, borderSoft)
+    HeroSurfaceCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp)
     ) {
         Column(
             modifier = Modifier
@@ -1141,13 +1443,16 @@ private fun WorkoutsWeeklyInsightCard(
                     Text(
                         text = stringResource(R.string.workouts_weekly_insight),
                         color = cs.onSurface,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.2).sp
                     )
                     Text(
                         text = stringResource(R.string.workouts_weekly_insight_subtitle),
                         color = cs.onSurface.copy(alpha = 0.65f),
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        lineHeight = 16.sp
                     )
                 }
 
@@ -1247,7 +1552,8 @@ private fun WorkoutsWeeklyInsightCard(
                         Text(
                             text = stringResource(R.string.workouts_best_recent_session),
                             color = cs.onSurface.copy(alpha = 0.66f),
-                            fontSize = 11.sp
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                         Text(
                             text = "${bestSession.steps} steps • ${bestSession.durationMinutes} min • ${bestSession.avgStepsPerMinute} spm",
@@ -1263,13 +1569,21 @@ private fun WorkoutsWeeklyInsightCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
-                    .background(if (isDark) Color(0xFF121822) else Color(0xFFF4F8FD))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                if (isDark) Color(0xFF121822) else Color(0xFFF4F8FD),
+                                if (isDark) Color(0xFF10151C) else Color(0xFFF8FBFE)
+                            )
+                        )
+                    )
                     .padding(16.dp)
             ) {
                 Text(
                     text = coachNote,
                     color = cs.onSurface.copy(alpha = 0.82f),
                     fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
                     lineHeight = 18.sp
                 )
             }
@@ -1285,44 +1599,51 @@ private fun WorkoutInsightMini(
     bg: Color
 ) {
     val cs = MaterialTheme.colorScheme
-    val isDark = cs.background.luminance() < 0.5f
 
-    val valueFontSize = when {
-        value.length >= 10 -> 12.sp
-        value.length >= 7 -> 13.sp
-        else -> 14.sp
+    // ✅ Başlık uzunluğuna göre font boyutu
+    val titleFontSize = when {
+        title.length >= 12 -> 9.sp   // "Consistency" gibi uzun başlıklar
+        title.length >= 8 -> 9.5.sp
+        else -> 10.sp
     }
 
-    Column(
-        modifier = modifier
-            .height(98.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(bg)
-            .border(
-                1.dp,
-                if (isDark) Color.White.copy(alpha = 0.04f) else Color(0x120F172A),
-                RoundedCornerShape(18.dp)
-            )
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = title,
-            color = cs.onSurface.copy(alpha = 0.65f),
-            fontSize = 10.sp,
-            lineHeight = 12.sp,
-            minLines = 2,
-            maxLines = 2
-        )
+    val valueFontSize = when {
+        value.length >= 10 -> 11.sp  // ✅ Biraz daha küçük
+        value.length >= 7 -> 12.sp
+        else -> 14.sp  // ✅ 15sp → 14sp
+    }
 
-        Text(
-            text = value,
-            color = cs.onSurface,
-            fontSize = valueFontSize,
-            fontWeight = FontWeight.Bold,
-            maxLines = 2,
-            lineHeight = 16.sp
-        )
+    SecondarySurfacePanel(
+        modifier = modifier.height(102.dp),
+        bg = bg,
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 10.dp, vertical = 10.dp),  // ✅ 12dp → 10dp
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = title,
+                color = cs.onSurface.copy(alpha = 0.60f),
+                fontSize = titleFontSize,  // ✅ Dinamik font
+                lineHeight = 11.sp,  // ✅ 12sp → 11sp
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis  // ✅ Taşarsa ...
+            )
+
+            Text(
+                text = value,
+                color = cs.onSurface,
+                fontSize = valueFontSize,
+                fontWeight = FontWeight.ExtraBold,
+                lineHeight = 16.sp,  // ✅ 18sp → 16sp
+                maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis  // ✅ Taşarsa ...
+            )
+        }
     }
 }
 
@@ -1385,13 +1706,9 @@ private fun WorkoutWeekTimelineCard(
         else -> stringResource(R.string.workouts_low_activity)
     }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(if (isDark) 14.dp else 12.dp, RoundedCornerShape(30.dp)),
-        colors = CardDefaults.cardColors(containerColor = cardBg),
-        shape = RoundedCornerShape(30.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, borderSoft)
+    HeroSurfaceCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(30.dp)
     ) {
         Column(
             modifier = Modifier
@@ -1399,7 +1716,6 @@ private fun WorkoutWeekTimelineCard(
                 .padding(horizontal = 18.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top
@@ -1411,8 +1727,9 @@ private fun WorkoutWeekTimelineCard(
                     Text(
                         text = stringResource(R.string.workouts_workout_timeline),
                         color = cs.onSurface,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.2).sp
                     )
                     Text(
                         text = stringResource(
@@ -1422,12 +1739,15 @@ private fun WorkoutWeekTimelineCard(
                         ),
                         color = if (isDark) Color(0xFF00F5FF) else Color(0xFF0EA5E9),
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.1.sp
                     )
                     Text(
                         text = stringResource(R.string.workouts_weekly_strip_subtitle),
                         color = cs.onSurface.copy(alpha = 0.62f),
-                        fontSize = 11.sp
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        lineHeight = 15.sp
                     )
                 }
 
@@ -1453,7 +1773,6 @@ private fun WorkoutWeekTimelineCard(
                 }
             }
 
-            // Week control
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1466,16 +1785,22 @@ private fun WorkoutWeekTimelineCard(
                 MiniWeekAction(
                     text = "${stringResource(R.string.workouts_next_week)} →",
                     onClick = onNextWeek,
-                    enabled = weekDays.last() < LocalDate.now()
+                    enabled = weekDays.last() < LocalDate.now(ZoneId.systemDefault())
                 )
             }
 
-            // Main weekly strip
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
-                    .background(if (isDark) Color(0xFF10151D) else Color(0xFFF4F8FD))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                if (isDark) Color(0xFF10151D) else Color(0xFFF4F8FD),
+                                if (isDark) Color(0xFF0F131A) else Color(0xFFF8FBFF)
+                            )
+                        )
+                    )
                     .border(
                         1.dp,
                         if (isDark) Color.White.copy(alpha = 0.03f) else Color(0x100F172A),
@@ -1492,7 +1817,7 @@ private fun WorkoutWeekTimelineCard(
                         val totalMinutes = pair.first
                         val ratio = (totalMinutes.toFloat() / maxMinutes.toFloat()).coerceIn(0f, 1f)
                         val selected = key == selectedDate
-                        val isToday = day == LocalDate.now()
+                        val isToday = day == LocalDate.now(ZoneId.systemDefault())
                         val hasWorkout = totalMinutes > 0
 
                         val animatedBarHeight by animateFloatAsState(
@@ -1612,7 +1937,6 @@ private fun WorkoutWeekTimelineCard(
                 }
             }
 
-            // Selected day quick summary
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1642,25 +1966,20 @@ private fun WeekQuickInfoChip(
 ) {
     val cs = MaterialTheme.colorScheme
     val isDark = cs.background.luminance() < 0.5f
+    val bg = if (isDark) Color(0xFF12161E) else Color(0xFFF4F8FD)
 
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (isDark) Color(0xFF12161E) else Color(0xFFF4F8FD))
-            .border(
-                1.dp,
-                if (isDark) Color.White.copy(alpha = 0.04f) else Color(0x100F172A),
-                RoundedCornerShape(16.dp)
-            )
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        contentAlignment = Alignment.Center
+    PassiveSurfacePanel(
+        modifier = modifier.height(42.dp),
+        bg = bg,
+        shape = RoundedCornerShape(16.dp)
     ) {
         Text(
             text = text,
-            color = cs.onSurface.copy(alpha = 0.78f),
+            color = cs.onSurface.copy(alpha = 0.80f),
             fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
         )
     }
 }
@@ -1678,10 +1997,17 @@ private fun MiniWeekAction(
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(if (isDark) Color(0xFF12161E) else Color.White)
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        if (isDark) Color(0xFF12161E).copy(alpha = 0.98f) else Color.White,
+                        if (isDark) Color(0xFF10141A).copy(alpha = 0.92f) else Color(0xFFF8FBFE)
+                    )
+                )
+            )
             .border(
                 1.dp,
-                if (isDark) Color.White.copy(alpha = 0.05f) else Color(0x120F172A),
+                if (isDark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.28f),
                 RoundedCornerShape(999.dp)
             )
             .clickable(enabled = enabled) { onClick() }
@@ -1725,11 +2051,8 @@ private fun SelectedDaySummaryCard(
         else -> stringResource(R.string.workouts_day_state_light)
     }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(if (isDark) 10.dp else 8.dp, RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = cardBg),
+    HeroSurfaceCard(
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(
@@ -1749,18 +2072,23 @@ private fun SelectedDaySummaryCard(
                     Text(
                         text = stringResource(R.string.workouts_selected_day),
                         color = cs.onSurface.copy(alpha = 0.65f),
-                        fontSize = 12.sp
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.25.sp
                     )
                     Text(
                         text = selectedDate,
                         color = cs.onSurface,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.2).sp
                     )
                     Text(
                         text = stringResource(R.string.workouts_selected_day_subtitle),
                         color = cs.onSurface.copy(alpha = 0.68f),
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        lineHeight = 16.sp
                     )
                 }
 
@@ -1772,7 +2100,12 @@ private fun SelectedDaySummaryCard(
                         modifier = Modifier
                             .clip(RoundedCornerShape(999.dp))
                             .background(
-                                if (isDark) Color(0xFF131821) else Color(0xFFEAF2FB)
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Color(0xFF00F5FF).copy(alpha = 0.16f),
+                                        Color(0xFF00FFA3).copy(alpha = 0.14f)
+                                    )
+                                )
                             )
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
@@ -1839,39 +2172,37 @@ private fun SelectedDayStatTile(
     bg: Color
 ) {
     val cs = MaterialTheme.colorScheme
-    val isDark = cs.background.luminance() < 0.5f
+    val valueFontSize = if (value.length >= 8) 12.sp else 15.sp
 
-    val valueFontSize = if (value.length >= 8) 12.sp else 14.sp
-
-    Column(
-        modifier = modifier
-            .height(92.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(bg)
-            .border(
-                1.dp,
-                if (isDark) Color.White.copy(alpha = 0.04f) else Color(0x120F172A),
-                RoundedCornerShape(18.dp)
-            )
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.SpaceBetween
+    SecondarySurfacePanel(
+        modifier = modifier.height(94.dp),
+        bg = bg,
+        shape = RoundedCornerShape(18.dp)
     ) {
-        Text(
-            text = title,
-            color = cs.onSurface.copy(alpha = 0.62f),
-            fontSize = 10.sp,
-            lineHeight = 12.sp,
-            minLines = 2,
-            maxLines = 2
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = title,
+                color = cs.onSurface.copy(alpha = 0.60f),
+                fontSize = 10.sp,
+                lineHeight = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                minLines = 2,
+                maxLines = 2
+            )
 
-        Text(
-            text = value,
-            color = cs.onSurface,
-            fontSize = valueFontSize,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1
-        )
+            Text(
+                text = value,
+                color = cs.onSurface,
+                fontSize = valueFontSize,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1
+            )
+        }
     }
 }
 
@@ -1887,13 +2218,9 @@ private fun SelectedDaySessionsCard(
     val cs = MaterialTheme.colorScheme
     val isDark = cs.background.luminance() < 0.5f
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(if (isDark) 10.dp else 8.dp, RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = cardBg),
-        shape = RoundedCornerShape(24.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, borderSoft)
+    HeroSurfaceCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp)
     ) {
         Column(
             modifier = Modifier
@@ -1905,13 +2232,16 @@ private fun SelectedDaySessionsCard(
                 Text(
                     text = stringResource(R.string.workouts_sessions_on_selected_day),
                     color = cs.onSurface,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-0.15).sp
                 )
                 Text(
                     text = stringResource(R.string.workouts_tap_session_hint),
                     color = cs.onSurface.copy(alpha = 0.65f),
-                    fontSize = 11.sp
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    lineHeight = 15.sp
                 )
             }
 
@@ -1920,7 +2250,14 @@ private fun SelectedDaySessionsCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(18.dp))
-                        .background(if (isDark) Color(0xFF12161E) else Color(0xFFF3F6FB))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    if (isDark) Color(0xFF12161E).copy(alpha = 0.98f) else Color(0xFFF3F6FB),
+                                    if (isDark) Color(0xFF10141A).copy(alpha = 0.92f) else Color(0xFFF8FBFE)
+                                )
+                            )
+                        )
                         .padding(18.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -1945,10 +2282,14 @@ private fun SelectedDaySessionsCard(
     }
 }
 
-
 private fun WorkoutSession.safeEndTime(): Long {
     val computedEnd = startTime + (durationMinutes.coerceAtLeast(1) * 60_000L)
     return if (endTime > startTime) endTime else computedEnd
+}
+
+private fun WorkoutSession.isMeaningfulWorkoutSession(): Boolean {
+    if (source == "test") return false
+    return steps >= 500 || durationMinutes >= 5
 }
 
 @Composable
@@ -1961,14 +2302,8 @@ private fun SelectedDaySessionRow(
     val isDark = cs.background.luminance() < 0.5f
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
-    val safeEnd = if (session.endTime > session.startTime) {
-        session.endTime
-    } else {
-        session.startTime + (session.durationMinutes.coerceAtLeast(1) * 60_000L)
-    }
-
     val start = timeFormat.format(Date(session.startTime))
-    val end = timeFormat.format(Date(safeEnd))
+    val end = timeFormat.format(Date(session.endTime))
 
     val intensityHigh = stringResource(R.string.workouts_intensity_high)
     val intensityModerate = stringResource(R.string.workouts_intensity_moderate)
@@ -1987,16 +2322,16 @@ private fun SelectedDaySessionRow(
     }
 
     val rowBg = when {
-        selected && isDark -> Color(0xFF141A22)
-        selected && !isDark -> Color(0xFFF7FCFF)
+        selected && isDark -> Color(0xFF16202A)
+        selected && !isDark -> Color(0xFFF0F9FF)
         !selected && isDark -> Color(0xFF11151C)
-        else -> Color.White
+        else -> if (isDark) Color(0xFF11151C) else Color(0xFFFBFCFE)
     }
 
     val borderColor = if (selected) {
-        Color(0xFF00F5FF)
+        if (isDark) Color(0xFF34E6FF) else Color(0xFF16B8FF)
     } else {
-        if (isDark) Color.White.copy(alpha = 0.04f) else Color(0x120F172A)
+        if (isDark) Color.White.copy(alpha = 0.04f) else Color.Black.copy(alpha = 0.05f)
     }
 
     val scale by animateFloatAsState(
@@ -2010,18 +2345,27 @@ private fun SelectedDaySessionRow(
             .fillMaxWidth()
             .graphicsLayer(scaleX = scale, scaleY = scale)
             .clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = rowBg),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         shape = RoundedCornerShape(20.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            rowBg.copy(alpha = 0.98f),
+                            rowBg.copy(alpha = 0.92f)
+                        ),
+                        start = Offset.Zero,
+                        end = Offset(400f, 260f)
+                    )
+                )
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Accent line
             Box(
                 modifier = Modifier
                     .width(4.dp)
@@ -2030,7 +2374,6 @@ private fun SelectedDaySessionRow(
                     .background(intensityColor)
             )
 
-            // Main info
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -2038,28 +2381,59 @@ private fun SelectedDaySessionRow(
                 Text(
                     text = "$start - $end",
                     color = cs.onSurface.copy(alpha = 0.65f),
-                    fontSize = 11.sp
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
                 )
 
-                Text(
-                    text = "${session.steps} ${stringResource(R.string.workouts_steps_label).lowercase(Locale.getDefault())} • ${session.durationMinutes} min",
-                    color = cs.onSurface,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "${session.steps}",
+                        color = cs.onSurface,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        text = stringResource(R.string.workouts_steps_label).lowercase(Locale.getDefault()),
+                        color = cs.onSurface.copy(alpha = 0.78f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "• ${session.durationMinutes} min",
+                        color = cs.onSurface.copy(alpha = 0.72f),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
 
                 Text(
                     text = "${session.avgStepsPerMinute} spm • ${session.caloriesKcal} kcal",
                     color = cs.onSurface.copy(alpha = 0.72f),
-                    fontSize = 11.sp
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    lineHeight = 15.sp
                 )
             }
 
-            // Badge
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(999.dp))
-                    .background(intensityColor.copy(alpha = 0.14f))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                intensityColor.copy(alpha = 0.18f),
+                                intensityColor.copy(alpha = 0.10f)
+                            )
+                        )
+                    )
+                    .border(
+                        1.dp,
+                        intensityColor.copy(alpha = 0.18f),
+                        RoundedCornerShape(999.dp)
+                    )
                     .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text(
@@ -2072,3 +2446,71 @@ private fun SelectedDaySessionRow(
         }
     }
 }
+
+
+@Composable
+private fun PremiumInnerPanel(
+    modifier: Modifier = Modifier,
+    bg: Color,
+    shape: RoundedCornerShape = RoundedCornerShape(18.dp),
+    content: @Composable BoxScope.() -> Unit
+) {
+    val cs = MaterialTheme.colorScheme
+    val isDark = cs.background.luminance() < 0.5f
+
+    val panelGradient = if (isDark) {
+        Brush.linearGradient(
+            listOf(
+                bg.copy(alpha = 0.985f),
+                bg.copy(alpha = 0.90f)
+            ),
+            start = Offset.Zero,
+            end = Offset(320f, 380f)
+        )
+    } else {
+        Brush.linearGradient(
+            listOf(
+                bg.copy(alpha = 1f),
+                bg.copy(alpha = 0.94f)
+            ),
+            start = Offset.Zero,
+            end = Offset(320f, 380f)
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(panelGradient)
+            .border(
+                1.dp,
+                if (isDark) Color.White.copy(alpha = 0.045f)
+                else Color.Black.copy(alpha = 0.055f),
+                shape
+            )
+            .drawBehind {
+                drawRoundRect(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            if (isDark) {
+                                Color.White.copy(alpha = 0.035f)
+                            } else {
+                                Color.White.copy(alpha = 0.30f)
+                            },
+                            Color.Transparent
+                        ),
+                        start = Offset(0f, 0f),
+                        end = Offset(size.width * 0.78f, size.height * 0.42f)
+                    ),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(22f, 22f)
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+
+
+

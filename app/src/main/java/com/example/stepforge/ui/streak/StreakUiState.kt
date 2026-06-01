@@ -44,17 +44,18 @@ data class StreakUiState(
 
     val isPremium: Boolean = false,
 
-    val shieldTodayMinutesLeft: Int = 0,
-    val shieldTodayMaxMinutes: Int = 0,
-
-    val shieldTomorrowBaseHours: Int = 0,
-    val shieldTomorrowGoalBonusHours: Int = 0,
-    val shieldTomorrowFinalHours: Int = 0,
-    val shieldTomorrowMaxHours: Int = 0,
+    val streakBehaviorState: StreakBehaviorState = StreakBehaviorState.ACTIVE,
+    val streakStateMessage: StreakStateMessage = StreakStateMessage.SAFE,
+    val streakHealthPercent: Int = 100,
 
     val premiumRescuesLeft: Int = 0,
-    val premiumAutoRescueEnabled: Boolean = false,
-    val premiumAiCoachEnabled: Boolean = false
+    val premiumAiCoachEnabled: Boolean = false,
+
+    val showRescueDialog: Boolean = false,
+    val showLostRestoreDialog: Boolean = false,
+    val lostStreakSnapshot: Int = 0,
+    val recoveryWindowActive: Boolean = false,
+    val recovery: StreakRecoveryState = StreakRecoveryState()
 )
 
 @Immutable

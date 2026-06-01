@@ -6,5 +6,6 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "daily_steps")
 data class DailySteps(
     @PrimaryKey val date: String, // "yyyy-MM-dd"
-    val steps: Int
+    val steps: Int,
+    val source: String = "sensor"
 )

@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -27,8 +28,27 @@ class StreakViewModel(
     val ui: StateFlow<StreakUiState> = _ui
 
     private val KEY_STEP_GOAL = intPreferencesKey("step_goal")
+    private val billing: StreakRestoreBilling = MockStreakRestoreBilling
 
     private val ymd = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+
+    init {
+        viewModelScope.launch {
+            StreakRecoveryManager.recoveryState(appContext).collect { recovery ->
+                if (recovery.expiredVisibleState) {
+                    StreakRecoveryManager.expireIfNeeded(appContext)
+                }
+                _ui.update { current ->
+                    current.copy(
+                        recovery = recovery,
+                        showLostRestoreDialog = recovery.visible,
+                        lostStreakSnapshot = recovery.lostStreakDays,
+                        recoveryWindowActive = recovery.visible
+                    )
+                }
+            }
+        }
+    }
 
     fun load() {
         viewModelScope.launch {
@@ -53,7 +73,6 @@ class StreakViewModel(
                 val todaySteps = mapByDate[today] ?: 0
                 val todayHit = todaySteps >= goal
 
-                // last 7/14/30 (oldest -> newest)
                 fun lastNDates(n: Int): List<String> {
                     val out = ArrayList<String>(n)
                     val cal = Calendar.getInstance().apply {
@@ -81,49 +100,43 @@ class StreakViewModel(
                 val last14 = listForDates(dates14)
                 val last30 = listForDates(dates30)
 
-                val shieldTodayMinutesLeft = prefs[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] ?: 0
-                val shieldTodayMaxMinutes = prefs[StreakShieldPrefs.SHIELD_TODAY_MAX_MINUTES] ?: 0
+                val behavior = StreakBehaviorEngine.readSnapshot(appContext)
+                val protectedDates = StreakBehaviorEngine.readProtectedDates(
+                    prefs[StreakBehaviorPrefs.STREAK_PROTECTED_DATES]
+                )
 
-                val shieldTomorrowBaseHours = prefs[StreakShieldPrefs.SHIELD_TOMORROW_BASE_HOURS] ?: 0
-                val shieldTomorrowGoalBonusHours = prefs[StreakShieldPrefs.SHIELD_TOMORROW_GOAL_BONUS_HOURS] ?: 0
-                val shieldTomorrowFinalHours = prefs[StreakShieldPrefs.SHIELD_TOMORROW_FINAL_HOURS] ?: 0
-                val shieldTomorrowMaxHours = prefs[StreakShieldPrefs.SHIELD_TOMORROW_MAX_HOURS] ?: 0
-
-                val premiumAutoRescueEnabled = prefs[StreakShieldPrefs.PREMIUM_AUTO_RESCUE_ENABLED] ?: false
-                val premiumAiCoachEnabled = prefs[StreakShieldPrefs.PREMIUM_AI_COACH_ENABLED] ?: false
-
-                val isPremium = (prefs[intPreferencesKey("premium_enabled")] ?: 0) == 1
-
-                val currentMonth = java.time.LocalDate.now().let { "%04d-%02d".format(it.year, it.monthValue) }
-                val savedMonth = prefs[StreakShieldPrefs.PREMIUM_RESCUE_MONTH] ?: currentMonth
-                val usedCount = if (savedMonth == currentMonth) {
-                    prefs[StreakShieldPrefs.PREMIUM_RESCUE_USED_COUNT] ?: 0
-                } else {
-                    0
-                }
-                val premiumRescuesLeft =
-                    (StreakShieldEngine.getMonthlyPremiumRescueLimit() - usedCount).coerceAtLeast(0)
-
+                val bufferMinutes = prefs[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] ?: 0
                 val rescueUsedDate = prefs[StreakShieldPrefs.PREMIUM_RESCUE_USED_FOR_DATE] ?: ""
                 val rescueUsedToday = rescueUsedDate == today
+                val rescuedActive = behavior.rescuedUntilMs > System.currentTimeMillis()
 
                 val todayCountsForStreak = StreakDayQualifier.qualifyDay(
                     steps = todaySteps,
                     goal = goal,
-                    shieldMinutesLeft = shieldTodayMinutesLeft,
-                    rescueUsedForDay = rescueUsedToday
+                    behaviorBufferMinutes = bufferMinutes,
+                    rescueUsedForDay = rescueUsedToday,
+                    rescuedActive = rescuedActive
                 ).countsForStreak
 
-                val currentStreak = StreakAnalyticsEngine.computeCurrentStreakWithTodayOverride(
+                val computedStreak = StreakAnalyticsEngine.computeCurrentStreakWithTodayOverride(
                     dailyByDate = mapByDate,
                     goal = goal,
                     today = today,
-                    todayCountsForStreak = todayCountsForStreak
+                    todayCountsForStreak = todayCountsForStreak,
+                    protectedDates = protectedDates
                 )
+
+                val displayOverride = prefs[StreakBehaviorPrefs.STREAK_DISPLAY_OVERRIDE_DAYS] ?: 0
+                val currentStreak = if (behavior.state == StreakBehaviorState.LOST) {
+                    0
+                } else {
+                    StreakBehaviorEngine.applyDisplayOverride(computedStreak, displayOverride)
+                }
+
                 val longestStreak = StreakAnalyticsEngine.computeLongestStreak(
                     dailySortedAsc = sortedAsc,
                     goal = goal
-                )
+                ).let { maxOf(it, currentStreak) }
 
                 val weeklyAvg = (last7.sumOf { it.steps } / last7.size.coerceAtLeast(1))
                 val weeklyCompletion = StreakAnalyticsEngine.weeklyCompletionRate(last7, goal)
@@ -142,10 +155,8 @@ class StreakViewModel(
 
                 val perfectDays = StreakAnalyticsEngine.computePerfectDays(last30, goal)
 
-                // Hourly map for peak hour
                 val hourlyByDate: Map<String, List<HourlySteps>> = buildMap {
                     for (d in dates30) {
-                        // DAO already returns ordered by hour asc
                         put(d, hourlyDao.getForDate(d))
                     }
                 }
@@ -161,6 +172,11 @@ class StreakViewModel(
                     last7Avg = weeklyAvg,
                     nowHour = nowHour
                 )
+
+                val isPremium = (prefs[intPreferencesKey("premium_enabled")] ?: 0) == 1
+                val premiumAiCoachEnabled = prefs[StreakShieldPrefs.PREMIUM_AI_COACH_ENABLED] ?: false
+
+                val lostSnapshot = behavior.lostSnapshotDays
 
                 StreakUiState(
                     isLoading = false,
@@ -201,21 +217,67 @@ class StreakViewModel(
 
                     isPremium = isPremium,
 
-                    shieldTodayMinutesLeft = shieldTodayMinutesLeft,
-                    shieldTodayMaxMinutes = shieldTodayMaxMinutes,
+                    streakBehaviorState = behavior.state,
+                    streakStateMessage = behavior.stateMessage,
+                    streakHealthPercent = behavior.healthPercent,
 
-                    shieldTomorrowBaseHours = shieldTomorrowBaseHours,
-                    shieldTomorrowGoalBonusHours = shieldTomorrowGoalBonusHours,
-                    shieldTomorrowFinalHours = shieldTomorrowFinalHours,
-                    shieldTomorrowMaxHours = shieldTomorrowMaxHours,
+                    premiumRescuesLeft = behavior.premiumRescuesLeft,
+                    premiumAiCoachEnabled = premiumAiCoachEnabled,
 
-                    premiumRescuesLeft = premiumRescuesLeft,
-                    premiumAutoRescueEnabled = premiumAutoRescueEnabled,
-                    premiumAiCoachEnabled = premiumAiCoachEnabled
+                    showRescueDialog = behavior.showRescueDialog && isPremium,
+                    showLostRestoreDialog = _ui.value.recovery.visible,
+                    lostStreakSnapshot = lostSnapshot,
+                    recoveryWindowActive = _ui.value.recovery.visible,
+                    recovery = _ui.value.recovery
                 )
             }
 
             _ui.value = state
+        }
+    }
+
+    fun onProtectStreak() {
+        viewModelScope.launch(Dispatchers.IO) {
+            StreakBehaviorEngine.applyManualRescue(appContext)
+            load()
+        }
+    }
+
+    fun onDismissRescue() {
+        viewModelScope.launch(Dispatchers.IO) {
+            StreakBehaviorEngine.dismissRescueDialog(appContext)
+            load()
+        }
+    }
+
+    fun onRestoreStreak() {
+        _ui.update { current ->
+            current.copy(
+                recovery = current.recovery.copy(visible = false),
+                showLostRestoreDialog = false,
+                recoveryWindowActive = false
+            )
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = billing.purchaseRestore()
+            if (result.success) {
+                StreakRecoveryManager.restoreStreak(appContext)
+            }
+            load()
+        }
+    }
+
+    fun onDismissLostRestore() {
+        _ui.update { current ->
+            current.copy(
+                recovery = current.recovery.copy(visible = false),
+                showLostRestoreDialog = false,
+                recoveryWindowActive = false
+            )
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            StreakRecoveryManager.dismissRecovery(appContext)
+            load()
         }
     }
 }

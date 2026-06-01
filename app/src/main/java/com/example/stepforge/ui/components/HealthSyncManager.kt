@@ -5,21 +5,22 @@ import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
+import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import androidx.health.connect.client.units.Energy.Companion.calories
+import androidx.health.connect.client.units.Length
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.ZoneOffset
-import java.time.temporal.ChronoUnit
-import androidx.health.connect.client.records.SleepSessionRecord
-import androidx.health.connect.client.records.HeartRateRecord
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 
 class HealthSyncManager(private val context: Context) {
 
@@ -29,11 +30,16 @@ class HealthSyncManager(private val context: Context) {
     private val permissions: Set<String> = setOf(
         HealthPermission.getReadPermission(StepsRecord::class),
         HealthPermission.getWritePermission(StepsRecord::class),
+
         HealthPermission.getReadPermission(DistanceRecord::class),
+        HealthPermission.getWritePermission(DistanceRecord::class),
+
         HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
+        HealthPermission.getWritePermission(TotalCaloriesBurnedRecord::class),
+
         HealthPermission.getReadPermission(WeightRecord::class),
         HealthPermission.getWritePermission(WeightRecord::class),
-                HealthPermission.getReadPermission(SleepSessionRecord::class),
+
         HealthPermission.getReadPermission(HeartRateRecord::class)
     )
 
@@ -208,6 +214,90 @@ class HealthSyncManager(private val context: Context) {
             response.records.fold(0L) { acc, rec -> acc + rec.count }
         } catch (e: Exception) {
             0L
+        }
+    }
+
+    suspend fun writeStepsToHealthConnect(
+        steps: Long,
+        start: Instant,
+        end: Instant
+    ): Boolean {
+
+        return try {
+
+            val record = StepsRecord(
+                count = steps,
+                startTime = start,
+                endTime = end,
+                startZoneOffset = ZoneOffset.systemDefault().rules.getOffset(start),
+                endZoneOffset = ZoneOffset.systemDefault().rules.getOffset(end)
+            )
+
+            client.insertRecords(listOf(record))
+
+            Log.d("HealthSync", "Steps synced successfully")
+            true
+
+        } catch (e: Exception) {
+
+            Log.e("HealthSync", "Failed to sync steps", e)
+            false
+        }
+    }
+
+    suspend fun writeDistanceToHealthConnect(
+        meters: Double,
+        start: Instant,
+        end: Instant
+    ): Boolean {
+
+        return try {
+
+            val record = DistanceRecord(
+                distance = Length.meters(meters),
+                startTime = start,
+                endTime = end,
+                startZoneOffset = ZoneOffset.systemDefault().rules.getOffset(start),
+                endZoneOffset = ZoneOffset.systemDefault().rules.getOffset(end)
+            )
+
+            client.insertRecords(listOf(record))
+
+            Log.d("HealthSync", "Distance synced")
+            true
+
+        } catch (e: Exception) {
+
+            Log.e("HealthSync", "Distance sync failed", e)
+            false
+        }
+    }
+
+    suspend fun writeCaloriesToHealthConnect(
+        caloriesValue: Double,
+        start: Instant,
+        end: Instant
+    ): Boolean {
+
+        return try {
+
+            val record = TotalCaloriesBurnedRecord(
+                energy = calories(caloriesValue),
+                startTime = start,
+                endTime = end,
+                startZoneOffset = ZoneOffset.systemDefault().rules.getOffset(start),
+                endZoneOffset = ZoneOffset.systemDefault().rules.getOffset(end)
+            )
+
+            client.insertRecords(listOf(record))
+
+            Log.d("HealthSync", "Calories synced")
+            true
+
+        } catch (e: Exception) {
+
+            Log.e("HealthSync", "Calories sync failed", e)
+            false
         }
     }
 }

@@ -1,9 +1,12 @@
 package com.example.stepforge
 
 import android.app.Application
+import com.example.stepforge.core.AppStateMigrationManager
 import com.example.stepforge.debug.AnrWatchdog
 import com.example.stepforge.debug.DebugInitializer
 import com.example.stepforge.debug.DebugLogger
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 
 class StepForgeApp : Application() {
 
@@ -13,6 +16,10 @@ class StepForgeApp : Application() {
         super.onCreate()
 
         DebugInitializer.init(this)
+
+        MainScope().launch {
+            AppStateMigrationManager.runMigrations(this@StepForgeApp)
+        }
 
         anrWatchdog = AnrWatchdog(
             timeoutMs = 6000L,

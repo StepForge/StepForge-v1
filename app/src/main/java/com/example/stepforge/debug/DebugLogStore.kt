@@ -3,7 +3,9 @@ package com.example.stepforge.debug
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -13,8 +15,10 @@ import java.util.concurrent.atomic.AtomicLong
 object DebugLogStore {
 
     private const val MAX_IN_MEMORY_LOGS = 1500
+    private const val SAVE_DELAY_MS = 3000L // 3 saniye debounce
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var saveJob: Job? = null
     private val idGen = AtomicLong(System.currentTimeMillis())
 
     private lateinit var fileStore: DebugLogFileStore
@@ -47,8 +51,16 @@ object DebugLogStore {
 
         _logs.update { current ->
             val updated = (current + entry).takeLast(MAX_IN_MEMORY_LOGS)
-            scope.launch { fileStore.save(updated) }
+            scheduleSave(updated)
             updated
+        }
+    }
+
+    private fun scheduleSave(logs: List<DebugLogEntry>) {
+        saveJob?.cancel()
+        saveJob = scope.launch {
+            delay(SAVE_DELAY_MS)
+            fileStore.save(logs)
         }
     }
 

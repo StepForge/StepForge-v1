@@ -40,6 +40,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +63,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.stepforge.R
+import com.example.stepforge.ui.components.HealthConnectState
 import com.example.stepforge.ui.components.HealthSyncManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -87,14 +89,13 @@ fun IntegrationModal(
     val healthManager = remember { HealthSyncManager(ctx) }
 
     // ✅ Yeni: İzin durumunu tutan state
+    val hcStatus by HealthConnectState.status.collectAsState()
     var isConnected by remember { mutableStateOf(false) }
 
     // ✅ Yeni: Modal açıldığında izinleri kontrol et
-    LaunchedEffect(sheet) {
+    LaunchedEffect(sheet, hcStatus) {
         if (sheet == IntegrationSheet.HealthConnect) {
-            // ✅ S10 için 500ms bekleyip sonra kontrol et (Sistem izinleri işleyebilsin)
-            delay(500)
-            isConnected = healthManager.hasEssentialPermissions()
+            isConnected = hcStatus.permissionsGranted
         }
     }
 
@@ -152,7 +153,7 @@ fun IntegrationModal(
                                         delay(1500)
                                         isConnected = healthManager.hasEssentialPermissions()
                                         if (isConnected) {
-                                            Log.d("StepForge", "Health Connect synced ✅")
+                                            Log.d("StepForge", "Health Connect synced")
                                         }
                                     }
                                 },
@@ -268,7 +269,7 @@ fun HealthConnectCard(
 
         // ✅ BURASI: Dinamik Başlık
         Text(
-            text = if (isConnected) "Successfully\nConnected ✅" else "Health Connect\nIntegration",
+            text = if (isConnected) "Successfully\nConnected" else "Health Connect\nIntegration",
             fontSize = 22.sp,
             color = if (isConnected) ringGreen else textMain,
             fontWeight = FontWeight.Bold,

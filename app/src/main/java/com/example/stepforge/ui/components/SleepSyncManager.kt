@@ -13,6 +13,7 @@ import com.example.stepforge.data.SleepStage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
+import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
@@ -112,20 +113,14 @@ class SleepSyncManager(private val context: Context) {
                 wroteSessions++
 
                 try {
-                    val stages = record.stages
-                    for (st in stages) {
-                        val stageTypeStr = try {
-                            st.stage.toString().lowercase(Locale.getDefault())
-                        } catch (_: Exception) {
-                            "unknown"
-                        }
-
+                    val mappedStages = extractMappedStages(record.stages)
+                    for (ms in mappedStages) {
                         stageDao.insert(
                             SleepStage(
                                 sessionId = sessionId,
-                                stageType = stageTypeStr,
-                                startTime = st.startTime.toEpochMilli(),
-                                endTime = st.endTime.toEpochMilli()
+                                stageType = ms.type,          // ✅ deep/rem/light/awake
+                                startTime = ms.startMs,
+                                endTime = ms.endMs
                             )
                         )
                         wroteStages++
@@ -138,6 +133,81 @@ class SleepSyncManager(private val context: Context) {
             wroteSessions > 0
         } catch (e: Exception) {
             Log.e(TAG, "syncLast7Days error", e)
+            false
+        }
+    }
+
+
+    private data class MappedStage(
+        val type: String,   // deep/rem/light/awake
+        val startMs: Long,
+        val endMs: Long
+    )
+
+    private fun mapHealthConnectStageToInternal(stageAny: Any?): String? {
+        val raw = stageAny?.toString()?.uppercase(Locale.US) ?: return null
+
+        return when {
+            raw.contains("DEEP") -> "deep"
+            raw.contains("REM") -> "rem"
+            raw.contains("LIGHT") -> "light"
+            raw.contains("AWAKE") -> "awake"
+
+            // ignore:
+            raw.contains("UNKNOWN") -> null
+            raw.contains("OUT_OF_BED") -> null
+            raw.contains("UNSPECIFIED") -> null
+            else -> null
+        }
+    }
+
+    private fun extractMappedStages(
+        recordStages: List<androidx.health.connect.client.records.SleepSessionRecord.Stage>?
+    ): List<MappedStage> {
+        if (recordStages.isNullOrEmpty()) return emptyList()
+
+        return recordStages.mapNotNull { st ->
+            val mapped = mapHealthConnectStageToInternal(st.stage) ?: return@mapNotNull null
+            val startMs = st.startTime.toEpochMilli()
+            val endMs = st.endTime.toEpochMilli()
+            if (endMs <= startMs) return@mapNotNull null
+
+            MappedStage(
+                type = mapped,
+                startMs = startMs,
+                endMs = endMs
+            )
+        }.sortedBy { it.startMs }
+    }
+
+    suspend fun writeSleepSession(
+        startMillis: Long,
+        endMillis: Long,
+        title: String = "StepForge Sleep"
+    ): Boolean = withContext(Dispatchers.IO) {
+
+        try {
+
+            val start = Instant.ofEpochMilli(startMillis)
+            val end = Instant.ofEpochMilli(endMillis)
+
+            val record = SleepSessionRecord(
+                startTime = start,
+                endTime = end,
+                startZoneOffset = ZoneId.systemDefault().rules.getOffset(start),
+                endZoneOffset = ZoneId.systemDefault().rules.getOffset(end),
+                title = title,
+                notes = "Synced from StepForge"
+            )
+
+            client.insertRecords(listOf(record))
+
+            Log.d(TAG, "Sleep session synced successfully")
+            true
+
+        } catch (e: Exception) {
+
+            Log.e(TAG, "Failed to sync sleep session", e)
             false
         }
     }

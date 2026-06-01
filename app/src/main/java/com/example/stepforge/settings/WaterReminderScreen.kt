@@ -1,5 +1,6 @@
 package com.example.stepforge.settings
 
+import android.opengl.ETC1.isValid
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
@@ -726,23 +727,30 @@ private fun PremiumGoalSheet(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = onDismiss) { Text("Cancel") }
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.weight(1f))
                     Button(
                         onClick = { onSave(goal) },
+                        shape = RoundedCornerShape(999.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                         contentPadding = PaddingValues()
                     ) {
                         Box(
                             modifier = Modifier
-                                .height(42.dp)
-                                .padding(horizontal = 14.dp)
-                                .background(neon, RoundedCornerShape(14.dp)),
+                                .height(52.dp)                // ✅ daha büyük
+                                .widthIn(min = 140.dp)        // ✅ daha geniş, çirkin küçük kalmasın
+                                .background(neon, RoundedCornerShape(999.dp))
+                                .padding(horizontal = 18.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Save", color = Color.Black, fontWeight = FontWeight.Bold)
+                            Text(
+                                "Save",
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
                         }
                     }
                 }

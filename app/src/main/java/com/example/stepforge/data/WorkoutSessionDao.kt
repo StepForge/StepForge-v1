@@ -36,9 +36,4 @@ interface WorkoutSessionDao {
     @Query("DELETE FROM workout_session")
     suspend fun clearAll()
 
-    @Query("DELETE FROM workout_session WHERE source = 'test'")
-    suspend fun deleteTestSessions()
-
-    @Query("SELECT * FROM workout_session WHERE source = 'test' ORDER BY startTime DESC")
-    suspend fun getTestSessions(): List<WorkoutSession>
 }

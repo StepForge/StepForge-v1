@@ -28,6 +28,12 @@ class StepCounterRestartWorker(
             StepWidgetCompactProvider.notifyRefresh(ctx)
             StepWidgetLargeProvider.notifyRefresh(ctx)
 
+            // ✅ Servis zaten çalışıyorsa tekrar başlatma
+            if (StepCounterService.isServiceRunning) {
+                Log.d("StepForgeDebug", "RestartWorker: Service already running, skip.")
+                return Result.success()
+            }
+
             val intent = Intent(ctx, StepCounterService::class.java)
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

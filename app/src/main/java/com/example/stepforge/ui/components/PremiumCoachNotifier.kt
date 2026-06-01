@@ -33,9 +33,21 @@ class PremiumCoachNotifier(
         val lastNotifyType = prefs[StreakShieldPrefs.PREMIUM_AI_LAST_NOTIFY_TYPE] ?: ""
 
         if (now - lastNotifyAt < MIN_NOTIFY_INTERVAL_MS) return
-        if (lastNotifyType == decision.type.name) return
+
+        // ✅ Aynı tip bildirimi 6 saatte bir tekrar göster (sonsuza dek engelleme)
+        val sameTypeBlockMs = 6 * 60 * 60 * 1000L
+        if (lastNotifyType == decision.type.name && now - lastNotifyAt < sameTypeBlockMs) return
 
         createChannelIfNeeded()
+
+        // ✅ Android 13+ bildirim izni kontrolü
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (!granted) return
+        }
 
         val title = buildTitle(decision)
         val body = buildBody(decision)

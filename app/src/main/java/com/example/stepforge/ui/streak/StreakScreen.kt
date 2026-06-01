@@ -48,6 +48,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -91,7 +92,11 @@ fun StreakScreen(
 
     StreakScreenContent(
         state = state,
-        onBack = onBack
+        onBack = onBack,
+        onProtectStreak = { vm.onProtectStreak() },
+        onDismissRescue = { vm.onDismissRescue() },
+        onRestoreStreak = { vm.onRestoreStreak() },
+        onDismissLostRestore = { vm.onDismissLostRestore() }
     )
 }
 
@@ -99,6 +104,10 @@ fun StreakScreen(
 private fun StreakScreenContent(
     state: StreakUiState,
     onBack: () -> Unit,
+    onProtectStreak: () -> Unit,
+    onDismissRescue: () -> Unit,
+    onRestoreStreak: () -> Unit,
+    onDismissLostRestore: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     val isDark = cs.background.luminance() < 0.5f
@@ -133,6 +142,7 @@ private fun StreakScreenContent(
         PredictionNoteType.BEHIND -> stringResource(R.string.prediction_note_behind)
         PredictionNoteType.RISK -> stringResource(R.string.prediction_note_risk)
     }
+
 
     Scaffold(
         containerColor = cs.background,
@@ -261,11 +271,9 @@ private fun StreakScreenContent(
 
             item(key = "shieldStatus") {
                 ShieldStatusCard(
-                    todayShieldMinutesLeft = state.shieldTodayMinutesLeft,
-                    todayShieldMaxMinutes = state.shieldTodayMaxMinutes,
-                    tomorrowBaseHours = state.shieldTomorrowBaseHours,
-                    tomorrowGoalBonusHours = state.shieldTomorrowGoalBonusHours,
-                    tomorrowFinalHours = state.shieldTomorrowFinalHours,
+                    stateMessage = state.streakStateMessage,
+                    healthPercent = state.streakHealthPercent,
+                    behaviorState = state.streakBehaviorState,
                     isPremium = state.isPremium,
                     shadow = cardShadow,
                     border = border
@@ -276,7 +284,6 @@ private fun StreakScreenContent(
                 item(key = "premiumRescue") {
                     PremiumRescueCard(
                         rescuesLeft = state.premiumRescuesLeft,
-                        enabled = state.premiumAutoRescueEnabled,
                         shadow = cardShadow,
                         border = border
                     )
@@ -540,6 +547,16 @@ private fun StreakScreenContent(
                 }
             }
         }
+    }
+
+    if (state.recovery.visible) {
+        StreakRecoveryDialog(
+            streakDays = state.recovery.lostStreakDays,
+            formattedPrice = state.recovery.displayPrice,
+            remainingText = state.recovery.remainingText,
+            onDismiss = onDismissLostRestore,
+            onRestore = onRestoreStreak
+        )
     }
 }
 
@@ -1062,22 +1079,33 @@ private fun Modifier.debugOutline(color: Color): Modifier = this.then(
 
 @Composable
 private fun ShieldStatusCard(
-    todayShieldMinutesLeft: Int,
-    todayShieldMaxMinutes: Int,
-    tomorrowBaseHours: Int,
-    tomorrowGoalBonusHours: Int,
-    tomorrowFinalHours: Int,
+    stateMessage: StreakStateMessage,
+    healthPercent: Int,
+    behaviorState: StreakBehaviorState,
     isPremium: Boolean,
     shadow: androidx.compose.ui.unit.Dp,
     border: Color
 ) {
     val cs = MaterialTheme.colorScheme
 
-    val totalProgress = if (todayShieldMaxMinutes <= 0) {
-        0f
-    } else {
-        (todayShieldMinutesLeft.toFloat() / todayShieldMaxMinutes.toFloat()).coerceIn(0f, 1f)
+    val headline = when (stateMessage) {
+        StreakStateMessage.SAFE -> stringResource(R.string.streak_state_safe)
+        StreakStateMessage.NEEDS_ATTENTION -> stringResource(R.string.streak_state_needs_attention)
+        StreakStateMessage.CLOSE_TO_ENDING -> stringResource(R.string.streak_state_close_to_ending)
+        StreakStateMessage.RESCUED -> stringResource(R.string.streak_state_rescued)
+        StreakStateMessage.LOST -> stringResource(R.string.streak_state_lost)
     }
+
+    val subtitle = when (behaviorState) {
+        StreakBehaviorState.ACTIVE -> stringResource(R.string.streak_state_subtitle_active)
+        StreakBehaviorState.STABLE -> stringResource(R.string.streak_state_subtitle_stable)
+        StreakBehaviorState.UNSTABLE -> stringResource(R.string.streak_state_subtitle_unstable)
+        StreakBehaviorState.CRITICAL -> stringResource(R.string.streak_state_subtitle_critical)
+        StreakBehaviorState.RESCUED -> stringResource(R.string.streak_state_subtitle_rescued)
+        StreakBehaviorState.LOST -> stringResource(R.string.streak_state_subtitle_lost)
+    }
+
+    val totalProgress = (healthPercent / 100f).coerceIn(0f, 1f)
 
     ElevatedPremiumCard(shadow = shadow, border = border, bg = cs.surface) {
         Column(
@@ -1094,11 +1122,7 @@ private fun ShieldStatusCard(
             )
 
             Text(
-                text = stringResource(
-                    R.string.streak_shield_left_format,
-                    todayShieldMinutesLeft / 60,
-                    todayShieldMinutesLeft % 60
-                ),
+                text = headline,
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF00FFA3)
@@ -1131,23 +1155,13 @@ private fun ShieldStatusCard(
                 )
 
                 Text(
-                    text = stringResource(R.string.streak_shield_hours_format, tomorrowFinalHours),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
+                    text = subtitle,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = cs.onSurface
                 )
 
-                Text(
-                    text = stringResource(
-                        R.string.streak_shield_breakdown_format,
-                        tomorrowBaseHours,
-                        tomorrowGoalBonusHours
-                    ),
-                    fontSize = 11.sp,
-                    color = cs.onSurface.copy(alpha = 0.72f)
-                )
-
-                if (isPremium) {
+                if (isPremium && behaviorState != StreakBehaviorState.LOST) {
                     Text(
                         text = stringResource(R.string.streak_shield_premium_cap_active),
                         fontSize = 11.sp,
@@ -1162,7 +1176,6 @@ private fun ShieldStatusCard(
 @Composable
 private fun PremiumRescueCard(
     rescuesLeft: Int,
-    enabled: Boolean,
     shadow: androidx.compose.ui.unit.Dp,
     border: Color
 ) {
@@ -1190,11 +1203,7 @@ private fun PremiumRescueCard(
             )
 
             Text(
-                text = if (enabled) {
-                    stringResource(R.string.premium_rescue_auto_enabled)
-                } else {
-                    stringResource(R.string.premium_rescue_auto_disabled)
-                },
+                text = stringResource(R.string.premium_rescue_manual_hint),
                 fontSize = 12.sp,
                 color = cs.onSurface.copy(alpha = 0.72f)
             )

@@ -18,6 +18,9 @@ interface DailyStepsDao {
     @Query("SELECT * FROM daily_steps ORDER BY date DESC")
     fun observeAllSteps(): Flow<List<DailySteps>>
 
+    @Query("SELECT * FROM daily_steps WHERE date = :date LIMIT 1")
+    suspend fun getStepsForDate(date: String): DailySteps?
+
     @Query("DELETE FROM daily_steps")
     suspend fun clearAll()
 

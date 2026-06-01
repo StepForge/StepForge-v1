@@ -10,4 +10,12 @@
    <include domain="sharedpref" path="."/>
    <exclude domain="sharedpref" path="device.xml"/>
 -->
+
+    <!-- Uyku verilerini yedekle -->
+    <include domain="file" path="sleep_data/" />
+
+    <!-- Hassas alarm verilerini yedekleme -->
+    <exclude domain="sharedpref" path="alarm_prefs.xml" />
 </full-backup-content>
+
+

@@ -74,6 +74,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.health.connect.client.HealthConnectClient
 import com.example.stepforge.data.stepforgeStore
+import com.example.stepforge.debug.RuntimeDiagnostics
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -714,6 +715,8 @@ private suspend fun buildDiagnosticsBlock(ctx: Context): String =
             appendLine("  app_lock_enabled=$appLockEnabled")
             appendLine("  app_lock_biometric_allowed=$appLockBio")
             appendLine("  app_lock_timeout_sec=$appLockTimeout")
+            appendLine()
+            appendLine(RuntimeDiagnostics.build(ctx))
             appendLine("---")
         }
     }

@@ -26,11 +26,9 @@ class ReminderReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        // Log ekleyelim ki çalıştığını görelim
-        Log.d("ReminderReceiver", "Alarm çaldı! Bildirim hazırlanıyor...")
+        Log.d("ReminderReceiver", "Daily reminder triggered")
 
         CoroutineScope(Dispatchers.IO).launch {
-            // Sadece adım sayısını al, 'isEnabled' kontrolünü kaldırdık.
             val store = context.stepforgeStore.data.first()
             val totalSteps = store[intPreferencesKey("persisted_total_sum")] ?: 0
 
@@ -39,50 +37,53 @@ class ReminderReceiver : BroadcastReceiver() {
     }
 
     private fun showNotification(context: Context, steps: Int) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // 1. Kanal Oluştur
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // ✅ Channel (sadece reminder için, alarm değil)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "Daily Reminders",
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Reminds you to walk every day"
+                description = "Daily activity reminders"
             }
+
             notificationManager.createNotificationChannel(channel)
         }
 
-        // 2. Tıklama Aksiyonu
+        // ✅ App açma intent
         val contentIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
+
         val pendingIntent = PendingIntent.getActivity(
             context,
             0,
             contentIntent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // 3. Mesaj
-        val title = "Time to Walk! 🏃"
+        // ✅ Mesaj
+        val title = "Time to Move 🚶"
         val message = if (steps < 1000) {
-            "You haven't moved much today. Let's take a walk!"
+            "You haven't moved much today. Let's take a short walk!"
         } else {
-            "Keep it up! You have reached $steps steps so far."
+            "Nice! You've already walked $steps steps today."
         }
 
-        // 4. Göster
+        // ✅ Notification (SADE - alarm yok)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_walk)
+            .setSmallIcon(R.drawable.ic_walk) // varsa, yoksa ic_launcher kullan
             .setContentTitle(title)
             .setContentText(message)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .build()
 
         notificationManager.notify(NOTIF_ID, notification)
-        Log.d("ReminderReceiver", "Bildirim gönderildi.")
     }
 }

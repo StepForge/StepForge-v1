@@ -12,6 +12,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -26,17 +27,27 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
-import com.example.stepforge.core.WorkoutEvent
+import com.example.stepforge.core.WorkoutSessionEngine
+import com.example.stepforge.core.WorkoutSessionTransition
 import com.example.stepforge.data.AppDatabase
 import com.example.stepforge.data.DailySteps
 import com.example.stepforge.data.HourlySteps
+import com.example.stepforge.data.SleepMainSessionDeduper
 import com.example.stepforge.data.SleepSession
 import com.example.stepforge.data.WorkoutSession
 import com.example.stepforge.data.stepforgeStore
 import com.example.stepforge.debug.DebugLogger
+import com.example.stepforge.debug.RuntimeDiagnostics
 import com.example.stepforge.debug.StepSafetyGuard
+import com.example.stepforge.steps.CentralStepState
 import com.example.stepforge.steps.StepEvents
+import com.example.stepforge.steps.StepValidationAnalyzer
+import com.example.stepforge.ui.components.PremiumCoachEngine
+import com.example.stepforge.ui.components.PremiumCoachNotifier
+import com.example.stepforge.ui.streak.StreakBehaviorEngine
 import com.example.stepforge.ui.streak.StreakDayQualifier
+import com.example.stepforge.ui.streak.StreakShieldEngine
+import com.example.stepforge.ui.streak.StreakShieldPrefs
 import com.example.stepforge.widget.StepWidgetCompactProvider
 import com.example.stepforge.widget.StepWidgetLargeProvider
 import com.example.stepforge.widget.StepWidgetProvider
@@ -46,11 +57,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.Date
@@ -58,30 +72,27 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
-import com.example.stepforge.ui.streak.StreakShieldEngine
-import com.example.stepforge.ui.streak.StreakShieldPrefs
-import com.example.stepforge.ui.components.PremiumCoachEngine
-import com.example.stepforge.ui.components.PremiumCoachNotifier
 
 
 class StepCounterService : Service(), SensorEventListener {
 
-//    private val profileResolver by lazy { ProfileSnapshotResolver(this) }
-//    private val workoutCalibrator = ProfileWorkoutCalibrator()
-//    private val sessionEngine = WorkoutSessionEngine()
-//    private lateinit var workoutEngine: WorkoutEngine
-//    private var lastState: UserState = UserState.IDLE
-//    private lateinit var motionEngine: MotionEngine
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val sessionEngine = WorkoutSessionEngine(
+        inactivityTimeoutMs = WALK_SESSION_INACTIVITY_TIMEOUT_MS
+    )
     private lateinit var sensorManager: SensorManager
     private var accelerometer: Sensor? = null
 
     private var lastMotionMs = 0L
+    private var lastMotionWriteMs = 0L
     private var lastDateDebug = ""
 
     private val MOTION_STEP_TIMEOUT = 10000L
     private var sleepStartMs = 0L
     private var sleepEndMs = 0L
+
+    private var wakeMotionStartMs = 0L
+    private var screenOffToken = 0L
 
     private var inSleepMode = false
     private var stepSensor: Sensor? = null
@@ -100,27 +111,41 @@ class StepCounterService : Service(), SensorEventListener {
     @Volatile private var sensorOffset = 0
     @Volatile private var totalSteps = 0
     @Volatile private var lastResetMs: Long = 0L
-    @Volatile private var lastWidgetUpdateMs = 0L
-    @Volatile private var lastPersistMs = 0L
-    @Volatile private var lastNotificationUpdateMs = 0L
+    @Volatile private var foregroundStarted = false
+    private var persistJob: Job? = null
+    private var widgetSyncJob: Job? = null
+    private var coachJob: Job? = null
+    @Volatile private var pendingPersistSteps: Int = 0
+    @Volatile private var pendingWidgetSteps: Int = 0
+    @Volatile private var lastWidgetSyncMs: Long = 0L
+    @Volatile private var lastNotificationUpdateMs: Long = 0L
+    @Volatile private var lastRuntimeMotionPersistMs: Long = 0L
+
+    private val PERSIST_DEBOUNCE_MS = 2_000L
+    private val WIDGET_SYNC_INTERVAL_MS = 1_000L
+    private val NOTIFICATION_UPDATE_INTERVAL_MS = 1_000L
+    private val RUNTIME_MOTION_PERSIST_INTERVAL_MS = 15_000L
+    private val SENSOR_WATCHDOG_STALL_MS = 90_000L
+
     // --- Walking tracking ---
-    private var sessionStartSteps: Int = 0
-    private var sessionStartTime: Long = 0
-    private var lastStepTime: Long = System.currentTimeMillis()
-    private var isWalking = false
+
+    @Volatile private var sessionStartSteps: Int = 0
+    @Volatile private var sessionStartTime: Long = 0
+    @Volatile private var lastStepTime: Long = System.currentTimeMillis()
+    @Volatile private var isWalking = false
     private var activityCheckJob: Job? = null
 
     private val INACTIVITY_THRESHOLD_MS = 3 * 60 * 60 * 1000L // 3 hours
     private var currentDay = todayKey()
     private var hasCelebrated = false
 
-    private val MOTION_THRESHOLD = 0.25f
+    private val MOTION_THRESHOLD = 1.2f
     private val SLEEP_START_AFTER_MS = 20 * 60_000L   // 20 dk hareketsizlik -> uyku
     private val WAKE_AFTER_MS = 2 * 60_000L           // 2 dk hareket -> uyandı
 
     private var hourlyTickerJob: Job? = null
     private val dao by lazy { AppDatabase.getDatabase(this).dailyStepsDao() }
-
+    private val resetMutex = kotlinx.coroutines.sync.Mutex()
 
     private val stepSafetyGuard = StepSafetyGuard()
     private val premiumCoachNotifier by lazy { PremiumCoachNotifier(this) }
@@ -129,13 +154,30 @@ class StepCounterService : Service(), SensorEventListener {
         const val NOTIF_ID = 1001
         const val ACTION_GOAL_COMPLETED = "com.example.stepforge.GOAL_COMPLETED"
         const val TAG = "StepForgeDebug"
+        const val ACTION_RELOAD = "com.example.stepforge.ACTION_RELOAD"
+
+        // Sleep runtime state
+        val RUNTIME_SLEEP_MODE = booleanPreferencesKey("runtime_sleep_mode")
+        val RUNTIME_SLEEP_START = longPreferencesKey("runtime_sleep_start")
+        val RUNTIME_SLEEP_END = longPreferencesKey("runtime_sleep_end")
+        val RUNTIME_WAKE_MOTION_START = longPreferencesKey("runtime_wake_motion_start")
+
+        // Walking runtime state
+        val RUNTIME_IS_WALKING = booleanPreferencesKey("runtime_is_walking")
+        val RUNTIME_SESSION_START_TIME = longPreferencesKey("runtime_session_start_time")
+        val RUNTIME_SESSION_START_STEPS = intPreferencesKey("runtime_session_start_steps")
 
         const val ALERT_CHANNEL_ID = "StepForgeAlerts"
 
-        private const val WALK_SESSION_STOP_THRESHOLD_MS = 25_000L
+        private const val WALK_SESSION_INACTIVITY_TIMEOUT_MS = 10L * 60L * 1000L
+        private const val WALK_SESSION_MERGE_GAP_MS = 15L * 60L * 1000L
+        private const val WALK_SESSION_MIN_STEPS = 500
+        private const val WALK_SESSION_MIN_DURATION_MS = 5L * 60L * 1000L
+        private const val WALK_SESSION_MIN_REAL_MOTION_STEPS = 300
         @Volatile
         var isServiceRunning: Boolean = false
 
+        @Volatile private var lastCoachRunMs = 0L
         private val _targetFlow = MutableStateFlow(10000)
         val targetFlow = _targetFlow.asStateFlow()
 
@@ -193,34 +235,180 @@ class StepCounterService : Service(), SensorEventListener {
 
     private fun safeStartForeground(notification: Notification): Boolean {
         return try {
-            startForeground(NOTIF_ID, notification)
-
-            DebugLogger.i(
-                TAG,
-                "startForeground succeeded",
-                metadata = mapOf(
-                    "notificationId" to NOTIF_ID.toString()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                    NOTIF_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
                 )
-            )
-
+            } else {
+                startForeground(NOTIF_ID, notification)
+            }
+            DebugLogger.i(TAG, "startForeground succeeded (once)")
             true
         } catch (t: Throwable) {
             Log.e(TAG, "startForeground blocked: ${t.javaClass.name} ${t.message}", t)
-
             DebugLogger.e(
                 TAG,
                 "startForeground blocked: ${t.javaClass.name} ${t.message}",
                 throwable = t,
                 metadata = mapOf(
-                    "notificationId" to NOTIF_ID.toString(),
                     "isForegroundStartNotAllowed" to isStartForegroundNotAllowed(t).toString()
                 )
             )
-
-            // ❗ stopSelf YOK. Servisi öldürme.
-            // Bu hata olsa bile servis yaşamaya devam etsin.
             false
         }
+    }
+
+    private fun ensureForegroundOnce(notification: Notification) {
+        if (foregroundStarted) return
+        if (safeStartForeground(notification)) {
+            foregroundStarted = true
+        } else {
+            // Eğer foreground başlatılamazsa, servisin düzgün çalışmayacağını biliyoruz.
+            // Kritik durumda stopSelf() çağrılabilir veya tekrar deneme stratejisi kurulabilir.
+            Log.e(TAG, "Failed to start foreground service, background execution may be limited.")
+        }
+    }
+
+    private fun updateForegroundNotification(steps: Int) {
+        runCatching {
+            val notification = buildNotification(steps)
+            if (!foregroundStarted) {
+                ensureForegroundOnce(notification)
+                return
+            }
+            val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            nm.notify(NOTIF_ID, notification)
+
+            RuntimeDiagnostics.lastNotificationUpdateTime = System.currentTimeMillis()
+        }.onFailure { t ->
+            Log.e(TAG, "Notification update failed", t)
+            DebugLogger.e(TAG, "Notification update failed", t)
+        }
+    }
+
+
+    private fun publishLiveSteps(newTotal: Int, diff: Int) {
+        val safeTotal = newTotal.coerceAtLeast(0)
+
+        RuntimeDiagnostics.lastAcceptedStepTime =
+            System.currentTimeMillis()
+        totalSteps = safeTotal
+        CentralStepState.emit(safeTotal, cachedGoal, todayKey())
+        StepEvents.emitTodaySteps(safeTotal)
+
+        if (diff > 0) {
+            StepValidationAnalyzer.noteLiveBurst(diff)
+        }
+
+        checkGoalCelebrate(safeTotal)
+        val now = System.currentTimeMillis()
+        if (now - lastNotificationUpdateMs >= NOTIFICATION_UPDATE_INTERVAL_MS) {
+            lastNotificationUpdateMs = now
+            updateForegroundNotification(safeTotal)
+        }
+        schedulePersist(safeTotal)
+        scheduleWidgetSync(safeTotal)
+
+        if (diff > 0 && now - lastRuntimeMotionPersistMs >= RUNTIME_MOTION_PERSIST_INTERVAL_MS) {
+            lastRuntimeMotionPersistMs = now
+            serviceScope.launch {
+                try {
+                    stepforgeStore.edit { prefs ->
+                        prefs[LAST_STEP_TIME] = now
+                        prefs[LAST_MOTION_TIME] = now
+                    }
+                } catch (e: Exception) {
+                    stepSafetyGuard.registerError("write_last_step_time_failed")
+                }
+            }
+        }
+
+        coachJob?.cancel()
+        coachJob = serviceScope.launch {
+            delay(2_000L)
+            maybeRunPremiumCoach()
+            StreakBehaviorEngine.syncEarnedBuffer(applicationContext, safeTotal, cachedGoal)
+        }
+    }
+
+    private fun schedulePersist(steps: Int) {
+        pendingPersistSteps = steps.coerceAtLeast(0)
+        if (persistJob?.isActive == true) return
+
+        persistJob = serviceScope.launch {
+            delay(PERSIST_DEBOUNCE_MS)
+            flushPersistNow(pendingPersistSteps)
+        }
+    }
+
+    private suspend fun flushPersistNow(steps: Int) {
+
+        RuntimeDiagnostics.pendingFlushCount++
+
+        val start = System.currentTimeMillis()
+
+        try {
+
+            val persistedKey = intPreferencesKey("persisted_total_sum")
+            val day = todayKey()
+
+            stepforgeStore.edit {
+                it[PREF_LAST_SENSOR] = lastSensorValue
+                it[PREF_OFFSET] = sensorOffset
+                it[PREF_TOTAL] = steps
+                it[persistedKey] = steps
+            }
+
+            withContext(Dispatchers.IO) {
+                dao.insertDailySteps(DailySteps(day, steps))
+            }
+
+            RuntimeDiagnostics.lastPersistTime =
+                System.currentTimeMillis()
+
+            RuntimeDiagnostics.lastPersistDurationMs =
+                System.currentTimeMillis() - start
+
+        } finally {
+
+            RuntimeDiagnostics.pendingFlushCount =
+                (RuntimeDiagnostics.pendingFlushCount - 1)
+                    .coerceAtLeast(0)
+        }
+    }
+
+    private fun scheduleWidgetSync(steps: Int) {
+        val safeSteps = steps.coerceAtLeast(0)
+        pendingWidgetSteps = safeSteps
+        val now = System.currentTimeMillis()
+
+        if (now - lastWidgetSyncMs >= WIDGET_SYNC_INTERVAL_MS) {
+            widgetSyncJob?.cancel()
+            sendWidgetStepsNow(safeSteps)
+            return
+        }
+
+        if (widgetSyncJob?.isActive == true) return
+
+        widgetSyncJob = serviceScope.launch {
+            val waitMs = (WIDGET_SYNC_INTERVAL_MS - (System.currentTimeMillis() - lastWidgetSyncMs))
+                .coerceAtLeast(0L)
+            delay(waitMs)
+            sendWidgetStepsNow(pendingWidgetSteps)
+        }
+    }
+
+    private fun sendWidgetStepsNow(steps: Int) {
+        val safeSteps = steps.coerceAtLeast(0)
+        StepWidgetProvider.sendStepsUpdate(applicationContext, safeSteps)
+        StepWidgetCompactProvider.sendStepsUpdate(applicationContext, safeSteps)
+        StepWidgetLargeProvider.sendStepsUpdate(applicationContext, safeSteps)
+
+        val now = System.currentTimeMillis()
+        lastWidgetSyncMs = now
+        RuntimeDiagnostics.lastWidgetUpdateTime = now
     }
 
     private fun getToday(): String {
@@ -237,57 +425,25 @@ class StepCounterService : Service(), SensorEventListener {
     override fun onCreate() {
         super.onCreate()
 
-//        workoutEngine = WorkoutEngine()
-//        motionEngine = MotionEngine()
-//
         serviceScope.launch {
             targetFlow.collect {
                 cachedGoal = it
             }
         }
-//
-//        handler.post(object : Runnable {
-//            override fun run() {
-//
-//                motionEngine.update()
-//
-//                val currentState = motionEngine.getState()
-//
-//                sessionEngine.tick(System.currentTimeMillis())?.let { event ->
-//                    if (event is WorkoutSessionTransition.Finished) {
-//                        finishWalkingSession(event.endTimeMs)
-//
-//                        DebugLogger.i(TAG, "SESSION TIMEOUT STOP (v3)")
-//                    }
-//                }
-//
-//                if (currentState != lastState) {
-//
-//                    DebugLogger.d(
-//                        TAG,
-//                        "STATE CHANGE DETECTED IN SERVICE",
-//                        metadata = mapOf(
-//                            "oldState" to lastState.name,
-//                            "newState" to currentState.name
-//                        )
-//                    )
-//
-//                    val event = workoutEngine.onStateChanged(
-//                        state = currentState,
-//                        currentSteps = totalSteps,
-//                        currentTime = System.currentTimeMillis()
-//                    )
-//
-//                    if (event != null) {
-//                        handleWorkoutEvent(event)
-//                    }
-//
-//                    lastState = currentState
-//                }
-//
-//                handler.postDelayed(this, 1000)
-//            }
-//        })
+
+        // ✅ Workout Session Watchdog
+        handler.post(object : Runnable {
+            override fun run() {
+                val nowMs = System.currentTimeMillis()
+                val finished = sessionEngine.tick(nowMs)
+
+                if (finished != null) {
+                    handleSessionFinished(finished)
+                }
+
+                handler.postDelayed(this, 30_000L)
+            }
+        })
 
         // -------------------------------------------------
         // StepCounterService / lifecycle start
@@ -304,6 +460,11 @@ class StepCounterService : Service(), SensorEventListener {
         // -------------------------------------------------
         // Restore persisted sensor/session state
         // -------------------------------------------------
+        // ✅ Hemen foreground'a al, crash riskini ortadan kaldır
+        val immediateNotif = buildNotification(0)
+        ensureForegroundOnce(immediateNotif)
+
+// ✅ Sonra DataStore'dan gerçek değerleri arka planda yükle
         serviceScope.launch {
 
             val prefs = stepforgeStore.data.first()
@@ -311,27 +472,33 @@ class StepCounterService : Service(), SensorEventListener {
             lastSensorValue = prefs[PREF_LAST_SENSOR] ?: 0
             sensorOffset = prefs[PREF_OFFSET] ?: 0
             totalSteps = prefs[PREF_TOTAL] ?: 0
+
+            // Restore runtime states
+            inSleepMode = prefs[RUNTIME_SLEEP_MODE] ?: false
+            sleepStartMs = prefs[RUNTIME_SLEEP_START] ?: 0L
+            sleepEndMs = prefs[RUNTIME_SLEEP_END] ?: 0L
+            wakeMotionStartMs = prefs[RUNTIME_WAKE_MOTION_START] ?: 0L
+
+            isWalking = prefs[RUNTIME_IS_WALKING] ?: false
+            sessionStartTime = prefs[RUNTIME_SESSION_START_TIME] ?: 0L
+            sessionStartSteps = prefs[RUNTIME_SESSION_START_STEPS] ?: 0
+            if (isWalking && sessionStartTime > 0L) {
+                sessionEngine.restoreActiveSession(
+                    startTimeMs = sessionStartTime,
+                    startSteps = sessionStartSteps,
+                    lastStepTimeMs = lastStepTime,
+                    totalSteps = totalSteps
+                )
+            }
             val currentGoal = (prefs[intPreferencesKey("step_goal")] ?: 10000)
                 .coerceIn(1000, 100000)
 
             Log.d(TAG, "DB'den Yüklenen: Total=$totalSteps, Offset=$sensorOffset, LastSensor=$lastSensorValue")
 
-            DebugLogger.i(
-                TAG,
-                "Persisted step state restored",
-                metadata = mapOf(
-                    "totalSteps" to totalSteps.toString(),
-                    "sensorOffset" to sensorOffset.toString(),
-                    "lastSensorValue" to lastSensorValue.toString(),
-                    "goal" to currentGoal.toString()
-                )
-            )
+            CentralStepState.emit(totalSteps, currentGoal, todayKey())
 
-            StepEvents.emitTodaySteps(totalSteps)
-
-            // 🔥 NOTIFICATION BURADA OLMALI
-            val notif = buildNotification(totalSteps)
-            safeStartForeground(notif)
+            updateForegroundNotification(totalSteps)
+            serviceScope.launch { flushPersistNow(totalSteps) }
         }
 
         // -------------------------------------------------
@@ -379,7 +546,7 @@ class StepCounterService : Service(), SensorEventListener {
         stepSensor?.let {
             try {
                 sensorManager.unregisterListener(this)
-                sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+                sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
 
                 Log.d(TAG, "Sensor listener registered in onCreate.")
                 DebugLogger.i(TAG, "Step counter listener registered in onCreate")
@@ -416,7 +583,7 @@ class StepCounterService : Service(), SensorEventListener {
                     "Target flow changed",
                     metadata = mapOf("newTarget" to it.toString())
                 )
-                updateNotifAsync(totalSteps)
+                updateForegroundNotification(totalSteps)
             }
         }
 
@@ -426,7 +593,7 @@ class StepCounterService : Service(), SensorEventListener {
         createAlertChannel()
         startActivityMonitoring()
         lastStepTime = System.currentTimeMillis()
-        startShieldDrainTicker()
+        startStreakBehaviorTicker()
 
         // -------------------------------------------------
         // Screen on/off receiver for sleep heuristics
@@ -481,6 +648,10 @@ class StepCounterService : Service(), SensorEventListener {
                     }
 
                     Intent.ACTION_SCREEN_OFF -> {
+
+                        screenOffToken = System.currentTimeMillis()
+                        val token = screenOffToken
+
                         Log.d(TAG, "Screen OFF detected")
                         DebugLogger.d(
                             TAG,
@@ -497,6 +668,10 @@ class StepCounterService : Service(), SensorEventListener {
                                 }
 
                                 delay(15 * 60 * 1000L)
+
+                                if (token != screenOffToken) {
+                                    return@launch
+                                }
 
                                 val prefs = stepforgeStore.data.first()
                                 val lastStep = prefs[LAST_STEP_TIME] ?: 0L
@@ -536,48 +711,8 @@ class StepCounterService : Service(), SensorEventListener {
                                 DebugLogger.e(TAG, "ACTION_SCREEN_OFF sleep detect error", e)
                             }
                         }
-
-                        serviceScope.launch {
-                            try {
-                                val prefs = stepforgeStore.data.first()
-
-                                val lastStep = prefs[LAST_STEP_TIME] ?: 0L
-                                val lastMotion = prefs[LAST_MOTION_TIME] ?: 0L
-                                val isActive = prefs[AUTO_SLEEP_ACTIVE] ?: false
-                                val nowMs = System.currentTimeMillis()
-
-                                if (isActive) return@launch
-
-                                val idleThreshold = 15 * 60 * 1000L
-                                val stepIdle = nowMs - lastStep > idleThreshold
-                                val motionIdle = nowMs - lastMotion > idleThreshold
-
-                                val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-                                val nightTime = (hour >= 21 || hour <= 5)
-
-                                val startCandidate = maxOf(lastStep, lastMotion).coerceAtMost(nowMs)
-
-                                if (stepIdle && motionIdle && nightTime) {
-                                    stepforgeStore.edit { p ->
-                                        p[AUTO_SLEEP_ACTIVE] = true
-                                        p[AUTO_SLEEP_START_TIME] = startCandidate
-                                    }
-
-                                    Log.d(TAG, "🌙 AUTO SLEEP STARTED at ${Date(nowMs)}")
-                                    DebugLogger.i(
-                                        TAG,
-                                        "Auto sleep started from fallback screen-off detector",
-                                        metadata = mapOf(
-                                            "startCandidate" to startCandidate.toString()
-                                        )
-                                    )
-                                }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "auto sleep start detection error", e)
-                                DebugLogger.e(TAG, "Auto sleep start detection error", e)
-                            }
-                        }
                     }
+
                 }
             }
         }
@@ -598,7 +733,7 @@ class StepCounterService : Service(), SensorEventListener {
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
 
         accelerometer?.let {
-            sensorManager.registerListener(accelListener, it, SensorManager.SENSOR_DELAY_NORMAL)
+            sensorManager.registerListener(accelListener, it, SensorManager.SENSOR_DELAY_UI)
             DebugLogger.i(TAG, "Accelerometer listener registered")
         }
 
@@ -657,7 +792,9 @@ class StepCounterService : Service(), SensorEventListener {
             .toLocalDate()
             .toString()
         val qualityScore = calculateSleepQuality(durationMin)
-        val sleepDao = AppDatabase.getDatabase(this@StepCounterService).sleepSessionDao()
+        val db = AppDatabase.getDatabase(this@StepCounterService)
+        val sleepDao = db.sleepSessionDao()
+        val stageDao = db.sleepStageDao()
 
         sleepDao.insert(
             SleepSession(
@@ -669,6 +806,8 @@ class StepCounterService : Service(), SensorEventListener {
                 source = "auto"
             )
         )
+
+        SleepMainSessionDeduper.deduplicate(sleepDao, stageDao)
 
         stepforgeStore.edit {
             it[AUTO_SLEEP_ACTIVE] = false
@@ -709,19 +848,27 @@ class StepCounterService : Service(), SensorEventListener {
 
 
     override fun onDestroy() {
-        super.onDestroy()
+        DebugLogger.w(TAG, "StepCounterService onDestroy started")
+        
+        // ANR riskini tamamen bitirmek için runBlocking yerine GlobalScope benzeri 
+        // ama kısıtlı bir yaşam döngüsü kullanıyoruz.
+        try {
+            // Sadece çok hızlı bir deneme yap, eğer kilit varsa bekleme.
+            serviceScope.launch(Dispatchers.IO) {
+                flushPersistNow(totalSteps)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Final flush launch failed", e)
+        }
 
         handler.removeCallbacksAndMessages(null)
-
-        DebugLogger.w(TAG, "StepCounterService onDestroy started")
-
+        persistJob?.cancel()
+        
         try {
             screenReceiver?.let { unregisterReceiver(it) }
             screenReceiver = null
-            DebugLogger.d(TAG, "screenReceiver unregistered successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Receiver unregister error", e)
-            DebugLogger.e(TAG, "Receiver unregister error", e)
         }
 
         try {
@@ -823,6 +970,22 @@ class StepCounterService : Service(), SensorEventListener {
                 )
             )
 
+            if (action == ACTION_RELOAD) {
+                DebugLogger.w(TAG, "ACTION_RELOAD received. Syncing with DataStore/DB.")
+                serviceScope.launch {
+                    val prefs = stepforgeStore.data.first()
+                    totalSteps = prefs[PREF_TOTAL] ?: 0
+                    lastSensorValue = prefs[PREF_LAST_SENSOR] ?: 0
+                    sensorOffset = prefs[PREF_OFFSET] ?: 0
+                    
+                    val currentGoal = (prefs[intPreferencesKey("step_goal")] ?: 10000)
+                        .coerceIn(1000, 100000)
+                    
+                    CentralStepState.emit(totalSteps, currentGoal, todayKey())
+                    updateForegroundNotification(totalSteps)
+                }
+            }
+
             if (action == "com.example.stepforge.ACTION_WIDGET_REFRESH_REQUEST") {
                 Log.d(TAG, "Widget refresh request. Sending: $totalSteps")
                 DebugLogger.d(
@@ -865,43 +1028,19 @@ class StepCounterService : Service(), SensorEventListener {
                         )
                     )
 
+                    val previousForce = totalSteps
                     totalSteps = forceSteps
 
                     if (lastSensorValue != 0) {
                         sensorOffset = totalSteps - lastSensorValue
-                        Log.d(TAG, "Offset recalculated: $sensorOffset (LastSensor=$lastSensorValue)")
-                        DebugLogger.d(
-                            TAG,
-                            "Offset recalculated after force update",
-                            metadata = mapOf(
-                                "sensorOffset" to sensorOffset.toString(),
-                                "lastSensorValue" to lastSensorValue.toString(),
-                                "totalSteps" to totalSteps.toString()
-                            )
-                        )
                     }
 
-                    StepEvents.emitTodaySteps(totalSteps)
-                    DebugLogger.d(
-                        TAG,
-                        "StepEvents emitted after force update",
-                        metadata = mapOf(
-                            "todaySteps" to totalSteps.toString()
-                        )
-                    )
-
-                    saveContinuously(totalSteps)
-                }
-
-                serviceScope.launch {
-                    val notif = buildNotification(totalSteps)
-                    safeStartForeground(notif)
+                    publishLiveSteps(forceSteps, forceSteps - previousForce)
+                } else {
+                    updateForegroundNotification(totalSteps)
                 }
             } else {
-                serviceScope.launch {
-                    val notif = buildNotification(totalSteps)
-                    safeStartForeground(notif)
-                }
+                updateForegroundNotification(totalSteps)
             }
 
             if (manual >= 0) {
@@ -916,30 +1055,11 @@ class StepCounterService : Service(), SensorEventListener {
                     )
                 )
 
+                val previousManual = totalSteps
                 sensorOffset = manual - lastSensorValue
                 totalSteps = manual
 
-                DebugLogger.d(
-                    TAG,
-                    "Manual override applied to in-memory state",
-                    metadata = mapOf(
-                        "sensorOffset" to sensorOffset.toString(),
-                        "totalSteps" to totalSteps.toString()
-                    )
-                )
-
-                StepEvents.emitTodaySteps(manual)
-                DebugLogger.d(
-                    TAG,
-                    "StepEvents emitted after manual override",
-                    metadata = mapOf(
-                        "todaySteps" to manual.toString()
-                    )
-                )
-
-                checkGoalCelebrate(manual)
-                updateNotifAsync(manual)
-                saveContinuously(manual)
+                publishLiveSteps(manual, (manual - previousManual).coerceAtLeast(0))
 
                 serviceScope.launch {
                     try {
@@ -1029,14 +1149,13 @@ class StepCounterService : Service(), SensorEventListener {
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 
     override fun onSensorChanged(event: SensorEvent?) {
-        if (event == null) return
+        val sensor = event?.sensor ?: return
+        val values = event.values ?: return
+        if (values.isEmpty()) return
 
-        when (event.sensor.type) {
-
-
+        when (sensor.type) {
             Sensor.TYPE_STEP_COUNTER -> {
-
-                val currentCounter = event.values[0].toInt()
+                val currentCounter = values[0].toInt()
                 val now = System.currentTimeMillis()
 
                 if (lastCounterValueForMotion != 0) {
@@ -1046,15 +1165,7 @@ class StepCounterService : Service(), SensorEventListener {
                     // 🔥 Fallback step detection
                     if (diff > 0 && diff < 20) {
                         // çok büyük sıçrama değil → gerçek adım kabul et
-
-                        DebugLogger.d(
-                            TAG,
-                            "Fallback step detected (STEP_COUNTER)",
-                            metadata = mapOf(
-                                "diff" to diff.toString(),
-                                "timeDiffMs" to timeDiff.toString()
-                            )
-                        )
+                        Log.v(TAG, "Fallback step detected: diff=$diff")
                     }
                 }
 
@@ -1063,23 +1174,13 @@ class StepCounterService : Service(), SensorEventListener {
 
                 if (stepSensor == null) return
 
-                DebugLogger.d(
-                    TAG,
-                    "Sensor event received",
-                    metadata = mapOf(
-                        "sensorType" to (event.sensor?.type?.toString() ?: "null"),
-                        "rawValue" to (event.values.getOrNull(0)?.toString() ?: "null"),
-                        "lastSensorValue" to lastSensorValue.toString(),
-                        "totalSteps" to totalSteps.toString(),
-                        "offset" to sensorOffset.toString()
-                    )
-                )
-
-                val sensorVal = event.values[0].toInt()
+                val sensorVal = values[0].toInt()
                 val nowMs = System.currentTimeMillis()
                 lastSensorEventTime = nowMs
+                RuntimeDiagnostics.lastSensorEventTime = nowMs
 
-                if (lastSensorValue == 0 || sensorVal < lastSensorValue) {
+                if (lastSensorValue == 0) {
+                    // ✅ Sadece ilk başlatma: offset'i kur
                     sensorOffset = if (totalSteps == 0) -sensorVal else totalSteps - sensorVal
                     Log.d(
                         TAG,
@@ -1132,16 +1233,21 @@ class StepCounterService : Service(), SensorEventListener {
                 lastSensorValue = sensorVal
 
                 if (sensorVal < previousSensorValue) {
+
+                    sensorOffset = totalSteps - sensorVal
+                    StepValidationAnalyzer.noteSensorReset()
                     midnightDebug(
                         reason = "SENSOR COUNTER RESET",
                         steps = sensorVal
                     )
                     DebugLogger.w(
                         TAG,
-                        "Sensor counter reset detected",
+                        "Sensor counter reset detected, offset recalculated",
                         metadata = mapOf(
                             "sensorVal" to sensorVal.toString(),
-                            "previousSensorValue" to previousSensorValue.toString()
+                            "previousSensorValue" to previousSensorValue.toString(),
+                            "newOffset" to sensorOffset.toString(),
+                            "totalSteps" to totalSteps.toString()
                         )
                     )
                 }
@@ -1163,16 +1269,20 @@ class StepCounterService : Service(), SensorEventListener {
                     )
                 }
 
-                if (diff in 1..80) {
-                    // normal
-                } else if (diff > 80) {
-                    DebugLogger.w(TAG, "Abnormal step burst ignored")
-                    return
+                if (diff > 80) {
+                    DebugLogger.w(
+                        TAG,
+                        "Large step burst accepted (end-of-day validation may log)",
+                        metadata = mapOf(
+                            "diff" to diff.toString(),
+                            "sensorVal" to sensorVal.toString(),
+                            "totalSteps" to totalSteps.toString()
+                        )
+                    )
                 }
 
                 if (calculatedSteps > previousTotal) {
                     val now = System.currentTimeMillis()
-                    val stopThresholdMs = WALK_SESSION_STOP_THRESHOLD_MS
                     val previousStepTime = lastStepTime
                     val stepGapMs = now - previousStepTime
 
@@ -1200,112 +1310,29 @@ class StepCounterService : Service(), SensorEventListener {
                         )
                     }
 
-                    if (isWalking && (now - previousStepTime > stopThresholdMs)) {
-                        Log.d(TAG, "Walking session timeout reached, finishing previous session")
-                        DebugLogger.i(
-                            TAG,
-                            "Walking session timeout reached, finishing previous session",
-                            metadata = mapOf(
-                                "now" to now.toString(),
-                                "lastStepTime" to previousStepTime.toString(),
-                                "stopThresholdMs" to stopThresholdMs.toString()
-                            )
-                        )
-                        finishWalkingSession()                    }
-
-                    totalSteps = calculatedSteps
                     lastStepTime = now
                     lastMotionMs = now
 
-
-//                    val events = sessionEngine.onStep(now, totalSteps)
-//
-//                    for (event in events) {
-//                        when (event) {
-//                            is WorkoutSessionTransition.Started -> {
-//                                isWalking = true
-//                                sessionStartSteps = event.startSteps
-//                                sessionStartTime = event.startTimeMs
-//                            }
-//                            is WorkoutSessionTransition.Finished -> {
-//                                finishWalkingSession(event.endTimeMs)
-//                            }
-//                        }
-//                    }
-
-
-                    Log.d(
-                        TAG,
-                        "Step accepted: prev=$previousTotal new=$totalSteps sensor=$sensorVal diff=$diff offset=$sensorOffset"
-                    )
-                    DebugLogger.i(
-                        TAG,
-                        "Step accepted",
-                        metadata = mapOf(
-                            "previousTotal" to previousTotal.toString(),
-                            "newTotal" to totalSteps.toString(),
-                            "calculatedSteps" to calculatedSteps.toString(),
-                            "sensorVal" to sensorVal.toString(),
-                            "offset" to sensorOffset.toString(),
-                            "diff" to diff.toString(),
-                            "stepGapMs" to stepGapMs.toString()
-                        )
-                    )
-
-
-
-                    if (diff > 0) {
-                        if (!isWalking) {
-                            isWalking = true
-                            sessionStartSteps = previousTotal
-                            sessionStartTime = now
-                            Log.d(TAG, "Yürüyüş başladı: $sessionStartSteps")
-                            DebugLogger.i(
-                                TAG,
-                                "Walking session started",
-                                metadata = mapOf(
-                                    "sessionStartSteps" to sessionStartSteps.toString(),
-                                    "sessionStartTime" to sessionStartTime.toString()
-                                )
-                            )
-                        }
-
-                        serviceScope.launch {
-                            try {
-                                stepforgeStore.edit { prefs ->
-                                    prefs[LAST_STEP_TIME] = now
-                                    prefs[LAST_MOTION_TIME] = now
-                                }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "write LAST_STEP_TIME / LAST_MOTION_TIME error", e)
-                                DebugLogger.e(
-                                    TAG,
-                                    "Failed to write LAST_STEP_TIME / LAST_MOTION_TIME",
-                                    throwable = e
-                                )
-                                stepSafetyGuard.registerError("write_last_step_time_failed")
+                    val events = sessionEngine.onStep(now, calculatedSteps)
+                    for (event in events) {
+                        when (event) {
+                            is WorkoutSessionTransition.Started -> {
+                                isWalking = true
+                                sessionStartSteps = event.startSteps
+                                sessionStartTime = event.startTimeMs
+                                persistRuntimeState()
+                            }
+                            is WorkoutSessionTransition.Finished -> {
+                                handleSessionFinished(event)
                             }
                         }
                     }
 
-                    StepEvents.emitTodaySteps(totalSteps)
-                    DebugLogger.d(
+                    Log.d(
                         TAG,
-                        "StepEvents emitted",
-                        metadata = mapOf("todaySteps" to totalSteps.toString())
+                        "Step accepted: prev=$previousTotal new=$calculatedSteps sensor=$sensorVal diff=$diff"
                     )
-
-                    checkGoalCelebrate(totalSteps)
-                    maybeUpdateNotificationThrottled()
-                    maybePersistStepsThrottled()
-                    maybeUpdateWidgetsThrottled()
-                    maybeRunPremiumCoach()
-
-                    DebugLogger.d(
-                        TAG,
-                        "Widgets updated after step accept",
-                        metadata = mapOf("todaySteps" to totalSteps.toString())
-                    )
+                    publishLiveSteps(calculatedSteps, diff)
 
 
 
@@ -1346,8 +1373,8 @@ class StepCounterService : Service(), SensorEventListener {
                     val diff = System.currentTimeMillis() - lastSensorEventTime
                     val softBlockActive = stepSafetyGuard.isSoftBlockActive()
 
-                    if (diff > 20_000L) {
-                        Log.w(TAG, "Sensor watchdog restarting listener")
+                    if (diff > SENSOR_WATCHDOG_STALL_MS) {
+                        Log.w(TAG, "Sensor watchdog restarting listener (stalled)")
                         DebugLogger.w(
                             TAG,
                             "Sensor watchdog restarting listener",
@@ -1404,7 +1431,7 @@ class StepCounterService : Service(), SensorEventListener {
                     stepSafetyGuard.registerError("sensor_watchdog_loop_error")
                 }
 
-                delay(20_000L)
+                delay(60_000L)
             }
 
             DebugLogger.w(TAG, "Sensor watchdog stopped because coroutine is no longer active")
@@ -1415,46 +1442,9 @@ class StepCounterService : Service(), SensorEventListener {
     private var lastNotifiedSteps: Int = -1
 
     private fun updateNotifAsync(sum: Int) {
-        if (sum == lastNotifiedSteps) {
-            DebugLogger.d(
-                TAG,
-                "Notification update skipped because value did not change",
-                metadata = mapOf(
-                    "sum" to sum.toString(),
-                    "lastNotifiedSteps" to lastNotifiedSteps.toString()
-                )
-            )
-            return
-        }
-
+        if (sum == lastNotifiedSteps) return
         lastNotifiedSteps = sum
-
-        DebugLogger.d(
-            TAG,
-            "Notification update scheduled",
-            metadata = mapOf(
-                "sum" to sum.toString()
-            )
-        )
-
-        serviceScope.launch {
-            try {
-                val notif = buildNotification(sum)
-                val started = safeStartForeground(notif)
-
-                DebugLogger.d(
-                    TAG,
-                    "Notification update executed",
-                    metadata = mapOf(
-                        "sum" to sum.toString(),
-                        "foregroundStarted" to started.toString()
-                    )
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "updateNotifAsync failed", e)
-                DebugLogger.e(TAG, "updateNotifAsync failed", e)
-            }
-        }
+        updateForegroundNotification(sum)
     }
 
     private fun buildNotification(sum: Int): Notification {
@@ -1491,19 +1481,27 @@ Keep walking 🚶
 
     private fun saveContinuously(sum: Int) {
         serviceScope.launch {
-            val persistedKey = intPreferencesKey("persisted_total_sum")
-            stepforgeStore.edit {
-                it[PREF_LAST_SENSOR] = lastSensorValue
-                it[PREF_OFFSET] = sensorOffset
-                it[PREF_TOTAL] = sum
-                it[persistedKey] = sum
+            try {
+                val persistedKey = intPreferencesKey("persisted_total_sum")
+                stepforgeStore.edit {
+                    it[PREF_LAST_SENSOR] = lastSensorValue
+                    it[PREF_OFFSET] = sensorOffset
+                    it[PREF_TOTAL] = sum
+                    it[persistedKey] = sum
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "saveContinuously failed", e)
             }
         }
     }
 
     private fun saveDaily(day: String, sum: Int) {
         serviceScope.launch {
-            dao.insertDailySteps(DailySteps(day, sum))
+            try {
+                dao.insertDailySteps(DailySteps(day, sum))
+            } catch (e: Exception) {
+                Log.e(TAG, "saveDaily failed", e)
+            }
         }
     }
 
@@ -1553,7 +1551,7 @@ Keep walking 🚶
     }
 
     private suspend fun hasResetToday(): Boolean {
-        val today = currentDay
+        val today = todayKey()  // ✅ currentDay değil, anlık tarih
         val prefs = stepforgeStore.data.first()
         return (prefs[LAST_RESET_DATE] ?: "") == today
     }
@@ -1585,205 +1583,247 @@ Keep walking 🚶
         )
 
         serviceScope.launch(Dispatchers.IO) {
-            val today = currentDay
+            resetMutex.withLock {   // ✅ Sadece bu satırı ekle (withLock açılışı)
+                val today = todayKey()
 
-            if (hasResetToday()) {
-                Log.w(TAG, "resetForNewDay ignored: already reset for today=$today")
+                if (hasResetToday()) {
+                    Log.w(TAG, "resetForNewDay ignored: already reset for today=$today")
+                    DebugLogger.w(
+                        TAG,
+                        "resetForNewDay ignored because reset already done today",
+                        metadata = mapOf(
+                            "today" to today
+                        )
+                    )
+                    return@withLock   // ✅ return@launch yerine return@withLock
+                }
+
+                try {
+                    stepforgeStore.edit { p ->
+                        p[LAST_RESET_DATE] = today
+                    }
+                    DebugLogger.d(
+                        TAG,
+                        "LAST_RESET_DATE guard written",
+                        metadata = mapOf(
+                            "today" to today
+                        )
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to set LAST_RESET_DATE guard", e)
+                    DebugLogger.e(
+                        TAG,
+                        "Failed to set LAST_RESET_DATE guard",
+                        throwable = e,
+                        metadata = mapOf(
+                            "today" to today
+                        )
+                    )
+                }
+
+                try {
+                    withContext(Dispatchers.Main) {
+                        try {
+                            sensorManager.unregisterListener(this@StepCounterService)
+                            DebugLogger.d(TAG, "Sensor listener unregistered before day reset")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Sensor unregister during reset failed", e)
+                            DebugLogger.e(TAG, "Sensor unregister during reset failed", e)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Main dispatcher sensor unregister block failed", e)
+                    DebugLogger.e(TAG, "Main dispatcher sensor unregister block failed", e)
+                }
+
+                val dayToSave = currentDay  // ✅ Reset öncesi günün tarihi (dün)
+                val currentSensorValue = lastSensorValue
+                val stepsToSave = totalSteps
+                saveTomorrowShieldFromTodaySteps(stepsToSave)
+
+                midnightDebug(reason = "RESET DAY CALLED", steps = stepsToSave)
+                Log.w(TAG, "RESET DAY triggered. Saving day=$dayToSave totalSteps=$stepsToSave")
                 DebugLogger.w(
                     TAG,
-                    "resetForNewDay ignored because reset already done today",
+                    "RESET DAY triggered",
                     metadata = mapOf(
-                        "today" to today
-                    )
-                )
-                return@launch
-            }
-
-            try {
-                stepforgeStore.edit { p ->
-                    p[LAST_RESET_DATE] = today
-                }
-                DebugLogger.d(
-                    TAG,
-                    "LAST_RESET_DATE guard written",
-                    metadata = mapOf(
-                        "today" to today
-                    )
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to set LAST_RESET_DATE guard", e)
-                DebugLogger.e(
-                    TAG,
-                    "Failed to set LAST_RESET_DATE guard",
-                    throwable = e,
-                    metadata = mapOf(
-                        "today" to today
-                    )
-                )
-            }
-
-            try {
-                withContext(Dispatchers.Main) {
-                    try {
-                        sensorManager.unregisterListener(this@StepCounterService)
-                        DebugLogger.d(TAG, "Sensor listener unregistered before day reset")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Sensor unregister during reset failed", e)
-                        DebugLogger.e(TAG, "Sensor unregister during reset failed", e)
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Main dispatcher sensor unregister block failed", e)
-                DebugLogger.e(TAG, "Main dispatcher sensor unregister block failed", e)
-            }
-
-            val dayToSave = currentDay
-            val currentSensorValue = lastSensorValue
-            val stepsToSave = totalSteps
-            saveTomorrowShieldFromTodaySteps(stepsToSave)
-
-            midnightDebug(reason = "RESET DAY CALLED", steps = stepsToSave)
-            Log.w(TAG, "RESET DAY triggered. Saving day=$dayToSave totalSteps=$stepsToSave")
-            DebugLogger.w(
-                TAG,
-                "RESET DAY triggered",
-                metadata = mapOf(
-                    "dayToSave" to dayToSave,
-                    "stepsToSave" to stepsToSave.toString(),
-                    "currentSensorValue" to currentSensorValue.toString()
-                )
-            )
-
-            hasCelebrated = false
-
-            try {
-                dao.insertDailySteps(DailySteps(dayToSave, stepsToSave))
-                DebugLogger.i(
-                    TAG,
-                    "Previous day steps saved before reset",
-                    metadata = mapOf(
-                        "date" to dayToSave,
-                        "steps" to stepsToSave.toString()
-                    )
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "MidnightReset DB store error", e)
-                DebugLogger.e(
-                    TAG,
-                    "MidnightReset DB store error",
-                    throwable = e,
-                    metadata = mapOf(
-                        "date" to dayToSave,
-                        "steps" to stepsToSave.toString()
-                    )
-                )
-            }
-
-            try {
-                stepforgeStore.edit {
-                    it[PREF_LAST_SENSOR] = 0
-                    it[PREF_OFFSET] = -currentSensorValue
-                    it[PREF_TOTAL] = 0
-                }
-
-                val persistedKey = intPreferencesKey("persisted_total_sum")
-                stepforgeStore.edit { prefs ->
-                    prefs[persistedKey] = 0
-                }
-
-                DebugLogger.i(
-                    TAG,
-                    "Datastore reset completed for new day",
-                    metadata = mapOf(
+                        "dayToSave" to dayToSave,
+                        "stepsToSave" to stepsToSave.toString(),
                         "currentSensorValue" to currentSensorValue.toString()
                     )
                 )
-            } catch (e: Exception) {
-                Log.e(TAG, "MidnightReset datastore write error", e)
-                DebugLogger.e(
-                    TAG,
-                    "MidnightReset datastore write error",
-                    throwable = e
-                )
-            }
 
-            currentDay = todayKey()
-            totalSteps = 0
-            sensorOffset = -currentSensorValue
-            lastSensorValue = currentSensorValue
-            lastResetMs = System.currentTimeMillis()
-            activateTodayShieldFromStoredTomorrow()
+                hasCelebrated = false
+                val goalForValidation = cachedGoal
 
-            stepforgeStore.edit {
-                it[StreakShieldPrefs.PREMIUM_RESCUE_USED_FOR_DATE] = ""
-            }
-
-            DebugLogger.i(
-                TAG,
-                "In-memory reset state applied",
-                metadata = mapOf(
-                    "currentDay" to currentDay,
-                    "totalSteps" to totalSteps.toString(),
-                    "sensorOffset" to sensorOffset.toString(),
-                    "lastSensorValue" to lastSensorValue.toString(),
-                    "lastResetMs" to lastResetMs.toString()
-                )
-            )
-
-            try {
-                saveHourlySnapshot(0)
-                DebugLogger.d(TAG, "Hourly zero snapshot requested after reset")
-            } catch (e: Exception) {
-                Log.e(TAG, "Hourly zero snapshot request failed", e)
-                DebugLogger.e(TAG, "Hourly zero snapshot request failed", e)
-            }
-
-            StepEvents.emitTodaySteps(0)
-            DebugLogger.d(TAG, "StepEvents emitted with zero after reset")
-
-            updateNotifAsync(0)
-
-            StepWidgetProvider.sendStepsUpdate(applicationContext, 0)
-            StepWidgetCompactProvider.sendStepsUpdate(applicationContext, 0)
-            StepWidgetLargeProvider.sendStepsUpdate(applicationContext, 0)
-
-            DebugLogger.d(TAG, "All widgets updated with zero after reset")
-
-            try {
-                withContext(Dispatchers.Main) {
-                    scheduleMidnightReset()
-                }
-                DebugLogger.d(TAG, "Next midnight reset scheduled after reset")
-            } catch (e: Exception) {
-                Log.e(TAG, "Scheduling next midnight reset failed", e)
-                DebugLogger.e(TAG, "Scheduling next midnight reset failed", e)
-            }
-
-            withContext(Dispatchers.Main) {
-                delay(1200)
-                stepSensor?.let {
-                    try {
-                        sensorManager.registerListener(
-                            this@StepCounterService,
-                            it,
-                            SensorManager.SENSOR_DELAY_NORMAL
-                        )
-                        DebugLogger.i(
-                            TAG,
-                            "Sensor listener re-registered after reset",
-                            metadata = mapOf(
-                                "sensorType" to it.type.toString()
+                try {
+                    val (maxBurst, sensorResets) = StepValidationAnalyzer.consumeLiveStats()
+                    serviceScope.launch(Dispatchers.IO) {
+                        val hourlyDao = AppDatabase.getDatabase(this@StepCounterService).hourlyStepsDao()
+                        val hourly = hourlyDao.getForDate(dayToSave).map { it.steps }
+                        StepValidationAnalyzer.analyzeCompletedDay(
+                            StepValidationAnalyzer.DayAnalysisInput(
+                                date = dayToSave,
+                                totalSteps = stepsToSave,
+                                goal = goalForValidation,
+                                maxSingleBurst = maxBurst,
+                                sensorResets = sensorResets,
+                                hourlySamples = hourly
                             )
                         )
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Sensor register failed after reset", e)
-                        DebugLogger.e(TAG, "Sensor register failed after reset", e)
+                    }
+
+                    dao.insertDailySteps(DailySteps(dayToSave, stepsToSave))
+                    DebugLogger.i(
+                        TAG,
+                        "Previous day steps saved before reset",
+                        metadata = mapOf(
+                            "date" to dayToSave,
+                            "steps" to stepsToSave.toString()
+                        )
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "MidnightReset DB store error", e)
+                    DebugLogger.e(
+                        TAG,
+                        "MidnightReset DB store error",
+                        throwable = e,
+                        metadata = mapOf(
+                            "date" to dayToSave,
+                            "steps" to stepsToSave.toString()
+                        )
+                    )
+                }
+
+                try {
+                    val persistedKey = intPreferencesKey("persisted_total_sum")
+                    stepforgeStore.edit {
+                        it[PREF_LAST_SENSOR] = 0
+                        it[PREF_OFFSET] = -currentSensorValue
+                        it[PREF_TOTAL] = 0
+                        it[persistedKey] = 0   // ✅ Tek atomik write
+                    }
+
+                    DebugLogger.i(
+                        TAG,
+                        "Datastore reset completed for new day",
+                        metadata = mapOf(
+                            "currentSensorValue" to currentSensorValue.toString()
+                        )
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "MidnightReset datastore write error", e)
+                    DebugLogger.e(
+                        TAG,
+                        "MidnightReset datastore write error",
+                        throwable = e
+                    )
+                }
+
+                currentDay = todayKey()
+                totalSteps = 0
+                sensorOffset = -currentSensorValue
+                lastSensorValue = currentSensorValue
+                lastResetMs = System.currentTimeMillis()
+
+                inSleepMode = false
+                sleepStartMs = 0L
+                sleepEndMs = 0L
+                wakeMotionStartMs = 0L
+
+                isWalking = false
+                sessionStartTime = 0L
+                sessionStartSteps = totalSteps
+
+                persistRuntimeState()
+
+                val savedGoal = cachedGoal
+                serviceScope.launch {
+                    val prefsBeforeReset = stepforgeStore.data.first()
+                    val bufferYesterday = prefsBeforeReset[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] ?: 0
+                    val rescueDate = prefsBeforeReset[StreakShieldPrefs.PREMIUM_RESCUE_USED_FOR_DATE] ?: ""
+                    val rescuedUntil = prefsBeforeReset[com.example.stepforge.ui.streak.StreakBehaviorPrefs.STREAK_RESCUED_UNTIL_MS] ?: 0L
+                    val qualification = StreakDayQualifier.qualifyDay(
+                        steps = stepsToSave,
+                        goal = savedGoal,
+                        behaviorBufferMinutes = bufferYesterday,
+                        rescueUsedForDay = rescueDate == dayToSave,
+                        rescuedActive = rescuedUntil > System.currentTimeMillis()
+                    )
+                    if (qualification.countsForStreak && !qualification.reachedGoal) {
+                        StreakBehaviorEngine.onDayQualifiedWithoutGoal(applicationContext, dayToSave)
                     }
                 }
-            }
 
-            startHourlyTicker()
-            DebugLogger.i(TAG, "Hourly ticker restarted after reset")
+                activateTodayShieldFromStoredTomorrow()
+
+                stepforgeStore.edit {
+                    it[StreakShieldPrefs.PREMIUM_RESCUE_USED_FOR_DATE] = ""
+                }
+
+                DebugLogger.i(
+                    TAG,
+                    "In-memory reset state applied",
+                    metadata = mapOf(
+                        "currentDay" to currentDay,
+                        "totalSteps" to totalSteps.toString(),
+                        "sensorOffset" to sensorOffset.toString(),
+                        "lastSensorValue" to lastSensorValue.toString(),
+                        "lastResetMs" to lastResetMs.toString()
+                    )
+                )
+
+                try {
+                    saveHourlySnapshot(0)
+                    DebugLogger.d(TAG, "Hourly zero snapshot requested after reset")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Hourly zero snapshot request failed", e)
+                    DebugLogger.e(TAG, "Hourly zero snapshot request failed", e)
+                }
+
+                CentralStepState.emit(0, cachedGoal, todayKey())
+                updateForegroundNotification(0)
+                serviceScope.launch { flushPersistNow(0) }
+                scheduleWidgetSync(0)
+
+                DebugLogger.d(TAG, "All widgets updated with zero after reset")
+
+                try {
+                    withContext(Dispatchers.Main) {
+                        scheduleMidnightReset()
+                    }
+                    DebugLogger.d(TAG, "Next midnight reset scheduled after reset")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Scheduling next midnight reset failed", e)
+                    DebugLogger.e(TAG, "Scheduling next midnight reset failed", e)
+                }
+
+                withContext(Dispatchers.Main) {
+                    delay(1200)
+                    stepSensor?.let {
+                        try {
+                            sensorManager.registerListener(
+                                this@StepCounterService,
+                                it,
+                                SensorManager.SENSOR_DELAY_NORMAL
+                            )
+                            DebugLogger.i(
+                                TAG,
+                                "Sensor listener re-registered after reset",
+                                metadata = mapOf(
+                                    "sensorType" to it.type.toString()
+                                )
+                            )
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Sensor register failed after reset", e)
+                            DebugLogger.e(TAG, "Sensor register failed after reset", e)
+                        }
+                    }
+                }
+
+                startHourlyTicker()
+                DebugLogger.i(TAG, "Hourly ticker restarted after reset")
+            }
         }
     }
 
@@ -1791,17 +1831,6 @@ Keep walking 🚶
     private fun scheduleMidnightReset() {
         try {
             val alarmMgr = getSystemService(ALARM_SERVICE) as AlarmManager
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (!alarmMgr.canScheduleExactAlarms()) {
-                    Log.w(TAG, "Exact alarm permission not granted.")
-                    DebugLogger.w(
-                        TAG,
-                        "Exact alarm permission not granted. Midnight reset scheduling skipped."
-                    )
-                    return
-                }
-            }
 
             val nextMidnight = Calendar.getInstance().apply {
                 add(Calendar.DAY_OF_YEAR, 1)
@@ -1818,6 +1847,23 @@ Keep walking 🚶
                 intent,
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (!alarmMgr.canScheduleExactAlarms()) {
+                    Log.w(TAG, "Exact alarm permission not granted. Using inexact fallback.")
+                    DebugLogger.w(
+                        TAG,
+                        "Exact alarm permission not granted. Using inexact fallback for midnight reset."
+                    )
+                    alarmMgr.setWindow(
+                        AlarmManager.RTC_WAKEUP,
+                        nextMidnight.timeInMillis,
+                        5 * 60 * 1000L,  // ✅ 5 dk pencere
+                        pi
+                    )
+                    return
+                }
+            }
 
             alarmMgr.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
@@ -1902,7 +1948,9 @@ Keep walking 🚶
                                 "totalSteps" to totalSteps.toString()
                             )
                         )
+                        continue  // ✅ Bunu ekle, snapshot kaydedilmesin
                     }
+                    saveHourlySnapshot(totalSteps)  // ✅ Bunu ekle, sadece hNow != 0 iken çalışsın
                 } catch (e: Exception) {
                     Log.e(TAG, "Hourly ticker error", e)
                     DebugLogger.e(TAG, "Hourly ticker error", e)
@@ -1916,7 +1964,7 @@ Keep walking 🚶
     private fun checkGoalCelebrate(current: Int) {
         serviceScope.launch {
             try {
-                val goal = getLatestGoal()
+                val goal = cachedGoal
 
                 DebugLogger.d(
                     TAG,
@@ -1998,20 +2046,8 @@ Keep walking 🚶
         activityCheckJob = serviceScope.launch {
             while (isActive) {
                 val now = System.currentTimeMillis()
-                val stopThresholdMs = WALK_SESSION_STOP_THRESHOLD_MS
 
-                if (isWalking && (now - lastStepTime > stopThresholdMs)) {
-                    Log.d(TAG, "Walking session inactivity threshold reached, finishing session")
-                    DebugLogger.d(
-                        TAG,
-                        "Walking session inactivity threshold reached, finishing session",
-                        metadata = mapOf(
-                            "now" to now.toString(),
-                            "lastStepTime" to lastStepTime.toString(),
-                            "stopThresholdMs" to stopThresholdMs.toString()
-                        )
-                    )
-                    finishWalkingSession()                }
+                // ❌ Handler kodu SİLİNDİ - onCreate'de zaten var
 
                 val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
                 if (hour in 10..21) {
@@ -2041,6 +2077,7 @@ Keep walking 🚶
         }
     }
 
+
     private fun estimateDistanceMeters(steps: Int): Int {
         return (steps * 0.75f).roundToInt()
     }
@@ -2055,11 +2092,67 @@ Keep walking 🚶
         stepsTaken: Int,
         durationMin: Int
     ): Long {
+        val durationMs = (endTime - startTime).coerceAtLeast(0L)
+        if (!shouldPersistWorkoutSession(stepsTaken, durationMs)) {
+            DebugLogger.d(
+                TAG,
+                "Workout session kept out of DB",
+                metadata = mapOf(
+                    "steps" to stepsTaken.toString(),
+                    "durationMs" to durationMs.toString()
+                )
+            )
+            return -1L
+        }
 
         val dateStr = java.time.Instant.ofEpochMilli(startTime)
             .atZone(java.time.ZoneId.systemDefault())
             .toLocalDate()
             .toString()
+
+        val dao = AppDatabase.getDatabase(applicationContext).workoutSessionDao()
+        val latest = dao.getLatest()
+        if (latest != null && canMergeWorkoutSessions(latest, dateStr, startTime)) {
+            val mergedStart = minOf(latest.startTime, startTime)
+            val mergedEnd = maxOf(latest.endTime, endTime)
+            val mergedSteps = (latest.steps + stepsTaken).coerceAtLeast(0)
+            val mergedDurationMin = (((mergedEnd - mergedStart).coerceAtLeast(0L) + 59_999L) / 60_000L)
+                .toInt()
+                .coerceAtLeast(1)
+            val mergedDistanceMeters = estimateDistanceMeters(mergedSteps)
+            val mergedCalories = estimateCaloriesKcal(mergedSteps)
+            val mergedAvgSpm = if (mergedDurationMin > 0) {
+                mergedSteps / mergedDurationMin
+            } else {
+                0
+            }
+
+            dao.insert(
+                latest.copy(
+                    date = dateStr,
+                    startTime = mergedStart,
+                    endTime = mergedEnd,
+                    durationMinutes = mergedDurationMin,
+                    steps = mergedSteps,
+                    distanceMeters = mergedDistanceMeters,
+                    caloriesKcal = mergedCalories,
+                    avgStepsPerMinute = mergedAvgSpm,
+                    source = "auto_walk"
+                )
+            )
+
+            DebugLogger.i(
+                TAG,
+                "Workout merged with previous session",
+                metadata = mapOf(
+                    "sessionId" to latest.id.toString(),
+                    "mergedSteps" to mergedSteps.toString(),
+                    "mergedDurationMin" to mergedDurationMin.toString()
+                )
+            )
+
+            return latest.id
+        }
 
         val distanceMeters = estimateDistanceMeters(stepsTaken)
         val calories = estimateCaloriesKcal(stepsTaken)
@@ -2074,12 +2167,10 @@ Keep walking 🚶
             distanceMeters = distanceMeters,
             caloriesKcal = calories,
             avgStepsPerMinute = avgSpm,
-            source = "auto"
+            source = "auto_walk"
         )
 
-        val id = AppDatabase.getDatabase(applicationContext)
-            .workoutSessionDao()
-            .insert(session)
+        val id = dao.insert(session)
 
         DebugLogger.i(
             TAG,
@@ -2096,10 +2187,96 @@ Keep walking 🚶
         return id
     }
 
+    private fun shouldPersistWorkoutSession(stepsTaken: Int, durationMs: Long): Boolean {
+        if (stepsTaken <= 0) return false
+        if (stepsTaken >= WALK_SESSION_MIN_STEPS) return true
+
+        val hasRealMovementDuration = durationMs >= WALK_SESSION_MIN_DURATION_MS &&
+            stepsTaken >= WALK_SESSION_MIN_REAL_MOTION_STEPS
+
+        return hasRealMovementDuration
+    }
+
+    private fun canMergeWorkoutSessions(
+        latest: WorkoutSession,
+        dateStr: String,
+        startTime: Long
+    ): Boolean {
+        if (latest.source == "test") return false
+        if (latest.date != dateStr) return false
+        if (startTime < latest.startTime) return false
+        val gapMs = startTime - latest.endTime
+        return gapMs in 0L..WALK_SESSION_MERGE_GAP_MS
+    }
+
+    private fun handleSessionFinished(finished: WorkoutSessionTransition.Finished) {
+        val stepsTaken = finished.stepsTaken
+        val durationMin = finished.durationMinutes
+
+        DebugLogger.i(
+            TAG,
+            "Session finished by engine",
+            metadata = mapOf(
+                "startTime" to finished.startTimeMs.toString(),
+                "endTime" to finished.endTimeMs.toString(),
+                "steps" to stepsTaken.toString(),
+                "durationMin" to durationMin.toString()
+            )
+        )
+
+        if (!shouldPersistWorkoutSession(stepsTaken, finished.durationMs)) {
+            DebugLogger.d(TAG, "Session ignored (too small)")
+            isWalking = false
+            sessionStartTime = 0L
+            sessionStartSteps = totalSteps
+            persistRuntimeState()
+            return
+        }
+
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val sessionId = saveWorkoutSession(
+                    startTime = finished.startTimeMs,    // ✅ Engine'den gelen DOĞRU başlangıç
+                    endTime = finished.endTimeMs,        // ✅ Engine'den gelen DOĞRU bitiş
+                    stepsTaken = stepsTaken,
+                    durationMin = durationMin
+                )
+
+                if (sessionId <= 0L) return@launch
+
+                DebugLogger.i(
+                    TAG,
+                    "Workout saved successfully",
+                    metadata = mapOf("sessionId" to sessionId.toString())
+                )
+
+                withContext(Dispatchers.Main) {
+                    sendWorkoutSummaryNotification(
+                        sessionId = sessionId,
+                        stepsTaken = stepsTaken,
+                        durationMin = durationMin
+                    )
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Workout save failed", e)
+                DebugLogger.e(TAG, "Workout save failed", e)
+            }
+        }
+
+        isWalking = false
+        sessionStartTime = 0L
+        sessionStartSteps = totalSteps
+
+        persistRuntimeState()
+    }
+
     private fun finishWalkingSession(sessionEndTimeMs: Long? = null) {
 
         if (sessionStartTime <= 0L) {
             isWalking = false
+            sessionEngine.reset()
+            persistRuntimeState()
             return
         }
 
@@ -2119,7 +2296,7 @@ Keep walking 🚶
         )
 
         // 🔥 filtre (çok önemli)
-        val shouldSave = durationMs >= 3 * 60_000L && stepsTaken >= 500
+        val shouldSave = shouldPersistWorkoutSession(stepsTaken, durationMs)
 
         if (shouldSave) {
             serviceScope.launch(Dispatchers.IO) {
@@ -2131,6 +2308,8 @@ Keep walking 🚶
                         stepsTaken = stepsTaken,
                         durationMin = durationMin
                     )
+
+                    if (sessionId <= 0L) return@launch
 
                     DebugLogger.i(TAG, "Workout stored (v3)")
 
@@ -2153,6 +2332,8 @@ Keep walking 🚶
         isWalking = false
         sessionStartTime = 0L
         sessionStartSteps = totalSteps
+        sessionEngine.reset()
+        persistRuntimeState()
     }
 
     private fun sendAlertNotification(title: String, message: String) {
@@ -2254,7 +2435,18 @@ Keep walking 🚶
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
 
+        // Uygulama kapatıldığında ana thread'i (Main) asla bloklamıyoruz.
+        // Veri kaydını arka plana atıp sistemin servisi temizlemesine izin veriyoruz.
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                flushPersistNow(totalSteps)
+            } catch (e: Exception) {
+                Log.e(TAG, "Final flush failed in onTaskRemoved", e)
+            }
+        }
+
         Log.w(TAG, "onTaskRemoved: App removed from recents, scheduling restart...")
+
         DebugLogger.w(
             TAG,
             "onTaskRemoved triggered, scheduling service restart",
@@ -2279,11 +2471,24 @@ Keep walking 🚶
 
         val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
 
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.ELAPSED_REALTIME_WAKEUP,
-            SystemClock.elapsedRealtime() + 3000,
-            pendingIntent
-        )
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+                // ✅ İzin yoksa set() ile yeniden başlatmayı dene
+                alarmManager.set(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    SystemClock.elapsedRealtime() + 3000,
+                    pendingIntent
+                )
+            } else {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    SystemClock.elapsedRealtime() + 3000,
+                    pendingIntent
+                )
+            }
+        } catch (se: SecurityException) {
+            Log.e(TAG, "onTaskRemoved: alarm scheduling failed due to SecurityException", se)
+        }
 
         DebugLogger.d(
             TAG,
@@ -2301,21 +2506,13 @@ Keep walking 🚶
         }
 
         notifJob = serviceScope.launch {
-            DebugLogger.i(TAG, "Notification updater started")
-
             while (isActive) {
                 try {
-                    val goal = getLatestGoal()
+                    val goal = cachedGoal  // ✅ DataStore yerine cache
                     val softBlockActive = stepSafetyGuard.isSoftBlockActive()
 
                     if (!softBlockActive) {
-                        val notification = buildNotification(totalSteps)
-
-                        safeStartForeground(notification)
-
-                        // StepWidgetProvider.sendStepsUpdate(applicationContext, totalSteps)
-                        // StepWidgetCompactProvider.sendStepsUpdate(applicationContext, totalSteps)
-                        // StepWidgetLargeProvider.sendStepsUpdate(applicationContext, totalSteps)
+                        updateForegroundNotification(totalSteps)
 
                         Log.d(TAG, "Notification auto-updated: steps=$totalSteps goal=$goal")
                         DebugLogger.d(
@@ -2359,35 +2556,127 @@ Keep walking 🚶
 
     private val accelListener = object : SensorEventListener {
 
-        override fun onSensorChanged(event: SensorEvent) {
-            val x = event.values[0]
-            val y = event.values[1]
-            val z = event.values[2]
+        override fun onSensorChanged(event: SensorEvent?) {
+            val values = event?.values ?: return
+            if (values.size < 3) return
+
+            val x = values[0]
+            val y = values[1]
+            val z = values[2]
 
             val magnitude = sqrt(x * x + y * y + z * z)
             val motion = abs(magnitude - SensorManager.GRAVITY_EARTH)
+
             val now = System.currentTimeMillis()
 
+            // ------------------------------------------------
+            // REAL MOTION DETECTED
+            // ------------------------------------------------
+
             if (motion > MOTION_THRESHOLD) {
+
                 lastMotionMs = now
 
-                serviceScope.launch {
-                    stepforgeStore.edit { prefs ->
-                        prefs[LAST_MOTION_TIME] = now
+                // Daha seyrek datastore write
+                if (now - lastMotionWriteMs > 2 * 60_000L) {
+
+                    lastMotionWriteMs = now
+
+                    serviceScope.launch {
+                        try {
+                            stepforgeStore.edit { prefs ->
+                                prefs[LAST_MOTION_TIME] = now
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "LAST_MOTION_TIME write failed", e)
+                        }
                     }
                 }
 
+                // ------------------------------------------------
+                // WAKE DETECTION
+                // ------------------------------------------------
+
                 if (inSleepMode) {
-                    sleepEndMs = now
+
+                    // İlk hareket anı
+                    if (wakeMotionStartMs == 0L) {
+                        wakeMotionStartMs = now
+
+                        DebugLogger.d(
+                            TAG,
+                            "Wake motion started",
+                            metadata = mapOf(
+                                "time" to now.toString()
+                            )
+                        )
+                    }
+
+                    // Hareket 2 dk sürdüyse gerçekten uyanmış say
+                    if ((now - wakeMotionStartMs) > WAKE_AFTER_MS) {
+
+                        inSleepMode = false
+
+                        persistRuntimeState()
+
+                        val start = sleepStartMs
+                        val end = wakeMotionStartMs
+
+                        if (start > 0L && end > start) {
+
+                            saveProbableSleep(start, end)
+
+                            Log.d(
+                                TAG,
+                                "☀️ Wake confirmed. Sleep saved: ${Date(start)} -> ${Date(end)}"
+                            )
+
+                            DebugLogger.d(
+                                TAG,
+                                "Wake confirmed and sleep saved",
+                                metadata = mapOf(
+                                    "startMs" to start.toString(),
+                                    "endMs" to end.toString(),
+                                    "durationMin" to ((end - start) / 60000L).toString()
+                                )
+                            )
+                        }
+
+                        sleepStartMs = 0L
+                        sleepEndMs = 0L
+                        wakeMotionStartMs = 0L
+                    }
                 }
+
+            } else {
+
+                // Hareket kesildi
+                wakeMotionStartMs = 0L
             }
 
-            if (!inSleepMode && lastMotionMs > 0L && (now - lastMotionMs) > SLEEP_START_AFTER_MS) {
+            // ------------------------------------------------
+            // AUTO SLEEP START
+            // ------------------------------------------------
+
+            if (
+                !inSleepMode &&
+                lastMotionMs > 0L &&
+                (now - lastMotionMs) > SLEEP_START_AFTER_MS
+            ) {
+
                 inSleepMode = true
+
                 sleepStartMs = lastMotionMs
                 sleepEndMs = 0L
+                wakeMotionStartMs = 0L
 
-                Log.d(TAG, "🌙 Motion sleep mode started at ${Date(sleepStartMs)}")
+                persistRuntimeState()
+
+                Log.d(
+                    TAG,
+                    "🌙 Motion sleep mode started at ${Date(sleepStartMs)}"
+                )
+
                 DebugLogger.d(
                     TAG,
                     "Motion sleep mode started",
@@ -2398,45 +2687,43 @@ Keep walking 🚶
                     )
                 )
             }
-
-            if (inSleepMode && sleepEndMs > 0L && (now - sleepEndMs) > WAKE_AFTER_MS) {
-                inSleepMode = false
-
-                val start = sleepStartMs
-                val end = sleepEndMs
-
-                if (start > 0L && end > start) {
-                    saveProbableSleep(start, end)
-
-                    Log.d(TAG, "☀️ Motion wake detected. Sleep saved: ${Date(start)} -> ${Date(end)}")
-                    DebugLogger.d(
-                        TAG,
-                        "Motion wake detected and probable sleep saved",
-                        metadata = mapOf(
-                            "startMs" to start.toString(),
-                            "endMs" to end.toString(),
-                            "startText" to Date(start).toString(),
-                            "endText" to Date(end).toString()
-                        )
-                    )
-                }
-
-                sleepStartMs = 0L
-                sleepEndMs = 0L
-            }
         }
 
         override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
     }
 
 
+    private fun persistRuntimeState() {
+        serviceScope.launch {
+            try {
+                stepforgeStore.edit { prefs ->
+
+                    prefs[RUNTIME_SLEEP_MODE] = inSleepMode
+                    prefs[RUNTIME_SLEEP_START] = sleepStartMs
+                    prefs[RUNTIME_SLEEP_END] = sleepEndMs
+                    prefs[RUNTIME_WAKE_MOTION_START] = wakeMotionStartMs
+
+                    prefs[RUNTIME_IS_WALKING] = isWalking
+                    prefs[RUNTIME_SESSION_START_TIME] = sessionStartTime
+                    prefs[RUNTIME_SESSION_START_STEPS] = sessionStartSteps
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "persistRuntimeState failed", e)
+            }
+        }
+    }
+
 
     private fun saveProbableSleep(startMs: Long, endMs: Long) {
         serviceScope.launch {
-            stepforgeStore.edit { prefs ->
-                prefs[PROBABLE_SLEEP_READY] = true
-                prefs[PROBABLE_SLEEP_START] = startMs
-                prefs[PROBABLE_SLEEP_END] = endMs
+            try {
+                stepforgeStore.edit { prefs ->
+                    prefs[PROBABLE_SLEEP_READY] = true
+                    prefs[PROBABLE_SLEEP_START] = startMs
+                    prefs[PROBABLE_SLEEP_END] = endMs
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "saveProbableSleep failed", e)
             }
         }
     }
@@ -2485,64 +2772,8 @@ Keep walking 🚶
     }
 
 
-    private fun maybeUpdateWidgetsThrottled() {
-        val now = System.currentTimeMillis()
-        if (now - lastWidgetUpdateMs < 5000L) return
-        lastWidgetUpdateMs = now
-
-        StepWidgetProvider.sendStepsUpdate(applicationContext, totalSteps)
-        StepWidgetCompactProvider.sendStepsUpdate(applicationContext, totalSteps)
-        StepWidgetLargeProvider.sendStepsUpdate(applicationContext, totalSteps)
-    }
-
-    private fun maybePersistStepsThrottled() {
-        val now = System.currentTimeMillis()
-        if (now - lastPersistMs < 4000L) return
-        lastPersistMs = now
-
-        saveContinuously(totalSteps)
-        saveDaily(todayKey(), totalSteps)
-    }
-
-    private fun maybeUpdateNotificationThrottled() {
-        val now = System.currentTimeMillis()
-        if (now - lastNotificationUpdateMs < 3000L) return
-        lastNotificationUpdateMs = now
-
-        updateNotifAsync(totalSteps)
-    }
 
 
-    private fun handleWorkoutEvent(event: WorkoutEvent) {
-        when (event) {
-
-            is WorkoutEvent.Started -> {
-                Log.d(TAG, "Workout started")
-
-                DebugLogger.i(
-                    TAG,
-                    "Workout started",
-                    metadata = emptyMap()
-                )
-            }
-
-            is WorkoutEvent.Finished -> {
-                Log.d(TAG, "Workout finished: ${event.steps} steps")
-
-                DebugLogger.i(
-                    TAG,
-                    "Workout finished",
-                    metadata = mapOf(
-                        "steps" to event.steps.toString(),
-                        "durationSec" to (event.duration / 1000).toString()
-                    )
-                )
-
-                // 🔥 BURASI SONRAKİ ADIMDA BÜYÜYECEK
-                // şimdilik sadece log
-            }
-        }
-    }
 
 
     private fun shieldDateKey(): String {
@@ -2571,7 +2802,6 @@ Keep walking 🚶
 
         return (StreakShieldEngine.getMonthlyPremiumRescueLimit() - usedCount).coerceAtLeast(0)
     }
-
     private suspend fun consumePremiumRescueIfAvailable(): Boolean {
         val premium = isPremiumEnabled()
         if (!premium) return false
@@ -2589,11 +2819,14 @@ Keep walking 🚶
             return false
         }
 
+        val rescueHours = StreakShieldEngine.getPremiumRescueHours()  // 24h
+        val rescueMinutes = rescueHours * 60
+
         stepforgeStore.edit {
             it[StreakShieldPrefs.PREMIUM_RESCUE_MONTH] = currentMonth
             it[StreakShieldPrefs.PREMIUM_RESCUE_USED_COUNT] = usedCount + 1
-            it[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] = StreakShieldEngine.getPremiumRescueHours() * 60
-            it[StreakShieldPrefs.SHIELD_TODAY_MAX_MINUTES] = StreakShieldEngine.getPremiumRescueHours() * 60
+            it[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] = rescueMinutes  // ✅ 24h = 1440 dakika
+            it[StreakShieldPrefs.SHIELD_TODAY_MAX_MINUTES] = rescueMinutes
             it[StreakShieldPrefs.SHIELD_LAST_DECAY_AT_MS] = System.currentTimeMillis()
             it[StreakShieldPrefs.SHIELD_GENERATED_FOR_DATE] = shieldDateKey()
             it[StreakShieldPrefs.PREMIUM_RESCUE_USED_FOR_DATE] = shieldDateKey()
@@ -2604,7 +2837,9 @@ Keep walking 🚶
             "Premium rescue consumed",
             metadata = mapOf(
                 "currentMonth" to currentMonth,
-                "newUsedCount" to (usedCount + 1).toString()
+                "newUsedCount" to (usedCount + 1).toString(),
+                "rescueHours" to rescueHours.toString(),
+                "rescueMinutes" to rescueMinutes.toString()
             )
         )
 
@@ -2612,7 +2847,7 @@ Keep walking 🚶
     }
 
     private suspend fun saveTomorrowShieldFromTodaySteps(todaySteps: Int) {
-        val goal = getLatestGoal()
+        val goal = cachedGoal
         val premium = isPremiumEnabled()
 
         val result = StreakShieldEngine.calculateDailyEarnedShieldHours(
@@ -2621,7 +2856,13 @@ Keep walking 🚶
             isPremium = premium
         )
 
+        // ✅ Hem bugünkü hem yarının shield'ını kaydet
         stepforgeStore.edit {
+            // ✅ Bugünkü shield (gece yarısı carry-over için)
+            it[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] = result.finalHours * 60
+            it[StreakShieldPrefs.SHIELD_TODAY_MAX_MINUTES] = result.maxHours * 60
+
+            // ✅ Yarının shield breakdown
             it[StreakShieldPrefs.SHIELD_TOMORROW_BASE_HOURS] = result.baseHours
             it[StreakShieldPrefs.SHIELD_TOMORROW_GOAL_BONUS_HOURS] = result.goalBonusHours
             it[StreakShieldPrefs.SHIELD_TOMORROW_FINAL_HOURS] = result.finalHours
@@ -2630,7 +2871,7 @@ Keep walking 🚶
 
         DebugLogger.i(
             TAG,
-            "Tomorrow shield calculated from today steps",
+            "Today & tomorrow shield calculated",
             metadata = mapOf(
                 "todaySteps" to todaySteps.toString(),
                 "goal" to goal.toString(),
@@ -2638,9 +2879,78 @@ Keep walking 🚶
                 "baseHours" to result.baseHours.toString(),
                 "goalBonusHours" to result.goalBonusHours.toString(),
                 "finalHours" to result.finalHours.toString(),
-                "maxHours" to result.maxHours.toString()
+                "maxHours" to result.maxHours.toString(),
+                "todayMinutes" to (result.finalHours * 60).toString()
             )
         )
+    }
+
+    private suspend fun updateTodayShieldFromCurrentSteps(currentSteps: Int) {
+        val prefs = stepforgeStore.data.first()
+        val goal = cachedGoal
+        val premium = isPremiumEnabled()
+
+        val shieldGeneratedForDate = prefs[StreakShieldPrefs.SHIELD_GENERATED_FOR_DATE] ?: ""
+        val today = shieldDateKey()
+
+        // ✅ Eğer bugün için zaten shield oluşturulduysa, güncelleme
+        if (shieldGeneratedForDate == today) {
+            val result = StreakShieldEngine.calculateDailyEarnedShieldHours(
+                steps = currentSteps,
+                goal = goal,
+                isPremium = premium
+            )
+
+            val newMinutes = result.finalHours * 60
+            val currentMinutes = prefs[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] ?: 0
+
+            // ✅ Sadece artıyorsa güncelle (azalmayı drain hallediyor)
+            if (newMinutes > currentMinutes) {
+                stepforgeStore.edit {
+                    it[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] = newMinutes
+                    it[StreakShieldPrefs.SHIELD_TODAY_MAX_MINUTES] = result.maxHours * 60
+                }
+
+                DebugLogger.i(
+                    TAG,
+                    "Today shield updated from current steps",
+                    metadata = mapOf(
+                        "currentSteps" to currentSteps.toString(),
+                        "oldMinutes" to currentMinutes.toString(),
+                        "newMinutes" to newMinutes.toString(),
+                        "baseHours" to result.baseHours.toString(),
+                        "goalBonusHours" to result.goalBonusHours.toString()
+                    )
+                )
+            }
+        } else {
+            // ✅ İlk kez bugün için shield oluşturuluyor
+            val result = StreakShieldEngine.calculateDailyEarnedShieldHours(
+                steps = currentSteps,
+                goal = goal,
+                isPremium = premium
+            )
+
+            val newMinutes = result.finalHours * 60
+
+            stepforgeStore.edit {
+                it[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] = newMinutes
+                it[StreakShieldPrefs.SHIELD_TODAY_MAX_MINUTES] = result.maxHours * 60
+                it[StreakShieldPrefs.SHIELD_GENERATED_FOR_DATE] = today
+                it[StreakShieldPrefs.SHIELD_LAST_DECAY_AT_MS] = System.currentTimeMillis()
+            }
+
+            DebugLogger.i(
+                TAG,
+                "Today shield initialized for the first time",
+                metadata = mapOf(
+                    "currentSteps" to currentSteps.toString(),
+                    "shieldMinutes" to newMinutes.toString(),
+                    "baseHours" to result.baseHours.toString(),
+                    "goalBonusHours" to result.goalBonusHours.toString()
+                )
+            )
+        }
     }
 
     private suspend fun activateTodayShieldFromStoredTomorrow() {
@@ -2648,12 +2958,29 @@ Keep walking 🚶
 
         val finalHours = prefs[StreakShieldPrefs.SHIELD_TOMORROW_FINAL_HOURS] ?: 0
         val maxHours = prefs[StreakShieldPrefs.SHIELD_TOMORROW_MAX_HOURS] ?: 0
+        val isPremium = (prefs[intPreferencesKey("premium_enabled")] ?: 0) == 1
 
-        val minutes = finalHours * 60
+        // ✅ 1. Dünden kalan shield'ı al
+        val yesterdayMinutesLeft = prefs[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] ?: 0
+
+        // ✅ 2. Premium carry-over hesapla
+        val carryOverMinutes = if (isPremium && yesterdayMinutesLeft > 0) {
+            (yesterdayMinutesLeft.coerceAtMost(4 * 60))  // Max 4 saat
+        } else {
+            0
+        }
+
+        // ✅ 3. Toplam shield hesapla (earned + carry-over, ama cap'i aşmasın)
+        val earnedMinutes = finalHours * 60
+        val totalMinutesBeforeCap = earnedMinutes + carryOverMinutes
+
+        val premiumCapMinutes = if (isPremium) 16 * 60 else 12 * 60
+        val finalMinutes = totalMinutesBeforeCap.coerceAtMost(premiumCapMinutes)
+
         val maxMinutes = maxHours * 60
 
         stepforgeStore.edit {
-            it[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] = minutes
+            it[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] = finalMinutes
             it[StreakShieldPrefs.SHIELD_TODAY_MAX_MINUTES] = maxMinutes
             it[StreakShieldPrefs.SHIELD_LAST_DECAY_AT_MS] = System.currentTimeMillis()
             it[StreakShieldPrefs.SHIELD_GENERATED_FOR_DATE] = shieldDateKey()
@@ -2661,72 +2988,38 @@ Keep walking 🚶
 
         DebugLogger.i(
             TAG,
-            "Today shield activated from stored tomorrow shield",
+            "Today shield activated with carry-over",
             metadata = mapOf(
-                "minutes" to minutes.toString(),
+                "earnedMinutes" to earnedMinutes.toString(),
+                "carryOverMinutes" to carryOverMinutes.toString(),
+                "finalMinutes" to finalMinutes.toString(),
                 "maxMinutes" to maxMinutes.toString(),
+                "isPremium" to isPremium.toString(),
                 "date" to shieldDateKey()
             )
         )
     }
 
 
-    private fun startShieldDrainTicker() {
+    private fun startStreakBehaviorTicker() {
         serviceScope.launch {
             while (isActive) {
                 try {
-                    val prefs = stepforgeStore.data.first()
-                    val currentShieldMinutes = prefs[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] ?: 0
-                    val lastDecayAt = prefs[StreakShieldPrefs.SHIELD_LAST_DECAY_AT_MS] ?: 0L
-
-                    if (currentShieldMinutes > 0) {
-                        val shouldDrain = StreakShieldEngine.shouldShieldDrain(totalSteps)
-                        val now = System.currentTimeMillis()
-
-                        if (shouldDrain) {
-                            val elapsedMinutes = ((now - lastDecayAt) / 60_000L).toInt()
-
-                            if (elapsedMinutes > 0) {
-                                val newMinutes = (currentShieldMinutes - elapsedMinutes).coerceAtLeast(0)
-
-                                stepforgeStore.edit {
-                                    it[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] = newMinutes
-                                    it[StreakShieldPrefs.SHIELD_LAST_DECAY_AT_MS] = now
-                                }
-
-                                DebugLogger.d(
-                                    TAG,
-                                    "Shield drained",
-                                    metadata = mapOf(
-                                        "oldMinutes" to currentShieldMinutes.toString(),
-                                        "elapsedMinutes" to elapsedMinutes.toString(),
-                                        "newMinutes" to newMinutes.toString(),
-                                        "todaySteps" to totalSteps.toString()
-                                    )
-                                )
-
-                                if (newMinutes == 0) {
-                                    val rescueUsed = consumePremiumRescueIfAvailable()
-                                    if (!rescueUsed) {
-                                        DebugLogger.w(
-                                            TAG,
-                                            "Shield depleted and no premium rescue available",
-                                            metadata = mapOf(
-                                                "todaySteps" to totalSteps.toString()
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        } else {
-                            stepforgeStore.edit {
-                                it[StreakShieldPrefs.SHIELD_LAST_DECAY_AT_MS] = now
-                            }
-                        }
-                    }
+                    val lastStepTime = stepforgeStore.data.first()[LAST_STEP_TIME] ?: System.currentTimeMillis()
+                    StreakBehaviorEngine.tickBehavior(
+                        context = applicationContext,
+                        todaySteps = totalSteps,
+                        goal = cachedGoal,
+                        lastStepTimeMs = lastStepTime
+                    )
+                    StreakBehaviorEngine.checkAndMarkLostIfNeeded(
+                        context = applicationContext,
+                        goal = cachedGoal,
+                        todaySteps = totalSteps
+                    )
                 } catch (e: Exception) {
-                    Log.e(TAG, "Shield drain ticker error", e)
-                    DebugLogger.e(TAG, "Shield drain ticker error", e)
+                    Log.e(TAG, "Streak behavior ticker error", e)
+                    DebugLogger.e(TAG, "Streak behavior ticker error", e)
                 }
 
                 delay(60_000L)
@@ -2737,16 +3030,18 @@ Keep walking 🚶
 
     private suspend fun didTodayCountForStreak(): Boolean {
         val prefs = stepforgeStore.data.first()
-        val goal = getLatestGoal()
+        val goal = cachedGoal
         val shieldMinutesLeft = prefs[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] ?: 0
         val rescueDate = prefs[StreakShieldPrefs.PREMIUM_RESCUE_USED_FOR_DATE] ?: ""
         val rescueUsedToday = rescueDate == shieldDateKey()
 
+        val rescuedUntil = prefs[com.example.stepforge.ui.streak.StreakBehaviorPrefs.STREAK_RESCUED_UNTIL_MS] ?: 0L
         val result = StreakDayQualifier.qualifyDay(
             steps = totalSteps,
             goal = goal,
-            shieldMinutesLeft = shieldMinutesLeft,
-            rescueUsedForDay = rescueUsedToday
+            behaviorBufferMinutes = shieldMinutesLeft,
+            rescueUsedForDay = rescueUsedToday,
+            rescuedActive = rescuedUntil > System.currentTimeMillis()
         )
 
         DebugLogger.d(
@@ -2769,17 +3064,21 @@ Keep walking 🚶
 
 
     private fun maybeRunPremiumCoach() {
+        val now = System.currentTimeMillis()
+        if (now - lastCoachRunMs < 5 * 60 * 1000L) return  // ✅ 5 dakikada bir çalışsın
+        lastCoachRunMs = now
+
         serviceScope.launch {
             try {
                 val prefs = stepforgeStore.data.first()
 
                 val isPremium = (prefs[intPreferencesKey("premium_enabled")] ?: 0) == 1
                 val aiCoachEnabled = prefs[StreakShieldPrefs.PREMIUM_AI_COACH_ENABLED] ?: false
-                val shieldMinutesLeft = prefs[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] ?: 0
+                val behavior = StreakBehaviorEngine.readSnapshot(applicationContext)
 
                 if (!isPremium || !aiCoachEnabled) return@launch
 
-                val goal = getLatestGoal()
+                val goal = cachedGoal
 
                 val dates7 = buildList {
                     val cal = Calendar.getInstance()
@@ -2800,7 +3099,8 @@ Keep walking 🚶
                         aiCoachEnabled = aiCoachEnabled,
                         todaySteps = totalSteps,
                         goal = goal,
-                        shieldMinutesLeft = shieldMinutesLeft,
+                        streakBehaviorState = behavior.state,
+                        streakHealthPercent = behavior.healthPercent,
                         premiumRescuesLeft = getPremiumRescuesLeft(),
                         nowHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY),
                         last7AverageSteps = last7Average
@@ -2817,7 +3117,8 @@ Keep walking 🚶
                         "aiCoachEnabled" to aiCoachEnabled.toString(),
                         "todaySteps" to totalSteps.toString(),
                         "goal" to goal.toString(),
-                        "shieldMinutesLeft" to shieldMinutesLeft.toString(),
+                        "streakState" to behavior.state.name,
+                        "streakHealth" to behavior.healthPercent.toString(),
                         "premiumRescuesLeft" to getPremiumRescuesLeft().toString(),
                         "decisionShouldNotify" to decision.shouldNotify.toString(),
                         "decisionType" to (decision.type?.name ?: "null")
@@ -2837,13 +3138,3 @@ Keep walking 🚶
         return "%04d-%02d-%02d".format(year, month, day)
     }
 }
-
-
-
-
-
-
-
-
-
-
