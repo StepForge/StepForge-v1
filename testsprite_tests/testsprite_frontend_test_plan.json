@@ -1,0 +1,132 @@
+[
+  {
+    "id": "main_dashboard",
+    "title": "Main Dashboard - Step Display & Progress",
+    "description": "Primary screen showing real-time step count and daily goal progress with interactive controls"
+  },
+  {
+    "id": "insights_analytics",
+    "title": "Insights & Analytics - Trend Visualization",
+    "description": "Historical data display with charts showing weekly/monthly trends and achievement metrics"
+  },
+  {
+    "id": "streak_tracking",
+    "title": "Streak Tracking - Consecutive Day Achievements",
+    "description": "Visual representation of consecutive goal achievement days with calendar view"
+  },
+  {
+    "id": "settings_preferences",
+    "title": "Settings & Preferences - User Configuration",
+    "description": "Comprehensive settings screen for adjusting goals, units, notifications, theme, privacy"
+  },
+  {
+    "id": "water_reminder",
+    "title": "Water Reminder - Hydration Tracking",
+    "description": "Water intake reminder screen with customizable intervals and daily targets"
+  },
+  {
+    "id": "adjust_steps",
+    "title": "Adjust Steps - Manual Step Entry",
+    "description": "Interface for manual step count adjustments when sensor data is inaccurate"
+  },
+  {
+    "id": "data_sync_backup",
+    "title": "Data Sync & Backup - Cloud Integration",
+    "description": "Cloud synchronization with Firebase, backup creation, and sync history management"
+  },
+  {
+    "id": "onboarding",
+    "title": "Onboarding Flow - First-Time Setup",
+    "description": "Complete new user flow with permissions, goal setup, and preference initialization"
+  },
+  {
+    "id": "debug_panel",
+    "title": "Debug Panel - Development Tools",
+    "description": "Internal debugging utilities for testing and troubleshooting"
+  },
+  {
+    "id": "about_feedback",
+    "title": "About & Feedback - App Information",
+    "description": "Version info, developer contact, feedback submission, and feature requests"
+  },
+  {
+    "id": "permissions_request",
+    "title": "Permissions Request - Sensor Access",
+    "description": "Request and handle physical activity permissions for step counting"
+  },
+  {
+    "id": "goal_setting",
+    "title": "Goal Setting - Daily Target Configuration",
+    "description": "Set and modify daily step goals with validation and progress tracking"
+  },
+  {
+    "id": "notification_management",
+    "title": "Notification Management - Alert System",
+    "description": "Configure push notifications for goals, reminders, and achievements"
+  },
+  {
+    "id": "theme_customization",
+    "title": "Theme Customization - UI Personalization",
+    "description": "Switch between light/dark themes and customize app appearance"
+  },
+  {
+    "id": "data_export",
+    "title": "Data Export - Health Data Sharing",
+    "description": "Export step data in various formats (CSV, JSON) for external analysis"
+  },
+  {
+    "id": "offline_mode",
+    "title": "Offline Mode - Local Data Storage",
+    "description": "Continue tracking steps without internet connection and sync when online"
+  },
+  {
+    "id": "health_integration",
+    "title": "Health Integration - Samsung Health/Google Fit",
+    "description": "Sync with third-party health platforms and import historical data"
+  },
+  {
+    "id": "achievement_badges",
+    "title": "Achievement Badges - Gamification",
+    "description": "Display earned badges and milestones with unlock animations"
+  },
+  {
+    "id": "social_sharing",
+    "title": "Social Sharing - Progress Sharing",
+    "description": "Share achievements and progress on social media platforms"
+  },
+  {
+    "id": "emergency_contacts",
+    "title": "Emergency Contacts - Safety Features",
+    "description": "Configure emergency contacts and safety monitoring features"
+  },
+  {
+    "id": "language_localization",
+    "title": "Language & Localization - Multi-language Support",
+    "description": "Support multiple languages and regional formatting preferences"
+  },
+  {
+    "id": "accessibility_features",
+    "title": "Accessibility Features - Inclusive Design",
+    "description": "Screen reader support, high contrast mode, and gesture navigation"
+  },
+  {
+    "id": "battery_optimization",
+    "title": "Battery Optimization - Power Management",
+    "description": "Optimize sensor usage for better battery life and performance"
+  },
+  {
+    "id": "privacy_controls",
+    "title": "Privacy Controls - Data Protection",
+    "description": "GDPR compliance, data deletion, and privacy settings management"
+  },
+  {
+    "id": "app_update_flow",
+    "title": "App Update Flow - Version Management",
+    "description": "Handle app updates, migration, and feature announcements"
+  },
+  {
+    "id": "crash_reporting",
+    "title": "Crash Reporting - Error Handling",
+    "description": "Report crashes and errors with detailed diagnostics"
+  }
+]

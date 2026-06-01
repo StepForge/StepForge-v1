@@ -1,0 +1,9 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:8080",
+  "backendAuthType": "public",
+  "api_key": "sk-user-Rp88U6K2O3WWtgHFRTGw6KHapKi9yeSkGyWA1GBvoSHS3dJa4-61ZOUmY8XzxlCWdn8p1zyCRfOVOe3dsXMg39FZ-T0cZWFuiSmjA3YQ1ZhJhdfBB6lURcjgUIi8mEvIKHE",
+  "prdPath": "testsprite_tests/FRONTEND_PRD.md"
+}

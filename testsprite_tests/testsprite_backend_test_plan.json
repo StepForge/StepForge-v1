@@ -1,0 +1,316 @@
+[
+  {
+    "id": "step_counter_service",
+    "title": "Step Counter Service",
+    "description": "Tracks user steps using device sensors",
+    "test_cases": [
+      {
+        "id": "test_get_steps",
+        "description": "Get user steps data from API",
+        "method": "GET",
+        "endpoint": "/api/steps",
+        "expected_status": 200,
+        "expected_response": {
+          "steps": "number",
+          "date": "string"
+        }
+      },
+      {
+        "id": "test_sync_steps",
+        "description": "Sync steps data to backend",
+        "method": "POST",
+        "endpoint": "/api/steps/sync",
+        "request_body": {
+          "steps": 1000,
+          "timestamp": "2024-01-01T00:00:00Z"
+        },
+        "expected_status": 200,
+        "expected_response": {
+          "success": true,
+          "message": "Steps synced successfully"
+        }
+      },
+      {
+        "id": "test_sync_zero_steps",
+        "description": "Sync zero steps (edge case)",
+        "method": "POST",
+        "endpoint": "/api/steps/sync",
+        "request_body": {
+          "steps": 0,
+          "timestamp": "2024-01-01T00:00:00Z"
+        },
+        "expected_status": 200,
+        "expected_response": {
+          "success": true
+        }
+      },
+      {
+        "id": "test_sync_large_steps",
+        "description": "Sync very large step count",
+        "method": "POST",
+        "endpoint": "/api/steps/sync",
+        "request_body": {
+          "steps": 10000000,
+          "timestamp": "2024-01-01T00:00:00Z"
+        },
+        "expected_status": 200,
+        "expected_response": {
+          "success": true
+        }
+      },
+      {
+        "id": "test_sync_missing_fields",
+        "description": "Sync with missing required fields",
+        "method": "POST",
+        "endpoint": "/api/steps/sync",
+        "request_body": {
+          "steps": 1000
+        },
+        "expected_status": 400,
+        "expected_response": {
+          "error": "Bad Request"
+        }
+      },
+      {
+        "id": "test_get_steps_unauthorized",
+        "description": "Get steps without authentication",
+        "method": "GET",
+        "endpoint": "/api/steps",
+        "expected_status": 401,
+        "expected_response": {
+          "error": "Unauthorized"
+        }
+      },
+      {
+        "id": "test_sync_invalid_token",
+        "description": "Sync with invalid token",
+        "method": "POST",
+        "endpoint": "/api/steps/sync",
+        "headers": {
+          "Authorization": "Bearer invalid_token"
+        },
+        "request_body": {
+          "steps": 1000,
+          "timestamp": "2024-01-01T00:00:00Z"
+        },
+        "expected_status": 401,
+        "expected_response": {
+          "error": "Unauthorized"
+        }
+      }
+    ]
+  },
+  {
+    "id": "sync_backup",
+    "title": "Sync Backup",
+    "description": "Backup and sync user data to cloud",
+    "test_cases": [
+      {
+        "id": "test_backup_data",
+        "description": "Backup user data to cloud",
+        "method": "POST",
+        "endpoint": "/api/backup",
+        "request_body": {
+          "data": {
+            "steps": 5000,
+            "settings": {}
+          }
+        },
+        "expected_status": 200,
+        "expected_response": {
+          "success": true,
+          "message": "Data backed up successfully"
+        }
+      },
+      {
+        "id": "test_backup_large_data",
+        "description": "Backup large dataset",
+        "method": "POST",
+        "endpoint": "/api/backup",
+        "request_body": {
+          "data": {
+            "steps": 50000,
+            "history": "x".repeat(10000),
+            "settings": {
+              "theme": "dark",
+              "notifications": true
+            }
+          }
+        },
+        "expected_status": 200,
+        "expected_response": {
+          "success": true
+        }
+      },
+      {
+        "id": "test_backup_missing_data",
+        "description": "Backup with missing data field",
+        "method": "POST",
+        "endpoint": "/api/backup",
+        "request_body": {},
+        "expected_status": 400,
+        "expected_response": {
+          "error": "Bad Request"
+        }
+      },
+      {
+        "id": "test_backup_unauthorized",
+        "description": "Backup without authentication",
+        "method": "POST",
+        "endpoint": "/api/backup",
+        "request_body": {
+          "data": {
+            "steps": 1000
+          }
+        },
+        "expected_status": 401,
+        "expected_response": {
+          "error": "Unauthorized"
+        }
+      }
+    ]
+  },
+  {
+    "id": "settings_management",
+    "title": "Settings Management",
+    "description": "User settings and preferences",
+    "test_cases": [
+      {
+        "id": "test_get_settings",
+        "description": "Get user settings",
+        "method": "GET",
+        "endpoint": "/api/settings",
+        "expected_status": 200,
+        "expected_response": {
+          "dailyGoal": "number",
+          "notifications": "boolean",
+          "theme": "string"
+        }
+      },
+      {
+        "id": "test_update_settings",
+        "description": "Update user settings",
+        "method": "PUT",
+        "endpoint": "/api/settings",
+        "request_body": {
+          "dailyGoal": 8000,
+          "notifications": false
+        },
+        "expected_status": 200,
+        "expected_response": {
+          "success": true,
+          "message": "Settings updated"
+        }
+      },
+      {
+        "id": "test_update_invalid_settings",
+        "description": "Update with invalid data types",
+        "method": "PUT",
+        "endpoint": "/api/settings",
+        "request_body": {
+          "dailyGoal": "invalid_number",
+          "notifications": "not_boolean",
+          "units": 12345
+        },
+        "expected_status": 400,
+        "expected_response": {
+          "error": "Bad Request"
+        }
+      },
+      {
+        "id": "test_get_settings_unauthorized",
+        "description": "Get settings without authentication",
+        "method": "GET",
+        "endpoint": "/api/settings",
+        "expected_status": 401,
+        "expected_response": {
+          "error": "Unauthorized"
+        }
+      },
+      {
+        "id": "test_update_settings_expired_token",
+        "description": "Update settings with expired token",
+        "method": "PUT",
+        "endpoint": "/api/settings",
+        "headers": {
+          "Authorization": "Bearer expired_token"
+        },
+        "request_body": {
+          "dailyGoal": 9000
+        },
+        "expected_status": 401,
+        "expected_response": {
+          "error": "Unauthorized"
+        }
+      }
+    ]
+  },
+  {
+    "id": "health_check",
+    "title": "Health Check",
+    "description": "API health and status monitoring",
+    "test_cases": [
+      {
+        "id": "test_health_endpoint",
+        "description": "Check API health status",
+        "method": "GET",
+        "endpoint": "/health",
+        "expected_status": 200,
+        "expected_response": {
+          "status": "ok"
+        }
+      }
+    ]
+  },
+  {
+    "id": "rate_limiting",
+    "title": "Rate Limiting",
+    "description": "API rate limiting and throttling",
+    "test_cases": [
+      {
+        "id": "test_rate_limit_exceeded",
+        "description": "Test rate limiting behavior",
+        "method": "GET",
+        "endpoint": "/api/steps",
+        "expected_status": 429,
+        "expected_response": {
+          "error": "Too Many Requests"
+        }
+      }
+    ]
+  },
+  {
+    "id": "data_validation",
+    "title": "Data Validation",
+    "description": "Input validation and sanitization",
+    "test_cases": [
+      {
+        "id": "test_sql_injection_attempt",
+        "description": "Test SQL injection prevention",
+        "method": "POST",
+        "endpoint": "/api/steps/sync",
+        "request_body": {
+          "steps": "1; DROP TABLE users;",
+          "timestamp": "2024-01-01T00:00:00Z"
+        },
+        "expected_status": 400,
+        "expected_response": {
+          "error": "Bad Request"
+        }
+      },
+      {
+        "id": "test_xss_attempt",
+        "description": "Test XSS prevention",
+        "method": "PUT",
+        "endpoint": "/api/settings",
+        "request_body": {
+          "theme": "<script>alert('xss')</script>"
+        },
+        "expected_status": 400,
+        "expected_response": {
+          "error": "Bad Request"
+        }
+      }
+    ]
+  }
+]

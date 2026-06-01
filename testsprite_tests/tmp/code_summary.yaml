@@ -1,0 +1,84 @@
+version: "2"
+type: backend
+tech_stack:
+  - Kotlin
+  - Android
+  - Firebase
+  - Firestore
+  - Authentication
+features:
+  - name: Step Counter Service
+    description: Tracks user steps using device sensors
+    files:
+      - app/src/main/java/com/example/stepforge/StepCounterService.kt
+    endpoints:
+      - method: GET
+        path: /api/steps
+        description: Get user steps data
+        auth_required: true
+        response_schema:
+          "200": 
+            steps: number
+            date: string
+      - method: POST
+        path: /api/steps/sync
+        description: Sync steps to Firebase
+        auth_required: true
+        request_schema:
+          body:
+            steps: number
+            timestamp: string
+        response_schema:
+          "200": Success
+          "401": Unauthorized
+    depends_on:
+      - Firebase Authentication
+      - Device Sensors
+  - name: Sync Backup
+    description: Backup and sync user data to cloud
+    files:
+      - app/src/main/java/com/example/stepforge/SyncBackupActivity.kt
+    endpoints:
+      - method: POST
+        path: /api/backup
+        description: Backup user data
+        auth_required: true
+        request_schema:
+          body:
+            data: object
+        response_schema:
+          "200": Backup successful
+          "500": Backup failed
+    depends_on:
+      - Firebase Firestore
+  - name: Settings Management
+    description: User settings and preferences
+    files:
+      - app/src/main/java/com/example/stepforge/settings/
+    endpoints:
+      - method: GET
+        path: /api/settings
+        description: Get user settings
+        auth_required: true
+        response_schema:
+          "200": Settings object
+      - method: PUT
+        path: /api/settings
+        description: Update user settings
+        auth_required: true
+        request_schema:
+          body: Settings object
+        response_schema:
+          "200": Updated
+    depends_on:
+      - Firebase Firestore
+known_limitations:
+  - issue: Deprecated Google SignIn classes used
+    location: SyncBackupActivity.kt, PrivacySecurityScreen.kt
+    impact: May break with future Google Play Services updates
+  - issue: Deprecated Divider components
+    location: Multiple UI files
+    impact: UI warnings, future incompatibility
+  - issue: Java type mismatch in DebugLogFileStore
+    location: debug/DebugLogFileStore.kt
+    impact: Potential runtime errors in debug logging
