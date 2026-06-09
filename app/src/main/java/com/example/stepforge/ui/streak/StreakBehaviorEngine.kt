@@ -39,6 +39,15 @@ object StreakBehaviorEngine {
 
     fun todayKey(): String = LocalDate.now(ZoneId.systemDefault()).toString()
 
+    private fun yesterdayKey(): String = LocalDate.now(ZoneId.systemDefault())
+        .minusDays(1)
+        .toString()
+
+    private fun previousDateKey(date: String): String {
+        return runCatching { LocalDate.parse(date).minusDays(1).toString() }
+            .getOrDefault(yesterdayKey())
+    }
+
     fun currentMonthKey(): String {
         val now = LocalDate.now(ZoneId.systemDefault())
         return "%04d-%02d".format(now.year, now.monthValue)
@@ -91,7 +100,7 @@ object StreakBehaviorEngine {
         val reachedGoal = safeSteps >= safeGoal
         val activeEnough = safeSteps >= MIN_STEPS_TO_PAUSE_DECAY
         val protectedByBehavior = !reachedGoal && activeEnough &&
-            (internalBufferMinutes > 0 || rescuedActive)
+                (internalBufferMinutes > 0 || rescuedActive)
         val protectedByPremiumRescue = !reachedGoal && activeEnough && rescueUsedForDay
 
         return StreakDayQualifier.DayQualificationResult(
@@ -269,7 +278,11 @@ object StreakBehaviorEngine {
         }
     }
 
-    suspend fun markLost(context: android.content.Context, lostStreakDays: Int) {
+    suspend fun markLost(
+        context: android.content.Context,
+        lostStreakDays: Int,
+        missedDate: String = yesterdayKey()
+    ) {
         val now = System.currentTimeMillis()
         StreakRecoveryManager.triggerRecovery(
             context = context,
@@ -281,6 +294,7 @@ object StreakBehaviorEngine {
             it[StreakBehaviorPrefs.STREAK_LOST_AT_MS] = now
             it[StreakBehaviorPrefs.STREAK_RECOVERY_UNTIL_MS] = now + 48L * 60L * 60L * 1000L
             it[StreakBehaviorPrefs.STREAK_LOST_SNAPSHOT_DAYS] = lostStreakDays.coerceAtLeast(0)
+            it[StreakBehaviorPrefs.STREAK_LOST_DATE] = missedDate
             it[StreakBehaviorPrefs.STREAK_DISPLAY_OVERRIDE_DAYS] = 0
             it[StreakBehaviorPrefs.STREAK_RESCUE_DIALOG_PENDING] = false
             it[StreakBehaviorPrefs.STREAK_LOST_DIALOG_PENDING] = true
@@ -298,6 +312,8 @@ object StreakBehaviorEngine {
             it[StreakBehaviorPrefs.STREAK_LOST_AT_MS] = 0L
             it[StreakBehaviorPrefs.STREAK_RECOVERY_UNTIL_MS] = 0L
             it[StreakBehaviorPrefs.STREAK_LOST_SNAPSHOT_DAYS] = 0
+            it[StreakBehaviorPrefs.STREAK_LOST_DATE] = ""
+            it[StreakBehaviorPrefs.STREAK_DISPLAY_OVERRIDE_DAYS] = 0
             it[StreakBehaviorPrefs.STREAK_LOST_DIALOG_PENDING] = false
             it[StreakBehaviorPrefs.STREAK_BEHAVIOR_STATE] = StreakBehaviorState.ACTIVE.name
         }
@@ -356,19 +372,32 @@ object StreakBehaviorEngine {
     suspend fun restoreLostStreak(context: android.content.Context): Boolean {
         val store = context.stepforgeStore
         val prefs = store.data.first()
-        val snapshot = prefs[StreakBehaviorPrefs.STREAK_LOST_SNAPSHOT_DAYS] ?: 0
-        if (snapshot <= 0) return false
         val recoveryUntil = prefs[StreakBehaviorPrefs.STREAK_RECOVERY_UNTIL_MS] ?: 0L
-        if (System.currentTimeMillis() > recoveryUntil) return false
+        val lostAt = prefs[StreakBehaviorPrefs.STREAK_LOST_AT_MS] ?: 0L
+        val savedLostDate = prefs[StreakBehaviorPrefs.STREAK_LOST_DATE] ?: ""
+        val now = System.currentTimeMillis()
+        if (lostAt <= 0L && savedLostDate.isBlank()) return false
+        if (recoveryUntil > 0L && now > recoveryUntil) return false
+
+        val missedDate = savedLostDate.ifBlank { yesterdayKey() }
+        val protectedDates = readProtectedDates(
+            prefs[StreakBehaviorPrefs.STREAK_PROTECTED_DATES]
+        ).toMutableSet()
+
+        // Restore must be idempotent: the same missed day is protected once, never stacked.
+        protectedDates.add(missedDate)
 
         store.edit {
+            it[StreakBehaviorPrefs.STREAK_PROTECTED_DATES] = writeProtectedDates(protectedDates)
+            it[StreakBehaviorPrefs.STREAK_LAST_RESTORED_DATE] = missedDate
             it[StreakBehaviorPrefs.STREAK_LOST_AT_MS] = 0L
             it[StreakBehaviorPrefs.STREAK_RECOVERY_UNTIL_MS] = 0L
             it[StreakBehaviorPrefs.STREAK_LOST_SNAPSHOT_DAYS] = 0
+            it[StreakBehaviorPrefs.STREAK_LOST_DATE] = ""
             it[StreakBehaviorPrefs.STREAK_LOST_DIALOG_PENDING] = false
             it[StreakBehaviorPrefs.STREAK_BEHAVIOR_STATE] = StreakBehaviorState.ACTIVE.name
             it[StreakBehaviorPrefs.STREAK_INTERNAL_HEALTH] = 80
-            it[StreakBehaviorPrefs.STREAK_DISPLAY_OVERRIDE_DAYS] = snapshot
+            it[StreakBehaviorPrefs.STREAK_DISPLAY_OVERRIDE_DAYS] = 0
             it[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] = 6 * 60
             it[StreakBehaviorPrefs.STREAK_RESCUED_UNTIL_MS] = 0L
         }
@@ -429,23 +458,46 @@ object StreakBehaviorEngine {
         val prefs = context.stepforgeStore.data.first()
         val now = System.currentTimeMillis()
         val lostAt = prefs[StreakBehaviorPrefs.STREAK_LOST_AT_MS] ?: 0L
-        if (lostAt > 0L) return true
+        val recoveryUntil = prefs[StreakBehaviorPrefs.STREAK_RECOVERY_UNTIL_MS] ?: 0L
+        if (lostAt > 0L && now <= recoveryUntil) return true
 
-        val graceUntil = prefs[StreakBehaviorPrefs.STREAK_CRITICAL_GRACE_UNTIL_MS] ?: 0L
-        val rescuedUntil = prefs[StreakBehaviorPrefs.STREAK_RESCUED_UNTIL_MS] ?: 0L
-        val buffer = prefs[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] ?: 0
-        val health = prefs[StreakBehaviorPrefs.STREAK_INTERNAL_HEALTH]
-            ?: healthPercentFromBuffer(buffer, (prefs[androidx.datastore.preferences.core.intPreferencesKey("premium_enabled")] ?: 0) == 1)
+        val today = todayKey()
+        val yesterday = yesterdayKey()
 
-        val graceExpired = graceUntil > 0L && graceUntil <= now
-        val criticalNoBuffer = health < 25 && buffer <= 0 && rescuedUntil <= now && graceUntil <= now
+        // Today is still live. A low step count today must never reset the streak.
+        val todayQualified = qualifyDay(
+            steps = todaySteps,
+            goal = goal,
+            internalBufferMinutes = prefs[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] ?: 0,
+            rescuedActive = (prefs[StreakBehaviorPrefs.STREAK_RESCUED_UNTIL_MS] ?: 0L) > now,
+            rescueUsedForDay = (prefs[StreakShieldPrefs.PREMIUM_RESCUE_USED_FOR_DATE] ?: "") == today
+        ).countsForStreak
+        if (todayQualified) return false
 
-        if (graceExpired || criticalNoBuffer) {
-            val streak = computeQuickStreakDays(context, goal, todaySteps)
-            markLost(context, streak)
-            return true
-        }
-        return false
+        val db = com.example.stepforge.data.AppDatabase.getDatabase(context)
+        val dailyByDate = db.dailyStepsDao()
+            .getAllSteps()
+            .filter { !it.date.startsWith("TEST-") }
+            .associate { it.date to it.steps }
+
+        val protectedDates = readProtectedDates(prefs[StreakBehaviorPrefs.STREAK_PROTECTED_DATES])
+        val yesterdayQualified = (dailyByDate[yesterday] ?: 0) >= goal || protectedDates.contains(yesterday)
+        if (yesterdayQualified) return false
+
+        val streakBeforeMiss = StreakAnalyticsEngine.computeClosedStreakEndingAt(
+            dailyByDate = dailyByDate,
+            goal = goal,
+            endDate = previousDateKey(yesterday),
+            protectedDates = protectedDates
+        )
+
+        if (streakBeforeMiss <= 0) return false
+
+        val alreadyRestoredYesterday = prefs[StreakBehaviorPrefs.STREAK_LAST_RESTORED_DATE] == yesterday
+        if (alreadyRestoredYesterday) return false
+
+        markLost(context, streakBeforeMiss, missedDate = yesterday)
+        return true
     }
 
     suspend fun syncEarnedBuffer(context: android.content.Context, steps: Int, goal: Int) {

@@ -39,12 +39,13 @@ object StreakAnalyticsEngine {
 
     fun computeLongestStreak(
         dailySortedAsc: List<DailySteps>,
-        goal: Int
+        goal: Int,
+        protectedDates: Set<String> = emptySet()
     ): Int {
         var best = 0
         var temp = 0
         for (d in dailySortedAsc) {
-            if (d.steps >= goal) {
+            if (d.steps >= goal || protectedDates.contains(d.date)) {
                 temp++
                 if (temp > best) best = temp
             } else {
@@ -265,6 +266,13 @@ object StreakAnalyticsEngine {
     }
 
 
+    /**
+     * Stable streak calculation.
+     *
+     * Important rule: today is still a live day. If today has not reached the goal yet,
+     * the existing streak must NOT drop to zero at midnight/morning. In that case we
+     * continue counting from yesterday. If today later qualifies, today is added.
+     */
     fun computeCurrentStreakWithTodayOverride(
         dailyByDate: Map<String, Int>,
         goal: Int,
@@ -272,29 +280,47 @@ object StreakAnalyticsEngine {
         todayCountsForStreak: Boolean,
         protectedDates: Set<String> = emptySet()
     ): Int {
+        val startDate = if (todayCountsForStreak) {
+            today
+        } else {
+            previousDate(today)
+        }
+        return computeClosedStreakEndingAt(
+            dailyByDate = dailyByDate,
+            goal = goal,
+            endDate = startDate,
+            protectedDates = protectedDates
+        )
+    }
+
+    fun computeClosedStreakEndingAt(
+        dailyByDate: Map<String, Int>,
+        goal: Int,
+        endDate: String,
+        protectedDates: Set<String> = emptySet()
+    ): Int {
         var streak = 0
-        var cal = Calendar.getInstance().apply { time = ymd.parse(today) ?: time }
-        var firstDay = true
+        var cal = Calendar.getInstance().apply { time = ymd.parse(endDate) ?: return 0 }
 
         while (true) {
             val d = ymd.format(cal.time)
-
-            val counts = if (firstDay) {
-                todayCountsForStreak
-            } else {
-                val steps = dailyByDate[d] ?: 0
-                steps >= goal || protectedDates.contains(d)
-            }
+            val steps = dailyByDate[d] ?: 0
+            val counts = steps >= goal || protectedDates.contains(d)
 
             if (counts) {
                 streak++
                 cal.add(Calendar.DAY_OF_YEAR, -1)
-                firstDay = false
             } else {
                 break
             }
         }
 
         return streak
+    }
+
+    private fun previousDate(date: String): String {
+        val cal = Calendar.getInstance().apply { time = ymd.parse(date) ?: return date }
+        cal.add(Calendar.DAY_OF_YEAR, -1)
+        return ymd.format(cal.time)
     }
 }

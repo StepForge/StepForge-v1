@@ -723,8 +723,8 @@ fun SettingsScreen(
                 // 4.5) Premium Debug
                 SettingItem(
                     icon = Icons.Outlined.Info,
-                    title = "Premium (Debug)",
-                    infoText = "Temporary toggle to test premium features.",
+                    title = "Feature Preview (Debug)",
+                    infoText = "Temporary toggle to test advanced views.",
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { windowRect, text ->
                         infoAnchor = windowRect
@@ -1136,13 +1136,13 @@ private fun PremiumDebugToggle(darkTheme: Boolean) {
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Text(
-                text = if (isPremium) "Premium Enabled" else "Premium Disabled",
+                text = if (isPremium) "Advanced views enabled" else "Advanced views disabled",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold
             )
 
             Text(
-                text = "For testing Weekly/Monthly Insights & other premium features.",
+                text = "For testing Weekly/Monthly Insights and advanced views.",
                 fontSize = 11.sp,
                 color = if (darkTheme) Color.White.copy(alpha = 0.75f) else Color.Black.copy(alpha = 0.7f)
             )

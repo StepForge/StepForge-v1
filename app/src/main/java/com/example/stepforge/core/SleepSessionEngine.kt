@@ -15,10 +15,10 @@ sealed class SleepSessionTransition {
 }
 
 class SleepSessionEngine(
-    private val idleStartThresholdMs: Long = 20 * 60_000L,
-    private val wakeConfirmThresholdMs: Long = 2 * 60_000L,
-    private val nightStartHour: Int = 21,
-    private val nightEndHour: Int = 5
+    private val idleStartThresholdMs: Long = 35 * 60_000L,
+    private val wakeConfirmThresholdMs: Long = 3 * 60_000L,
+    private val nightStartHour: Int = 20,
+    private val nightEndHour: Int = 10
 ) {
     private var probableSleepActive = false
     private var probableSleepStartMs = 0L
@@ -84,6 +84,7 @@ class SleepSessionEngine(
     }
 
     private fun isNightHour(hourOfDay: Int): Boolean {
+        // Covers classic sleep (20:00-05:59) and delayed sleep cases (06:00-10:59).
         return hourOfDay >= nightStartHour || hourOfDay <= nightEndHour
     }
 

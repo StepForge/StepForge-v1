@@ -125,4 +125,9 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx:25.0.0")
     implementation("com.google.firebase:firebase-crashlytics")
     implementation("com.google.firebase:firebase-analytics")
+
+
+
+    // ✅ OSMDroid — Map)
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
 }

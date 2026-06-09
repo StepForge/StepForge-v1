@@ -23,6 +23,9 @@ object StreakBehaviorPrefs {
     val STREAK_LOST_AT_MS = longPreferencesKey("streak_lost_at_ms")
     val STREAK_RECOVERY_UNTIL_MS = longPreferencesKey("streak_recovery_until_ms")
 
+    val STREAK_LOST_DATE = stringPreferencesKey("streak_lost_date")
+    val STREAK_LAST_RESTORED_DATE = stringPreferencesKey("streak_last_restored_date")
+
     val STREAK_RESCUE_DIALOG_PENDING = booleanPreferencesKey("streak_rescue_dialog_pending")
     val STREAK_LOST_DIALOG_PENDING = booleanPreferencesKey("streak_lost_dialog_pending")
 

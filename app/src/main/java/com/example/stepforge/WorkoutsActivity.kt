@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.example.stepforge.ui.rememberUseDarkTheme
 import com.example.stepforge.ui.stepforgeTheme
+import com.example.stepforge.ui.workouts.WorkoutsScreen
 
 class WorkoutsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

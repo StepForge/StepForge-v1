@@ -47,7 +47,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -115,8 +114,7 @@ fun DashboardScreen(
 
     var showManualEntry by remember { mutableStateOf(false) }
     val manualSheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true,
-        confirmValueChange = { it != SheetValue.Hidden }
+        skipPartiallyExpanded = true
     )
 
     var reminder: SleepReminder? by remember { mutableStateOf(null) }
@@ -696,6 +694,4 @@ private fun InsightsSection(insights: List<SleepInsight>) {
         insights.forEach { InsightCard(it) }
     }
 }
-
-
 

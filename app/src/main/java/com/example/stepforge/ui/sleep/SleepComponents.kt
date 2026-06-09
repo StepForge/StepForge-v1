@@ -1,5 +1,6 @@
 package com.example.stepforge.ui.sleep
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.animation.core.Spring
@@ -104,6 +105,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.stepforge.R
 import com.example.stepforge.ui.sleep.model.DataAvailability
 import com.example.stepforge.ui.sleep.model.InsightSeverity
@@ -1395,109 +1398,126 @@ fun ManualEntrySheet(
     }
     val canSave = durationMinutes in 5..(20 * 60)
 
-    ModalBottomSheet(
-        // Prevent accidental swipe/outside dismiss while the user is scrolling.
-        // The sheet closes only from the X button or after saving.
-        onDismissRequest = {},
-        sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
-        containerColor = cs.background
+    BackHandler {
+        onDismiss()
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnClickOutside = false
+        )
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(top = 8.dp, bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .fillMaxSize(),
+            contentAlignment = Alignment.BottomCenter
         ) {
-            ManualSheetHeader(onDismiss = onDismiss)
-
-            ManualSleepTypeSelector(
-                isNap = isNap,
-                onNapChange = { isNap = it }
-            )
-
-            ManualSleepTimeSection(
-                bedTime = bedTime,
-                wakeTime = wakeTime,
-                durationText = durationText,
-                warningText = warningText,
-                onBedClick = { pickerTarget = ManualTimePickerTarget.BED },
-                onWakeClick = { pickerTarget = ManualTimePickerTarget.WAKE }
-            )
-
-            ManualQualityScaleSection(
-                selected = quality,
-                onSelected = { quality = it }
-            )
-
-            ManualWakeFeelingSection(
-                selected = wakeFeeling,
-                onSelected = { wakeFeeling = it }
-            )
-
-            ManualNightInterruptionsSection(
-                selected = interruptions,
-                onSelected = { interruptions = it }
-            )
-
-            ManualSleepFactorsSection(
-                selectedFactors = selectedFactors,
-                onToggle = { factor ->
-                    selectedFactors = if (factor in selectedFactors) {
-                        selectedFactors - factor
-                    } else {
-                        selectedFactors + factor
-                    }
-                }
-            )
-
-            ManualOptionalNoteSection(
-                value = optionalNote,
-                onValueChange = { input -> optionalNote = input.take(160) }
-            )
-
-            Button(
-                onClick = {
-                    val packedNote = buildPackedManualSleepNote(
-                        userNote = optionalNote,
-                        quality = quality,
-                        wakeFeeling = wakeFeeling,
-                        interruptions = interruptions,
-                        factors = selectedFactors
-                    )
-
-                    onSave(
-                        ManualSleepEntry(
-                            bedTime,
-                            wakeTime,
-                            quality.rating,
-                            packedNote,
-                            if (isNap) SleepSessionType.NAP else SleepSessionType.MAIN
-                        )
-                    )
-
-                    scope.launch {
-                        onDismiss()
-                    }
-                },
-                enabled = canSave,
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(18.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = cs.primary,
-                    contentColor = cs.onPrimary,
-                    disabledContainerColor = cs.surfaceVariant,
-                    disabledContentColor = cs.onSurfaceVariant
-                )
+                    .fillMaxHeight(0.92f),
+                shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
+                color = cs.background
             ) {
-                Text(
-                    text = stringResource(R.string.sleep_manual_save_session),
-                    fontWeight = FontWeight.ExtraBold
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 8.dp, bottom = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    ManualSheetHeader(onDismiss = onDismiss)
+
+                    ManualSleepTypeSelector(
+                        isNap = isNap,
+                        onNapChange = { isNap = it }
+                    )
+
+                    ManualSleepTimeSection(
+                        bedTime = bedTime,
+                        wakeTime = wakeTime,
+                        durationText = durationText,
+                        warningText = warningText,
+                        onBedClick = { pickerTarget = ManualTimePickerTarget.BED },
+                        onWakeClick = { pickerTarget = ManualTimePickerTarget.WAKE }
+                    )
+
+                    ManualQualityScaleSection(
+                        selected = quality,
+                        onSelected = { quality = it }
+                    )
+
+                    ManualWakeFeelingSection(
+                        selected = wakeFeeling,
+                        onSelected = { wakeFeeling = it }
+                    )
+
+                    ManualNightInterruptionsSection(
+                        selected = interruptions,
+                        onSelected = { interruptions = it }
+                    )
+
+                    ManualSleepFactorsSection(
+                        selectedFactors = selectedFactors,
+                        onToggle = { factor ->
+                            selectedFactors = if (factor in selectedFactors) {
+                                selectedFactors - factor
+                            } else {
+                                selectedFactors + factor
+                            }
+                        }
+                    )
+
+                    ManualOptionalNoteSection(
+                        value = optionalNote,
+                        onValueChange = { input -> optionalNote = input.take(160) }
+                    )
+
+                    Button(
+                        onClick = {
+                            val packedNote = buildPackedManualSleepNote(
+                                userNote = optionalNote,
+                                quality = quality,
+                                wakeFeeling = wakeFeeling,
+                                interruptions = interruptions,
+                                factors = selectedFactors
+                            )
+
+                            onSave(
+                                ManualSleepEntry(
+                                    bedTime,
+                                    wakeTime,
+                                    quality.rating,
+                                    packedNote,
+                                    if (isNap) SleepSessionType.NAP else SleepSessionType.MAIN
+                                )
+                            )
+
+                            scope.launch {
+                                onDismiss()
+                            }
+                        },
+                        enabled = canSave,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = cs.primary,
+                            contentColor = cs.onPrimary,
+                            disabledContainerColor = cs.surfaceVariant,
+                            disabledContentColor = cs.onSurfaceVariant
+                        )
+                    ) {
+                        Text(
+                            text = stringResource(R.string.sleep_manual_save_session),
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                }
             }
         }
     }

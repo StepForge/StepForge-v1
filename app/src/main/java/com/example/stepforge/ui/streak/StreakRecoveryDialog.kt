@@ -23,12 +23,14 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.stepforge.R
 
 @Composable
 fun StreakRecoveryDialog(
@@ -167,7 +169,7 @@ fun StreakRecoveryDialog(
                  */
 
                 Text(
-                    text = "You lost your $streakDays day streak",
+                    text = stringResource(R.string.streak_lost_dialog_title, streakDays),
                     fontSize = 30.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = cs.onSurface,
@@ -182,9 +184,7 @@ fun StreakRecoveryDialog(
                  */
 
                 Text(
-                    text =
-                        "Restore your streak before the recovery window expires.\n" +
-                                "Your milestones, stats and progress will remain intact.",
+                    text = stringResource(R.string.streak_lost_dialog_body),
                     fontSize = 14.sp,
                     color = cs.onSurface.copy(alpha = 0.72f),
                     textAlign = TextAlign.Center,
@@ -226,7 +226,7 @@ fun StreakRecoveryDialog(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = "One-time recovery",
+                            text = stringResource(R.string.streak_recovery_one_time),
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                             color = cs.onSurface
@@ -235,8 +235,7 @@ fun StreakRecoveryDialog(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         Text(
-                            text =
-                                "Recover your current streak instantly and continue progressing without losing your milestones.",
+                            text = stringResource(R.string.streak_recovery_benefit),
                             fontSize = 13.sp,
                             color = cs.onSurface.copy(alpha = 0.68f),
                             textAlign = TextAlign.Center,
@@ -293,7 +292,7 @@ fun StreakRecoveryDialog(
                     ) {
 
                         Text(
-                            text = "Restore streak",
+                            text = stringResource(R.string.streak_lost_dialog_restore),
                             fontWeight = FontWeight.ExtraBold,
                             color =
                                 if (isDark)
@@ -316,7 +315,7 @@ fun StreakRecoveryDialog(
                 ) {
 
                     Text(
-                        text = "Dismiss",
+                        text = stringResource(R.string.streak_lost_dialog_dismiss),
                         color = cs.onSurface.copy(alpha = 0.6f),
                         fontSize = 14.sp
                     )

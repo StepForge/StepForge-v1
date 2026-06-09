@@ -36,7 +36,7 @@ import androidx.annotation.StringRes
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import com.example.stepforge.R
+import com.example.stepforge.R as AppR
 
 import java.text.Normalizer
 import java.text.SimpleDateFormat
@@ -143,10 +143,10 @@ object SleepReminderStore {
                 "normal"
             ) ?: "normal",
             soundUriString = soundUri,
-            soundTitle = prefs.getString(KEY_RINGTONE_TITLE, null) ?: context.getString(R.string.sleep_reminder_system_alarm),
+            soundTitle = prefs.getString(KEY_RINGTONE_TITLE, null) ?: context.getString(AppR.string.sleep_reminder_system_alarm),
             backgroundUriString = backgroundUri,
-            backgroundTitle = prefs.getString(KEY_BACKGROUND_TITLE, null) ?: context.getString(R.string.sleep_reminder_theme_background),
-            message = prefs.getString(KEY_MESSAGE, null) ?: context.getString(R.string.sleep_reminder_time_to_wind_down),
+            backgroundTitle = prefs.getString(KEY_BACKGROUND_TITLE, null) ?: context.getString(AppR.string.sleep_reminder_theme_background),
+            message = prefs.getString(KEY_MESSAGE, null) ?: context.getString(AppR.string.sleep_reminder_time_to_wind_down),
             clockStyle = prefs.getString(KEY_CLOCK_STYLE, null) ?: AlarmClockStyles.STYLE_STACKED,
             ringtoneUri = soundUri,
             backgroundUri = backgroundUri
@@ -206,12 +206,12 @@ object AlarmBackgroundPresets {
     }
 
     val all = listOf(
-        Preset("aurora", R.string.sleep_bg_aurora),
-        Preset("dawn", R.string.sleep_bg_dawn),
-        Preset("midnight", R.string.sleep_bg_midnight),
-        Preset("forest", R.string.sleep_bg_forest),
-        Preset("ocean", R.string.sleep_bg_ocean),
-        Preset("ember", R.string.sleep_bg_ember)
+        Preset("aurora", AppR.string.sleep_bg_aurora),
+        Preset("dawn", AppR.string.sleep_bg_dawn),
+        Preset("midnight", AppR.string.sleep_bg_midnight),
+        Preset("forest", AppR.string.sleep_bg_forest),
+        Preset("ocean", AppR.string.sleep_bg_ocean),
+        Preset("ember", AppR.string.sleep_bg_ember)
     )
 
     fun random(): Preset = all[Random.nextInt(all.size)]
@@ -245,14 +245,14 @@ object AlarmClockStyles {
     )
 
     val all = listOf(
-        Style(STYLE_STACKED, R.string.sleep_clock_stacked),
-        Style(STYLE_COMPACT, R.string.sleep_clock_compact),
-        Style(STYLE_CLASSIC, R.string.sleep_clock_classic),
-        Style(STYLE_NUMERAL, R.string.sleep_clock_numeral)
+        Style(STYLE_STACKED, AppR.string.sleep_clock_stacked),
+        Style(STYLE_COMPACT, AppR.string.sleep_clock_compact),
+        Style(STYLE_CLASSIC, AppR.string.sleep_clock_classic),
+        Style(STYLE_NUMERAL, AppR.string.sleep_clock_numeral)
     )
 
     fun titleFor(context: Context, id: String): String {
-        val titleRes = all.firstOrNull { it.id == id }?.titleRes ?: R.string.sleep_clock_stacked
+        val titleRes = all.firstOrNull { it.id == id }?.titleRes ?: AppR.string.sleep_clock_stacked
         return context.getString(titleRes)
     }
 }
@@ -611,7 +611,7 @@ object AlarmNotificationHelper {
         val alarmTime = formatNotificationAlarmTime(context, reminder.hour, reminder.minute)
         val timeText = alarmTime.displayTime
         val message = reminder.message.ifBlank {
-            context.getString(R.string.sleep_reminder_time_to_wind_down)
+            context.getString(AppR.string.sleep_reminder_time_to_wind_down)
         }
 
         val fullScreenIntent = Intent(context, AlarmRingActivity::class.java).apply {
@@ -649,62 +649,62 @@ object AlarmNotificationHelper {
             AlarmScheduler.NOTIFICATION_STOP_REQUEST_CODE,
             stopIntent
         )
-        val notificationTitle = context.getString(R.string.sleep_reminder_notification_title)
+        val notificationTitle = context.getString(AppR.string.sleep_reminder_notification_title)
         val notificationText = context.getString(
-            R.string.sleep_reminder_notification_text,
+            AppR.string.sleep_reminder_notification_text,
             message,
             timeText
         )
 
         val headsUpView = RemoteViews(
             context.packageName,
-            R.layout.notification_sleep_alarm_heads_up
+            AppR.layout.notification_sleep_alarm_heads_up
         ).apply {
             setTextViewText(
-                R.id.alarm_notification_app_name,
-                context.getString(R.string.app_name)
+                AppR.id.alarm_notification_app_name,
+                context.getString(AppR.string.app_name)
             )
 
             setTextViewText(
-                R.id.alarm_notification_time,
+                AppR.id.alarm_notification_time,
                 alarmTime.time
             )
 
             if (alarmTime.amPm.isNullOrBlank()) {
-                setViewVisibility(R.id.alarm_notification_time_ampm, View.GONE)
+                setViewVisibility(AppR.id.alarm_notification_time_ampm, View.GONE)
             } else {
-                setTextViewText(R.id.alarm_notification_time_ampm, alarmTime.amPm)
-                setViewVisibility(R.id.alarm_notification_time_ampm, View.VISIBLE)
+                setTextViewText(AppR.id.alarm_notification_time_ampm, alarmTime.amPm)
+                setViewVisibility(AppR.id.alarm_notification_time_ampm, View.VISIBLE)
             }
 
             setTextViewText(
-                R.id.action_stop_alarm,
-                context.getString(R.string.sleep_reminder_action_stop_short)
+                AppR.id.action_stop_alarm,
+                context.getString(AppR.string.sleep_reminder_action_stop_short)
             )
 
             setTextViewText(
-                R.id.action_snooze_alarm,
-                context.getString(R.string.sleep_reminder_action_snooze_short)
+                AppR.id.action_snooze_alarm,
+                context.getString(AppR.string.sleep_reminder_action_snooze_short)
             )
 
             setOnClickPendingIntent(
-                R.id.alarm_notification_root,
+                AppR.id.alarm_notification_root,
                 fullScreenPendingIntent
             )
 
             setOnClickPendingIntent(
-                R.id.action_stop_alarm,
+                AppR.id.action_stop_alarm,
                 stopPendingIntent
             )
 
             setOnClickPendingIntent(
-                R.id.action_snooze_alarm,
+                AppR.id.action_snooze_alarm,
                 snoozePendingIntent
             )
         }
 
         return NotificationCompat.Builder(context, AlarmReceiver.RINGING_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_walk)
+            .setSmallIcon(AppR.drawable.ic_walk)
             .setContentTitle(notificationTitle)
             .setContentText(notificationText)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
@@ -793,10 +793,10 @@ object AlarmNotificationHelper {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val ringingChannel = NotificationChannel(
             AlarmReceiver.RINGING_CHANNEL_ID,
-            context.getString(R.string.sleep_reminder_ringing_channel_name),
+            context.getString(AppR.string.sleep_reminder_ringing_channel_name),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = context.getString(R.string.sleep_reminder_ringing_channel_description)
+            description = context.getString(AppR.string.sleep_reminder_ringing_channel_description)
             setSound(null, null)
             enableVibration(false)
             setShowBadge(false)
@@ -804,19 +804,19 @@ object AlarmNotificationHelper {
         }
         val normalChannel = NotificationChannel(
             AlarmReceiver.CHANNEL_ID,
-            context.getString(R.string.sleep_reminder_channel_name),
+            context.getString(AppR.string.sleep_reminder_channel_name),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = context.getString(R.string.sleep_reminder_channel_description)
+            description = context.getString(AppR.string.sleep_reminder_channel_description)
             enableVibration(true)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         val silentChannel = NotificationChannel(
             AlarmReceiver.SILENT_CHANNEL_ID,
-            context.getString(R.string.sleep_reminder_silent_channel_name),
+            context.getString(AppR.string.sleep_reminder_silent_channel_name),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = context.getString(R.string.sleep_reminder_silent_channel_description)
+            description = context.getString(AppR.string.sleep_reminder_silent_channel_description)
             setSound(null, null)
             enableVibration(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC

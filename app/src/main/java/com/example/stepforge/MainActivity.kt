@@ -15,8 +15,6 @@ import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import android.view.ViewGroup
-import android.widget.Button
 import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -30,6 +28,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -66,20 +65,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MaterialTheme.colorScheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -119,13 +113,13 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.example.stepforge.data.AppDatabase
 import com.example.stepforge.data.stepforgeStore
-import com.example.stepforge.steps.StepEvents
+import com.example.stepforge.steps.CentralStepState
 import com.example.stepforge.ui.components.GoalKonfetti
 import com.example.stepforge.ui.components.HealthConnectImportCoordinator
 import com.example.stepforge.ui.components.HealthConnectState
 import com.example.stepforge.ui.components.HealthSyncManager
-import com.example.stepforge.steps.CentralStepState
 import com.example.stepforge.ui.stepforgeTheme
+import com.example.stepforge.ui.streak.StreakBehaviorEngine
 import com.google.firebase.Firebase
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
@@ -137,7 +131,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.concurrent.TimeUnit
-import kotlin.jvm.java
 import kotlin.math.roundToInt
 
 
@@ -342,17 +335,31 @@ class MainActivity : AppCompatActivity() {
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-            val allGranted = result.values.all { it }
-            if (!allGranted) {
-                Log.w("StepForge", "Some permissions denied, service may not work properly.")
+            val activityGranted = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACTIVITY_RECOGNITION
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!activityGranted) {
+                Log.w("StepForge", "ACTIVITY_RECOGNITION denied. StepCounterService will not be started to avoid FGS crash.")
+                return@registerForActivityResult
             }
-            // izin verilsin/verilmesin servisi başlat
+
             startStepService()
         }
 
 
 
     private fun startStepService() {
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACTIVITY_RECOGNITION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            Log.w("StepForge", "StepCounterService start blocked: ACTIVITY_RECOGNITION missing.")
+            return
+        }
+
         val work = PeriodicWorkRequestBuilder<StepCounterRestartWorker>(
             15, TimeUnit.MINUTES
         ).build()
@@ -483,8 +490,8 @@ private fun MainHomeScreen() {
 
     // STREAK state
     var streak by remember { mutableStateOf(0) }
-    LaunchedEffect(Unit) {
-        streak = calculateStreak(ctx, target)
+    LaunchedEffect(displaySteps, target) {
+        streak = calculateStreak(ctx, target, displaySteps)
     }
 
     DisposableEffect(hcCoordinator) {
@@ -495,7 +502,7 @@ private fun MainHomeScreen() {
                         val healthManager = HealthSyncManager(ctx)
                         val connected = healthManager.isFullyConnected()
                         val permissions = healthManager.hasEssentialPermissions()
-                        
+
                         HealthConnectState.update(
                             HealthConnectState.Status(
                                 isInstalled = true, // Client created successfully
@@ -504,7 +511,7 @@ private fun MainHomeScreen() {
                                 lastSyncTime = System.currentTimeMillis()
                             )
                         )
-                        
+
                         if (permissions && manualOverrideEnabled == 0) {
                             hcCoordinator.syncSteps()
                         }
@@ -529,16 +536,14 @@ private fun MainHomeScreen() {
     }
 
     val cs = colorScheme
-    var currentTab by remember { mutableStateOf(0) }
 
     Scaffold(
         containerColor = cs.background,
         topBar = { HomeTopBar() },
         bottomBar = {
             HomeBottomBar(
-                selectedIndex = currentTab,
+                selectedIndex = 0,
                 onSelect = { index ->
-                    currentTab = index
                     when (index) {
                         0 -> Unit
                         1 -> ctx.startActivity(Intent(ctx, HistoryActivity::class.java))
@@ -662,65 +667,170 @@ private fun HomeBottomBar(
     onSelect: (Int) -> Unit
 ) {
     val cs = colorScheme
+    val items = listOf("Home", "History", "Water", "Insights", "Profile")
+    val icons: List<ImageVector> = listOf(
+        Icons.Filled.Home,
+        Icons.Filled.History,
+        Icons.Filled.WaterDrop,
+        Icons.Outlined.BarChart,
+        Icons.Filled.Person
+    )
+    val accents = listOf(
+        Color(0xFF00F5FF),
+        Color(0xFFA970FF),
+        Color(0xFF2EA8FF),
+        Color(0xFFFFB340),
+        Color(0xFF00FFA3)
+    )
 
-    NavigationBar(
-        modifier = Modifier.height(52.dp),           // daha alçak bar
-        containerColor = cs.surfaceColorAtElevation(2.dp),
-        contentColor = cs.onSurface
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 18.dp, end = 18.dp, top = 4.dp, bottom = 12.dp),
+        contentAlignment = Alignment.Center
     ) {
-        val items = listOf("Home", "History", "Water", "Insights", "Profile")
-        val icons: List<ImageVector> = listOf(
-            Icons.Filled.Home,
-            Icons.Filled.History,
-            Icons.Filled.WaterDrop,
-            Icons.Outlined.BarChart,
-            Icons.Filled.Person
-        )
-
-
-        items.forEachIndexed { index: Int, label: String ->
-            val selected = selectedIndex == index
-            val scale by animateFloatAsState(
-                targetValue = if (selected) 1.06f else 1f,
-                animationSpec = tween(180, easing = FastOutSlowInEasing),
-                label = "navScale"
-            )
-            val alpha by animateFloatAsState(
-                targetValue = if (selected) 1f else 0.65f,
-                animationSpec = tween(180, easing = FastOutSlowInEasing),
-                label = "navAlpha"
-            )
-
-            NavigationBarItem(
-                selected = selected,
-                onClick = { onSelect(index) },
-                icon = {
-                    Icon(
-                        imageVector = icons[index],
-                        contentDescription = label,
-                        modifier = Modifier
-                            .size(if (selected) 20.dp else 18.dp)   // ikonlar daha küçük
-                            .graphicsLayer(scaleX = scale, scaleY = scale, alpha = alpha),
-                        tint = if (selected) cs.primary else cs.onSurface.copy(alpha = 0.7f)
-                    )
-                },
-                label = {
-                    Text(
-                        text = label,
-                        fontSize = 10.sp,                            // yazı boyutu küçüldü
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (selected) cs.primary else cs.onSurface.copy(alpha = 0.7f)
-                    )
-                },
-                alwaysShowLabel = true,
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = cs.primary,
-                    unselectedIconColor = cs.onSurface.copy(alpha = 0.7f),
-                    selectedTextColor = cs.primary,
-                    unselectedTextColor = cs.onSurface.copy(alpha = 0.7f),
-                    indicatorColor = Color.Transparent
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(68.dp)
+                .shadow(
+                    elevation = 18.dp,
+                    shape = RoundedCornerShape(30.dp),
+                    ambientColor = Color.Black.copy(alpha = 0.34f),
+                    spotColor = Color(0xFF00F5FF).copy(alpha = 0.10f)
                 )
-            )
+                .border(
+                    width = 1.dp,
+                    brush = Brush.horizontalGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.07f),
+                            cs.primary.copy(alpha = 0.18f),
+                            Color(0xFF00FFA3).copy(alpha = 0.10f),
+                            Color.White.copy(alpha = 0.06f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(30.dp)
+                ),
+            shape = RoundedCornerShape(30.dp),
+            color = Color(0xFF090D12).copy(alpha = 0.98f)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items.forEachIndexed { index, label ->
+                    val selected = selectedIndex == index
+                    val accent = accents[index]
+                    val selectedProgress by animateFloatAsState(
+                        targetValue = if (selected) 1f else 0f,
+                        animationSpec = tween(280, easing = FastOutSlowInEasing),
+                        label = "premiumBottomSelected"
+                    )
+                    val scale by animateFloatAsState(
+                        targetValue = if (selected) 1.04f else 0.96f,
+                        animationSpec = tween(260, easing = FastOutSlowInEasing),
+                        label = "premiumBottomScale"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .weight(if (selected) 1.32f else 1f)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(
+                                brush = Brush.linearGradient(
+                                    listOf(
+                                        accent.copy(alpha = 0.06f * selectedProgress),
+                                        Color(0xFF101821).copy(alpha = 0.22f * selectedProgress),
+                                        Color(0xFF05080D).copy(alpha = 0.02f)
+                                    )
+                                )
+                            )
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.linearGradient(
+                                    listOf(
+                                        accent.copy(alpha = 0.30f * selectedProgress),
+                                        Color.White.copy(alpha = 0.06f * selectedProgress),
+                                        Color.Transparent
+                                    )
+                                ),
+                                shape = RoundedCornerShape(24.dp)
+                            )
+                            .clickable { onSelect(index) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .graphicsLayer(
+                                    scaleX = scale,
+                                    scaleY = scale,
+                                    alpha = 0.72f + selectedProgress * 0.28f
+                                )
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(if (selected) 32.dp else 28.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(
+                                        brush = Brush.radialGradient(
+                                            colors = if (selected) {
+                                                listOf(
+                                                    accent.copy(alpha = 0.28f),
+                                                    accent.copy(alpha = 0.12f),
+                                                    Color.Transparent
+                                                )
+                                            } else {
+                                                listOf(
+                                                    Color.White.copy(alpha = 0.05f),
+                                                    Color.Transparent
+                                                )
+                                            }
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = icons[index],
+                                    contentDescription = label,
+                                    modifier = Modifier.size(if (selected) 19.dp else 18.dp),
+                                    tint = if (selected) accent else cs.onSurface.copy(alpha = 0.58f)
+                                )
+                            }
+
+                            Spacer(Modifier.height(2.dp))
+
+                            Text(
+                                text = label,
+                                fontSize = if (selected) 9.sp else 8.4.sp,
+                                lineHeight = 9.sp,
+                                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                maxLines = 1,
+                                color = if (selected) accent else cs.onSurface.copy(alpha = 0.48f)
+                            )
+
+                            Spacer(Modifier.height(3.dp))
+
+                            Box(
+                                modifier = Modifier
+                                    .width(if (selected) 18.dp else 4.dp)
+                                    .height(2.dp)
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(
+                                        if (selected) accent.copy(alpha = 0.95f)
+                                        else Color.Transparent
+                                    )
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -1493,34 +1603,16 @@ fun vibrateOnce(ctx: Context) {
 
 private suspend fun calculateStreak(
     context: Context,
-    goal: Int
+    goal: Int,
+    todaySteps: Int
 ): Int {
     return withContext(Dispatchers.IO) {
         try {
-            val db = AppDatabase.getDatabase(context)
-            val dao = db.dailyStepsDao()
-            val all = dao.getAllSteps()
-
-            if (all.isEmpty()) return@withContext 0
-
-            val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-            val calendar = java.util.Calendar.getInstance()
-
-            var streak = 0
-
-            while (true) {
-                val dayStr = dateFormat.format(calendar.time)
-                val daySteps = all.firstOrNull { it.date == dayStr }?.steps ?: 0
-
-                if (daySteps >= goal) {
-                    streak++
-                    calendar.add(java.util.Calendar.DAY_OF_YEAR, -1)
-                } else {
-                    break
-                }
-            }
-
-            streak
+            StreakBehaviorEngine.computeQuickStreakDays(
+                context = context.applicationContext,
+                goal = goal,
+                todaySteps = todaySteps
+            )
         } catch (e: Exception) {
             Log.e("StepForge", "Streak calculation error", e)
             0

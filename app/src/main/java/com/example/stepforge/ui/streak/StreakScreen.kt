@@ -38,7 +38,6 @@ import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,7 +47,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -152,26 +150,17 @@ private fun StreakScreenContent(
                     Column {
                         Text(stringResource(R.string.streak_analytics), fontWeight = FontWeight.SemiBold)
                         Text(
-                            text = if (premiumEnabled) stringResource(R.string.premium_enabled)
-                            else stringResource(R.string.premium_preview),
+                            text = stringResource(R.string.premium_enabled),
                             fontSize = 11.sp,
-                            color = if (premiumEnabled) Color(0xFF00FFA3) else cs.onSurface.copy(alpha = 0.6f)
+                            color = cs.onSurface.copy(alpha = 0.6f)
                         )
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { ctx.startActivity(Intent(ctx, SettingsActivity::class.java)) }
-                    ) {
                         Icon(
-                            imageVector = if (premiumEnabled) Icons.Outlined.Info else Icons.Outlined.Lock,
-                            contentDescription = "Premium",
-                            tint = if (premiumEnabled) Color(0xFF00FFA3) else cs.onSurface.copy(alpha = 0.9f)
+                            Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = stringResource(R.string.streak_nav_back)
                         )
                     }
                 },
@@ -550,10 +539,20 @@ private fun StreakScreenContent(
     }
 
     if (state.recovery.visible) {
+        val remainingMinutesTotal = (state.recovery.remainingMillis / 60_000L).coerceAtLeast(0L)
+        val remainingText = if (remainingMinutesTotal <= 0L) {
+            stringResource(R.string.streak_recovery_expired)
+        } else {
+            stringResource(
+                R.string.streak_recovery_remaining,
+                remainingMinutesTotal / 60L,
+                remainingMinutesTotal % 60L
+            )
+        }
         StreakRecoveryDialog(
             streakDays = state.recovery.lostStreakDays,
             formattedPrice = state.recovery.displayPrice,
-            remainingText = state.recovery.remainingText,
+            remainingText = remainingText,
             onDismiss = onDismissLostRestore,
             onRestore = onRestoreStreak
         )

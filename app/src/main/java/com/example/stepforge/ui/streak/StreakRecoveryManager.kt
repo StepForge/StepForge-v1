@@ -26,13 +26,14 @@ private val Context.streakRecoveryStore by preferencesDataStore(name = "streak_r
 data class StreakRecoveryState(
     val visible: Boolean = false,
     val expiryMillis: Long = 0L,
+    val expiresAtMillis: Long = expiryMillis,
+    val remainingMillis: Long = 0L,
     val lostStreakDays: Int = 0,
     val restored: Boolean = false,
     val price: String = StreakRecoveryManager.DEFAULT_PRICE,
     val discountedPrice: String = StreakRecoveryManager.DEFAULT_DISCOUNTED_PRICE,
     val offerActive: Boolean = false,
     val lastTriggerTimeMillis: Long = 0L,
-    val remainingText: String = "",
     val expiredVisibleState: Boolean = false
 ) {
     val displayPrice: String
@@ -62,7 +63,7 @@ object StreakRecoveryManager {
     suspend fun triggerRecovery(
         context: Context,
         streakDays: Int,
-        recoveryHours: Int = 48
+        recoveryHours: Int = (StreakBehaviorEngine.LOST_RECOVERY_WINDOW_MS / 60L / 60L / 1000L).toInt()
     ) = withContext(Dispatchers.IO) {
         val store = context.applicationContext.streakRecoveryStore
         val now = System.currentTimeMillis()
@@ -78,7 +79,7 @@ object StreakRecoveryManager {
             return@withContext
         }
 
-        val windowMs = recoveryHours.coerceAtLeast(1) * 60L * 60L * 1000L
+        val windowMs = StreakBehaviorEngine.LOST_RECOVERY_WINDOW_MS
         store.edit {
             it[recoveryVisibleKey] = true
             it[recoveryExpiryKey] = now + windowMs
@@ -102,10 +103,12 @@ object StreakRecoveryManager {
     suspend fun restoreStreak(context: Context): Boolean = withContext(Dispatchers.IO) {
         val appContext = context.applicationContext
         val restored = StreakBehaviorEngine.restoreLostStreak(appContext)
-        appContext.streakRecoveryStore.edit {
-            it[recoveryVisibleKey] = false
-            it[restoredKey] = true
-            it[recoveryExpiryKey] = 0L
+        if (restored) {
+            appContext.streakRecoveryStore.edit {
+                it[recoveryVisibleKey] = false
+                it[restoredKey] = true
+                it[recoveryExpiryKey] = 0L
+            }
         }
         restored
     }
@@ -135,10 +138,10 @@ object StreakRecoveryManager {
         context.applicationContext.streakRecoveryStore.data.first()[lostStreakDaysKey] ?: 0
     }
 
-    suspend fun getRemainingText(context: Context): String = withContext(Dispatchers.IO) {
+    suspend fun getRemainingMillis(context: Context): Long = withContext(Dispatchers.IO) {
         context.applicationContext.streakRecoveryStore.data.first()
             .toRecoveryState(System.currentTimeMillis())
-            .remainingText
+            .remainingMillis
     }
 
     suspend fun getRecoveryPrice(context: Context): String = withContext(Dispatchers.IO) {
@@ -167,28 +170,20 @@ object StreakRecoveryManager {
         val restored = this[restoredKey] ?: false
         val isExpired = visible && expiry > 0L && now > expiry
         val activeVisible = visible && !restored && expiry > now
+        val remaining = (expiry - now).coerceAtLeast(0L)
 
         return StreakRecoveryState(
             visible = activeVisible,
             expiryMillis = expiry,
+            expiresAtMillis = expiry,
+            remainingMillis = remaining,
             lostStreakDays = this[lostStreakDaysKey] ?: 0,
             restored = restored,
             price = this[recoveryPriceKey] ?: DEFAULT_PRICE,
             discountedPrice = this[recoveryDiscountedPriceKey] ?: DEFAULT_DISCOUNTED_PRICE,
             offerActive = this[recoveryOfferActiveKey] ?: false,
             lastTriggerTimeMillis = this[recoveryLastTriggerTimeKey] ?: 0L,
-            remainingText = remainingText(expiry, now),
             expiredVisibleState = isExpired
         )
-    }
-
-    private fun remainingText(expiry: Long, now: Long): String {
-        val remaining = expiry - now
-        if (remaining <= 0L || expiry <= 0L) return "Recovery expired"
-
-        val totalMinutes = remaining / 60_000L
-        val hours = totalMinutes / 60L
-        val minutes = totalMinutes % 60L
-        return "Recovery expires in ${hours}h ${minutes}m"
     }
 }

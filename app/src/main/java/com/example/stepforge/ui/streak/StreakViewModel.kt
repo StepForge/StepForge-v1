@@ -126,16 +126,16 @@ class StreakViewModel(
                     protectedDates = protectedDates
                 )
 
-                val displayOverride = prefs[StreakBehaviorPrefs.STREAK_DISPLAY_OVERRIDE_DAYS] ?: 0
                 val currentStreak = if (behavior.state == StreakBehaviorState.LOST) {
                     0
                 } else {
-                    StreakBehaviorEngine.applyDisplayOverride(computedStreak, displayOverride)
+                    computedStreak
                 }
 
                 val longestStreak = StreakAnalyticsEngine.computeLongestStreak(
                     dailySortedAsc = sortedAsc,
-                    goal = goal
+                    goal = goal,
+                    protectedDates = protectedDates
                 ).let { maxOf(it, currentStreak) }
 
                 val weeklyAvg = (last7.sumOf { it.steps } / last7.size.coerceAtLeast(1))

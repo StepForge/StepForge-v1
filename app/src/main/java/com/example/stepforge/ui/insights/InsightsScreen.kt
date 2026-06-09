@@ -3,10 +3,10 @@
 package com.example.stepforge.ui.insights
 
 import android.content.Context
-import android.content.Intent
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,29 +38,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.TrendingDown
 import androidx.compose.material.icons.outlined.TrendingFlat
 import androidx.compose.material.icons.outlined.TrendingUp
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -84,13 +79,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.datastore.preferences.core.intPreferencesKey
-import com.example.stepforge.SettingsActivity
 import com.example.stepforge.data.stepforgeStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 import kotlin.math.roundToInt
-import com.example.stepforge.ui.components.PremiumGateCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,10 +96,7 @@ fun InsightsScreen(
     val cs = MaterialTheme.colorScheme
     val isDark = cs.background.luminance() < 0.5f
 
-    val premiumEnabled = rememberPremiumEnabled(ctx)
-
     var selectedMode by remember { mutableStateOf(InsightsMode.WEEKLY) }
-    var showPremiumSheet by remember { mutableStateOf(false) }
 
     var weeklyInsights by remember { mutableStateOf<PeriodInsights?>(null) }
     var monthlyInsights by remember { mutableStateOf<PeriodInsights?>(null) }
@@ -114,18 +106,6 @@ fun InsightsScreen(
     val scope = rememberCoroutineScope()
 
     var sheet by remember { mutableStateOf<InsightsSheet?>(null) }
-    val allowDismiss = remember { mutableStateOf(true) }
-
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true,
-        confirmValueChange = { target ->
-            if (target == SheetValue.Hidden) {
-                allowDismiss.value
-            } else {
-                true
-            }
-        }
-    )
     // Premium top subtitle anim
     val subtitleAlpha by animateFloatAsState(
         targetValue = 1f,
@@ -158,10 +138,9 @@ fun InsightsScreen(
 
                         Text(
                             modifier = Modifier.alpha(subtitleAlpha),
-                            text = if (premiumEnabled) "Premium enabled" else "Premium locked",
+                            text = "Activity overview",
                             fontSize = 11.sp,
-                            color = if (premiumEnabled) Color(0xFF00FFA3)
-                            else cs.onSurface.copy(alpha = 0.55f)
+                            color = cs.onSurface.copy(alpha = 0.55f)
                         )
                     }
                 },
@@ -170,19 +149,6 @@ fun InsightsScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            ctx.startActivity(Intent(ctx, SettingsActivity::class.java))
-                        }
-                    ) {
-                        Icon(
-                            imageVector = if (premiumEnabled) Icons.Outlined.Info else Icons.Outlined.Lock,
-                            contentDescription = "Premium",
-                            tint = if (premiumEnabled) Color(0xFF00FFA3) else cs.onSurface.copy(alpha = 0.85f)
                         )
                     }
                 },
@@ -195,9 +161,6 @@ fun InsightsScreen(
     ) { pad ->
         val scrollState = rememberScrollState()
 
-        LaunchedEffect(scrollState.isScrollInProgress) {
-            allowDismiss.value = !scrollState.isScrollInProgress
-        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -212,9 +175,7 @@ fun InsightsScreen(
             // Tabs
             PremiumTabs(
                 selectedMode = selectedMode,
-                premiumEnabled = premiumEnabled,
-                onSelect = { selectedMode = it },
-                onRequestPremium = { showPremiumSheet = true }
+                onSelect = { selectedMode = it }
             )
 
 
@@ -258,52 +219,27 @@ fun InsightsScreen(
                             }
                         )
 
-                        PremiumGateCard(
-                            premiumEnabled = premiumEnabled,
-                            title = "Activity Score",
-                            subtitle = "Get a performance score based on consistency and goal success.",
-                            onUnlockClick = { showPremiumSheet = true }
-                        ) {
-                            ActivityScoreCard(
-                                data = data,
-                                onClick = {
-                                    vibrateSoft(ctx)
-                                    sheet = InsightsSheet.ActivityScoreInfo(data)
-                                }
-                            )
+                        ActivityScoreCard(
+                            data = data,
+                            onClick = {
+                                vibrateSoft(ctx)
+                                sheet = InsightsSheet.ActivityScoreInfo(data)
+                            }
+                        )
 
-                        }
-
-                        PremiumGateCard(
-                            premiumEnabled = premiumEnabled,
-                            title = "Smart Summary",
-                            subtitle = "Unlock premium to see advanced insights and coaching tips.",
-                            onUnlockClick = { showPremiumSheet = true }
-                        ) {
-                            SmartSummaryCard(
-                                lines = data.summaryLines,
-                                onClick = {
-                                    vibrateSoft(ctx)
-                                    sheet = InsightsSheet.SummaryDetails(data.summaryLines)
-                                }
-                            )
-                        }
+                        SmartSummaryCard(
+                            lines = data.summaryLines,
+                            onClick = {
+                                vibrateSoft(ctx)
+                                sheet = InsightsSheet.SummaryDetails(data.summaryLines)
+                            }
+                        )
 
 
 
 
                         Spacer(modifier = Modifier.height(12.dp))
                     }
-                    if (showPremiumSheet) {
-                        PremiumUnlockSheet(
-                            onClose = { showPremiumSheet = false },
-                            onEnablePremium = {
-                                ctx.startActivity(Intent(ctx, SettingsActivity::class.java))
-                                showPremiumSheet = false
-                            }
-                        )
-                    }
-
                 }
             }
         }
@@ -311,40 +247,72 @@ fun InsightsScreen(
 
     // BottomSheet Details
     if (sheet != null) {
-        ModalBottomSheet(
-            onDismissRequest = { sheet = null },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        BackHandler {
+        }
+
+        Dialog(
+            onDismissRequest = {},
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false
+            )
         ) {
-
-            Column(
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(bottom = 20.dp)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.BottomCenter
             ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.88f),
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .padding(bottom = 20.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 18.dp, top = 12.dp, end = 12.dp, bottom = 4.dp),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = { sheet = null }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = "Close"
+                                )
+                            }
+                        }
 
-                when (val s = sheet) {
-                    is InsightsSheet.TrendDetails -> TrendDetailsSheet(
-                        data = s.data,
-                        mode = s.mode
-                    )
+                        when (val s = sheet) {
+                            is InsightsSheet.TrendDetails -> TrendDetailsSheet(
+                                data = s.data,
+                                mode = s.mode
+                            )
 
-                    is InsightsSheet.StatDetails -> StatDetailsSheet(
-                        title = s.title,
-                        value = s.value,
-                        description = s.description
-                    )
+                            is InsightsSheet.StatDetails -> StatDetailsSheet(
+                                title = s.title,
+                                value = s.value,
+                                description = s.description
+                            )
 
-                    is InsightsSheet.ActivityScoreInfo -> ActivityScoreDetailsSheet(s.data)
+                            is InsightsSheet.ActivityScoreInfo -> ActivityScoreDetailsSheet(s.data)
 
-                    is InsightsSheet.SummaryDetails -> SummaryDetailsSheet(s.lines)
+                            is InsightsSheet.SummaryDetails -> SummaryDetailsSheet(s.lines)
 
-                    null -> Unit
+                            null -> Unit
+                        }
+
+                        Spacer(modifier = Modifier.height(30.dp))
+                    }
                 }
-
-                Spacer(modifier = Modifier.height(30.dp))
             }
         }
     }
@@ -364,9 +332,7 @@ private sealed class InsightsSheet {
 @Composable
 private fun PremiumTabs(
     selectedMode: InsightsMode,
-    premiumEnabled: Boolean,
-    onSelect: (InsightsMode) -> Unit,
-    onRequestPremium: () -> Unit
+    onSelect: (InsightsMode) -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
 
@@ -408,40 +374,21 @@ private fun PremiumTabs(
                 }
             )
 
-            // MONTHLY (PREMIUM LOCK)
             Tab(
                 selected = selectedMode == InsightsMode.MONTHLY,
-                onClick = {
-                    if (premiumEnabled) {
-                        onSelect(InsightsMode.MONTHLY)
-                    } else {
-                        onRequestPremium()
-                    }
-                },
+                onClick = { onSelect(InsightsMode.MONTHLY) },
                 text = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Monthly",
-                            fontWeight = if (selectedMode == InsightsMode.MONTHLY)
-                                FontWeight.Bold
-                            else
-                                FontWeight.Medium,
-                            color = if (selectedMode == InsightsMode.MONTHLY)
-                                Color(0xFF00FFA3)
-                            else
-                                cs.onSurface.copy(alpha = 0.75f)
-                        )
-
-                        if (!premiumEnabled) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Icon(
-                                imageVector = Icons.Outlined.Lock,
-                                contentDescription = null,
-                                tint = cs.onSurface.copy(alpha = 0.6f),
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-                    }
+                    Text(
+                        text = "Monthly",
+                        fontWeight = if (selectedMode == InsightsMode.MONTHLY)
+                            FontWeight.Bold
+                        else
+                            FontWeight.Medium,
+                        color = if (selectedMode == InsightsMode.MONTHLY)
+                            Color(0xFF00FFA3)
+                        else
+                            cs.onSurface.copy(alpha = 0.75f)
+                    )
                 }
             )
         }
@@ -1302,7 +1249,7 @@ private fun TrendDetailsSheet(
                     )
 
                     Text(
-                        text = "Premium view splits your month into weekly performance blocks.",
+                        text = "Your month is grouped into weekly performance blocks.",
                         fontSize = 12.sp,
                         color = cs.onSurface.copy(alpha = 0.72f),
                         lineHeight = 16.sp
@@ -1930,110 +1877,6 @@ private fun vibrateSoft(ctx: Context) {
     }
 }
 
-@Composable
-private fun PremiumUnlockSheet(
-    onClose: () -> Unit,
-    onEnablePremium: () -> Unit
-) {
-    val cs = MaterialTheme.colorScheme
-
-    androidx.compose.material3.ModalBottomSheet(
-        onDismissRequest = onClose,
-        containerColor = cs.surface,
-        shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .width(42.dp)
-                    .height(5.dp)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(cs.onSurface.copy(alpha = 0.2f))
-            )
-
-            Text(
-                text = "Unlock Premium",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = cs.onSurface
-            )
-
-            Text(
-                text = "Monthly Insights, Activity Score, Smart Summary and advanced analysis are Premium-only features.",
-                fontSize = 13.sp,
-                color = cs.onSurface.copy(alpha = 0.7f),
-                lineHeight = 18.sp
-            )
-
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                color = cs.background
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    PremiumFeatureRow("Monthly Insights + Trend analysis")
-                    PremiumFeatureRow("Activity Score system")
-                    PremiumFeatureRow("Compare weeks & months")
-                    PremiumFeatureRow("Export Weekly Report")
-                    PremiumFeatureRow("Smart Summary (AI-style coaching)")
-                }
-            }
-
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(999.dp),
-                color = Color(0xFF00FFA3),
-                shadowElevation = 10.dp,
-                onClick = onEnablePremium
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "Enable Premium",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = Color.Black
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-        }
-    }
-}
-
-@Composable
-private fun PremiumFeatureRow(text: String) {
-    val cs = MaterialTheme.colorScheme
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(10.dp)
-                .clip(RoundedCornerShape(999.dp))
-                .background(Color(0xFF00FFA3))
-        )
-
-        Text(
-            text = text,
-            fontSize = 13.sp,
-            color = cs.onSurface.copy(alpha = 0.85f)
-        )
-    }
-}
 
 
 /* =========================== HELPERS =========================== */
