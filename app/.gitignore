@@ -1,19 +1,21 @@
 # Local / generated
 node_modules/
-StepFit.zip
+.kotlin/
 *.zip
+*.apk
+*.aab
+*.log
 
 # Kotlin / IDE generated logs
 .kotlin/errors/
-.kotlin/
 
 # Android build output
 build/
 app/build/
+/build
 
 # Local IDE
 .idea/workspace.xml
 .idea/deploymentTargetSelector.xml
 .idea/appInsightsSettings.xml
-
-/build
+.idea/appInsightsSettings.xml
