@@ -1,6 +1,7 @@
 package com.example.stepforge.settings
 
 import android.app.DatePickerDialog
+import android.content.Intent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -42,9 +43,16 @@ import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.example.stepforge.AchievementsActivity
+import com.example.stepforge.data.AppDatabase
 import com.example.stepforge.data.stepforgeStore
+import com.example.stepforge.ui.achievements.AchievementsRepository
+import com.example.stepforge.ui.achievements.AchievementsUiState
+import com.example.stepforge.ui.achievements.ProfileAchievementEntryCard
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
@@ -85,6 +93,7 @@ fun ProfileSettingsScreen(
 
     var lastSavedText by remember { mutableStateOf("All changes saved") }
     var showSavedFlash by remember { mutableStateOf(false) }
+    var achievementsState by remember { mutableStateOf(AchievementsUiState.empty()) }
 
     fun calcAge(birth: String): Int {
         if (birth.isBlank()) return 0
@@ -121,6 +130,19 @@ fun ProfileSettingsScreen(
         birthDate = prefs[BIRTH_DATE] ?: ""
         unit = prefs[UNIT] ?: "km"
         age = calcAge(birthDate)
+    }
+
+    LaunchedEffect(Unit) {
+        achievementsState = withContext(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(ctx)
+            val prefs = ctx.stepforgeStore.data.first()
+            val goal = prefs[intPreferencesKey("step_goal")] ?: 10_000
+            AchievementsRepository.buildState(
+                dailySteps = db.dailyStepsDao().getAllSteps(),
+                workouts = db.workoutSessionDao().getAll(),
+                stepGoal = goal
+            )
+        }
     }
 
     // LIVE SAVE + küçük debounce
@@ -266,6 +288,11 @@ fun ProfileSettingsScreen(
                         )
                     }
                 }
+
+                ProfileAchievementEntryCard(
+                    state = achievementsState,
+                    onClick = { ctx.startActivity(Intent(ctx, AchievementsActivity::class.java)) }
+                )
 
                 // ---- NAME ----
                 LabeledFieldCard(
