@@ -7,6 +7,7 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import com.example.stepforge.R
 import com.example.stepforge.data.AppDatabase
 import com.example.stepforge.data.SleepSession
 import com.example.stepforge.data.SleepStage
@@ -183,7 +184,7 @@ class SleepSyncManager(private val context: Context) {
     suspend fun writeSleepSession(
         startMillis: Long,
         endMillis: Long,
-        title: String = "StepForge Sleep"
+        title: String = context.getString(R.string.hc_stepforge_sleep)
     ): Boolean = withContext(Dispatchers.IO) {
 
         try {
@@ -197,7 +198,7 @@ class SleepSyncManager(private val context: Context) {
                 startZoneOffset = ZoneId.systemDefault().rules.getOffset(start),
                 endZoneOffset = ZoneId.systemDefault().rules.getOffset(end),
                 title = title,
-                notes = "Synced from StepForge"
+                notes = context.getString(R.string.hc_synced_from_stepforge)
             )
 
             client.insertRecords(listOf(record))

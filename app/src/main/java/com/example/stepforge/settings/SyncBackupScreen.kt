@@ -1,5 +1,9 @@
 package com.example.stepforge.settings
 
+import com.example.stepforge.R
+
+import androidx.compose.ui.res.stringResource
+
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -87,7 +91,7 @@ fun SyncBackupScreen(
     var isBackingUp by remember { mutableStateOf(false) }
     var lastBackup by remember { mutableStateOf<Date?>(null) }
     var backupStatus by remember { mutableStateOf<String?>(null) }
-    var syncStatus by remember { mutableStateOf("Inactive") }
+    var syncStatus by remember { mutableStateOf(ctx.getString(R.string.hc_inactive)) }
 
     var isRestoring by remember { mutableStateOf(false) }
     var restoreStatus by remember { mutableStateOf<String?>(null) }
@@ -102,7 +106,7 @@ fun SyncBackupScreen(
     LaunchedEffect(Unit) {
         val prefs = ctx.stepforgeStore.data.first()
         autoSyncEnabled = (prefs[KEY_SYNC_AUTO] ?: 0) == 1
-        syncStatus = if (autoSyncEnabled) "Active" else "Inactive"
+        syncStatus = if (autoSyncEnabled) ctx.getString(R.string.hc_active) else ctx.getString(R.string.hc_inactive)
 
         val savedTime = prefs[KEY_BACKUP_LAST_TIME] ?: 0L
         if (savedTime > 0L) {
@@ -122,13 +126,13 @@ fun SyncBackupScreen(
             if (ok) {
                 val nowDate = Date()
                 lastBackup = nowDate
-                backupStatus = "Automatic backup completed."
+                backupStatus = ctx.getString(R.string.hc_auto_backup_complete)
                 ctx.stepforgeStore.edit { p ->
                     p[KEY_BACKUP_LAST_TIME] = nowDate.time
                     p[KEY_LAST_AUTO_BACKUP] = now
                 }
             } else {
-                backupStatus = "Automatic backup failed."
+                backupStatus = ctx.getString(R.string.hc_auto_backup_failed)
             }
         }
     }
@@ -139,13 +143,13 @@ fun SyncBackupScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Sync & Backup",
+                            text = stringResource(R.string.hc_sync_backup),
                             color = cs.onBackground,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Automatically sync and backup your data.",
+                            text = stringResource(R.string.hc_sync_subtitle),
                             color = cs.onBackground.copy(alpha = 0.65f),
                             fontSize = 13.sp
                         )
@@ -155,7 +159,7 @@ fun SyncBackupScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.hc_back),
                             tint = cs.onBackground
                         )
                     }
@@ -227,13 +231,13 @@ fun SyncBackupScreen(
 
                             Column {
                                 Text(
-                                    text = "Automatic Sync",
+                                    text = stringResource(R.string.hc_automatic_sync),
                                     color = cs.onSurface,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = "Keep your step data safely synced across your devices.",
+                                    text = stringResource(R.string.hc_automatic_sync_info),
                                     color = cs.onSurface.copy(alpha = 0.7f),
                                     fontSize = 12.sp
                                 )
@@ -249,7 +253,7 @@ fun SyncBackupScreen(
                             checked = autoSyncEnabled,
                             onCheckedChange = { enabled ->
                                 autoSyncEnabled = enabled
-                                syncStatus = if (enabled) "Active" else "Inactive"
+                                syncStatus = if (enabled) ctx.getString(R.string.hc_active) else ctx.getString(R.string.hc_inactive)
                                 scope.launch {
                                     ctx.stepforgeStore.edit { p ->
                                         p[KEY_SYNC_AUTO] = if (enabled) 1 else 0
@@ -269,8 +273,8 @@ fun SyncBackupScreen(
                             modifier = Modifier.padding(top = 6.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            SmallBullet("Daily steps and distance are synced securely.")
-                            SmallBullet("History is automatically restored on new devices.")
+                            SmallBullet(stringResource(R.string.hc_sync_steps_bullet))
+                            SmallBullet(stringResource(R.string.hc_sync_restore_bullet))
                         }
                     }
                 }
@@ -318,7 +322,7 @@ fun SyncBackupScreen(
 
                             Column {
                                 Text(
-                                    text = "Backup Status",
+                                    text = stringResource(R.string.hc_backup_status),
                                     color = cs.onSurface,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.SemiBold
@@ -326,8 +330,8 @@ fun SyncBackupScreen(
 
                                 val lastBackupText = lastBackup?.let {
                                     val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-                                    "Last backup: ${sdf.format(it)}"
-                                } ?: "Last backup: Never"
+                                    stringResource(R.string.hc_last_backup_format, sdf.format(it))
+                                } ?: stringResource(R.string.hc_last_backup_never)
 
                                 Text(
                                     text = lastBackupText,
@@ -338,9 +342,9 @@ fun SyncBackupScreen(
                         }
 
                         val label = when {
-                            isBackingUp -> "Backing up…"
-                            backupStatus != null -> "Updated"
-                            else -> "Idle"
+                            isBackingUp -> stringResource(R.string.hc_backing_up)
+                            backupStatus != null -> stringResource(R.string.hc_updated)
+                            else -> stringResource(R.string.hc_idle)
                         }
                         Text(text = label, color = neonBlue, fontSize = 11.sp)
                     }
@@ -370,13 +374,13 @@ fun SyncBackupScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Manual Backup",
+                        text = stringResource(R.string.hc_manual_backup),
                         color = cs.onSurface,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Create a fresh copy of your activity data in the cloud.",
+                        text = stringResource(R.string.hc_manual_backup_info),
                         color = cs.onSurface.copy(alpha = 0.7f),
                         fontSize = 12.sp
                     )
@@ -416,12 +420,12 @@ fun SyncBackupScreen(
                                     if (ok) {
                                         val now = Date()
                                         lastBackup = now
-                                        backupStatus = "Cloud backup completed successfully."
+                                        backupStatus = ctx.getString(R.string.hc_cloud_backup_complete)
                                         ctx.stepforgeStore.edit { p -> p[KEY_BACKUP_LAST_TIME] = now.time }
-                                        Toast.makeText(ctx, "Backup uploaded to cloud", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(ctx, ctx.getString(R.string.hc_backup_uploaded), Toast.LENGTH_SHORT).show()
                                     } else {
-                                        backupStatus = "Cloud backup failed. Try again later."
-                                        Toast.makeText(ctx, "Cloud backup failed", Toast.LENGTH_SHORT).show()
+                                        backupStatus = ctx.getString(R.string.hc_cloud_backup_retry)
+                                        Toast.makeText(ctx, ctx.getString(R.string.hc_cloud_backup_failed), Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             },
@@ -438,7 +442,7 @@ fun SyncBackupScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                text = if (isBackingUp) "Backing up…" else "Backup",
+                                text = if (isBackingUp) stringResource(R.string.hc_backing_up) else stringResource(R.string.hc_backup),
                                 color = if (isDark) Color.White else Color(0xFF111827),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -463,13 +467,13 @@ fun SyncBackupScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "Restore from Cloud",
+                        text = stringResource(R.string.hc_restore_cloud),
                         color = cs.onSurface,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Bring back your preferences and full step history from your latest backup.",
+                        text = stringResource(R.string.hc_restore_cloud_info),
                         color = cs.onSurface.copy(alpha = 0.7f),
                         fontSize = 12.sp
                     )
@@ -507,22 +511,20 @@ fun SyncBackupScreen(
                                     val result: RestoreResult = cloudManager.restoreFromCloud()
                                     isRestoring = false
                                     restoreStatus = when (result) {
-                                        SUCCESS ->
-                                            "Restore completed. History and key settings reloaded.\n" +
-                                                    "Profile details (name, height, weight, birth date, PIN) stay only on this device."
-                                        NO_BACKUP -> "No cloud backup found for this account."
-                                        CORRUPT_DATA -> "Backup file is corrupted or incompatible."
-                                        NETWORK_ERROR -> "Network error while contacting the cloud. Please try again."
-                                        UNKNOWN_ERROR -> "Unknown error during restore. Please try again later."
+                                        SUCCESS -> ctx.getString(R.string.hc_restore_complete_info)
+                                        NO_BACKUP -> ctx.getString(R.string.hc_no_cloud_backup)
+                                        CORRUPT_DATA -> ctx.getString(R.string.hc_corrupt_backup)
+                                        NETWORK_ERROR -> ctx.getString(R.string.hc_cloud_network_error)
+                                        UNKNOWN_ERROR -> ctx.getString(R.string.hc_restore_unknown_error)
                                     }
                                     Toast.makeText(
                                         ctx,
                                         when (result) {
-                                            SUCCESS -> "Restore completed"
-                                            NO_BACKUP -> "No backup available for this account."
-                                            CORRUPT_DATA -> "Restore failed: corrupt backup."
-                                            NETWORK_ERROR -> "Network error during restore."
-                                            UNKNOWN_ERROR -> "Restore failed: unknown error."
+                                            SUCCESS -> ctx.getString(R.string.hc_restore_completed)
+                                            NO_BACKUP -> ctx.getString(R.string.hc_no_cloud_backup)
+                                            CORRUPT_DATA -> ctx.getString(R.string.hc_restore_corrupt)
+                                            NETWORK_ERROR -> ctx.getString(R.string.hc_restore_network)
+                                            UNKNOWN_ERROR -> ctx.getString(R.string.hc_restore_failed)
                                         },
                                         Toast.LENGTH_SHORT
                                     ).show()
@@ -531,7 +533,7 @@ fun SyncBackupScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (isRestoring) "Restoring…" else "Restore Now",
+                            text = if (isRestoring) stringResource(R.string.hc_restoring) else stringResource(R.string.hc_restore_now),
                             color = if (isDark) Color.White else Color(0xFF111827),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
@@ -572,13 +574,13 @@ fun SyncBackupScreen(
                         )
                         Column {
                             Text(
-                                text = "Connected Account",
+                                text = stringResource(R.string.hc_connected_account),
                                 color = cs.onSurface,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "Connected as: ${connectedEmail ?: "Not connected"}",
+                                text = stringResource(R.string.hc_connected_as_format, connectedEmail ?: stringResource(R.string.hc_not_set)),
                                 color = cs.onSurface.copy(alpha = 0.7f),
                                 fontSize = 12.sp
                             )
@@ -586,15 +588,13 @@ fun SyncBackupScreen(
                     }
 
                     Text(
-                        text = "Select your Google account to link it with your backups.",
+                        text = stringResource(R.string.hc_select_google_account),
                         color = cs.onSurface.copy(alpha = 0.7f),
                         fontSize = 12.sp
                     )
 
                     Text(
-                        text = "Cloud backups are linked to your Google account. " +
-                                "If you reinstall StepForge or switch devices, use the same Google account " +
-                                "and tap Restore from Cloud to bring back your history and settings.",
+                        text = stringResource(R.string.hc_cloud_account_info),
                         color = cs.onSurface.copy(alpha = 0.7f),
                         fontSize = 11.sp
                     )
@@ -608,7 +608,7 @@ fun SyncBackupScreen(
                             modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                text = if (connectedEmail == null) "Select Google Account" else "Change Account",
+                                text = if (connectedEmail == null) stringResource(R.string.hc_select_google_account_button) else stringResource(R.string.hc_change_account),
                                 color = neonBlue,
                                 fontSize = 13.sp
                             )
@@ -620,7 +620,7 @@ fun SyncBackupScreen(
                             enabled = connectedEmail != null
                         ) {
                             Text(
-                                text = "Disconnect",
+                                text = stringResource(R.string.sleep_disconnect),
                                 color = Color(0xFFFF8A80),
                                 fontSize = 13.sp
                             )
@@ -652,21 +652,21 @@ fun SyncBackupScreen(
                             tint = neonGreen
                         )
                         Text(
-                            text = "Security & Privacy",
+                            text = stringResource(R.string.hc_security_privacy),
                             color = cs.onSurface,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
 
-                    SmallBullet("Your data is encrypted during sync.")
-                    SmallBullet("No ads, no tracking.")
-                    SmallBullet("You can disconnect your account at any time.")
+                    SmallBullet(stringResource(R.string.hc_sync_encrypted))
+                    SmallBullet(stringResource(R.string.hc_no_ads_tracking))
+                    SmallBullet(stringResource(R.string.hc_disconnect_anytime))
                 }
             }
 
             Text(
-                text = "Your data is securely stored and never shared without your permission.",
+                text = stringResource(R.string.hc_data_secure_info),
                 color = cs.onSurface.copy(alpha = 0.7f),
                 fontSize = 11.sp,
                 modifier = Modifier

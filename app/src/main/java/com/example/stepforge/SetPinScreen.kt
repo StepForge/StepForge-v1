@@ -1,5 +1,8 @@
 package com.example.stepforge.settings
 
+import com.example.stepforge.R
+import androidx.compose.ui.res.stringResource
+
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -89,16 +92,16 @@ fun SetPinScreen(
 
     // 10 sabit soru
     val questionList = listOf(
-        "What is your favorite color?",
-        "What is your favorite food?",
-        "What city were you born in?",
-        "What is the name of your first pet?",
-        "What is your favorite movie?",
-        "What is your favorite sport?",
-        "What is your favorite game?",
-        "What is your favorite car brand?",
-        "What is your favorite song?",
-        "What is your favorite season?"
+        stringResource(R.string.hc_security_favorite_color),
+        stringResource(R.string.hc_security_favorite_food),
+        stringResource(R.string.hc_security_birth_city),
+        stringResource(R.string.hc_security_first_pet),
+        stringResource(R.string.hc_security_favorite_movie),
+        stringResource(R.string.hc_security_favorite_sport),
+        stringResource(R.string.hc_security_favorite_game),
+        stringResource(R.string.hc_security_favorite_car),
+        stringResource(R.string.hc_security_favorite_song),
+        stringResource(R.string.hc_security_favorite_season)
     )
 
     // Soru 1
@@ -120,13 +123,13 @@ fun SetPinScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Set App Lock PIN",
+                            text = stringResource(R.string.hc_set_app_lock_pin),
                             color = Color.White,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Create a PIN and 2 security answers.",
+                            text = stringResource(R.string.hc_create_pin_answers),
                             color = Color.White.copy(alpha = 0.6f),
                             fontSize = 12.sp
                         )
@@ -136,7 +139,7 @@ fun SetPinScreen(
                     IconButton(onClick = onClose) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.hc_back),
                             tint = Color.White
                         )
                     }
@@ -179,13 +182,13 @@ fun SetPinScreen(
                         )
                         Column {
                             Text(
-                                text = "Create your PIN",
+                                text = stringResource(R.string.hc_create_your_pin),
                                 color = Color.White,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "This 4‑digit PIN will be required when opening stepforge.",
+                                text = stringResource(R.string.hc_pin_required_info),
                                 color = Color.White.copy(alpha = 0.7f),
                                 fontSize = 12.sp
                             )
@@ -200,7 +203,7 @@ fun SetPinScreen(
                             pinError = null
                         },
                         singleLine = true,
-                        label = { Text("PIN (4 digits)") },
+                        label = { Text(stringResource(R.string.hc_pin_4_digits)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFF00F5FF),
@@ -219,7 +222,7 @@ fun SetPinScreen(
                             pinError = null
                         },
                         singleLine = true,
-                        label = { Text("Confirm PIN") },
+                        label = { Text(stringResource(R.string.hc_confirm_pin)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFF00F5FF),
@@ -253,13 +256,13 @@ fun SetPinScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "Security questions",
+                        text = stringResource(R.string.hc_security_questions),
                         color = Color.White,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = "If you forget your PIN, stepforge will ask these questions so you can reset it.",
+                        text = stringResource(R.string.hc_security_questions_info),
                         color = Color.White.copy(alpha = 0.7f),
                         fontSize = 12.sp
                     )
@@ -268,7 +271,7 @@ fun SetPinScreen(
 
                     // SORU 1
                     Text(
-                        text = "Question 1",
+                        text = stringResource(R.string.hc_question_1),
                         color = Color.White.copy(alpha = 0.9f),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
@@ -326,7 +329,7 @@ fun SetPinScreen(
                             aError = null
                         },
                         singleLine = true,
-                        placeholder = { Text("Answer for Question 1") },
+                        placeholder = { Text(stringResource(R.string.hc_answer_question_1)) },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFF00F5FF),
                             unfocusedBorderColor = Color(0xFF2F323A),
@@ -340,7 +343,7 @@ fun SetPinScreen(
 
                     // SORU 2
                     Text(
-                        text = "Question 2",
+                        text = stringResource(R.string.hc_question_2),
                         color = Color.White.copy(alpha = 0.9f),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
@@ -397,7 +400,7 @@ fun SetPinScreen(
                             aError = null
                         },
                         singleLine = true,
-                        placeholder = { Text("Answer for Question 2") },
+                        placeholder = { Text(stringResource(R.string.hc_answer_question_2)) },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFF00F5FF),
                             unfocusedBorderColor = Color(0xFF2F323A),
@@ -427,15 +430,15 @@ fun SetPinScreen(
                     val ans2 = a2.text.trim()
 
                     if (p.length != 4 || !p.all(Char::isDigit) || p != pc) {
-                        pinError = "PINs must match and be 4 digits."
+                        pinError = ctx.getString(R.string.hc_pin_must_match)
                         return@Button
                     }
                     if (ans1.length < 2 || ans2.length < 2) {
-                        aError = "Please enter answers for both questions."
+                        aError = ctx.getString(R.string.hc_answer_both_questions)
                         return@Button
                     }
                     if (q1Text == q2Text) {
-                        aError = "Questions must be different."
+                        aError = ctx.getString(R.string.hc_questions_must_differ)
                         return@Button
                     }
 
@@ -452,7 +455,7 @@ fun SetPinScreen(
                         }
                         Toast.makeText(
                             ctx,
-                            "App Lock PIN created.",
+                            ctx.getString(R.string.hc_app_lock_pin_created),
                             Toast.LENGTH_SHORT
                         ).show()
                         onPinSaved()
@@ -472,7 +475,7 @@ fun SetPinScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        "Save PIN",
+                        stringResource(R.string.hc_save_pin),
                         color = Color.Black,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp

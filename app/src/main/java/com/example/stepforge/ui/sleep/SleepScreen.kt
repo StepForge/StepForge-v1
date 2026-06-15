@@ -100,6 +100,7 @@ fun SleepScreen(
                     today = today,
                     prevDay = prevDay,
                     weekHistory = weeklyData,
+                    sleepHistory = history,
                     onBack = onBack,
                     onOpenHistory = { showHistory = true },
                     onManualSave = { vm.saveManualEntry(it) },

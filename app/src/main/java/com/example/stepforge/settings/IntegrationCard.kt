@@ -1,5 +1,7 @@
 package com.example.stepforge.settings
 
+import com.example.stepforge.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -70,7 +72,7 @@ fun IntegrationCard(
             ) {
                 Image(
                     painter = painterResource(id = logoRes),
-                    contentDescription = "$title logo",
+                    contentDescription = stringResource(R.string.hc_logo_format, title),
                     modifier = Modifier.fillMaxSize(0.9f),
                     contentScale = ContentScale.Fit
                 )

@@ -1,5 +1,6 @@
 package com.example.stepforge.ui.history
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -768,8 +770,11 @@ internal fun HistoryAchievementsCard(state: HistoryUiState, onViewAll: () -> Uni
                     modifier = Modifier.clickable { onViewAll() }
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                state.achievements.forEach { achievement ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                state.achievements.take(3).forEach { achievement ->
                     AchievementBadge(achievement = achievement, modifier = Modifier.weight(1f))
                 }
             }
@@ -780,25 +785,39 @@ internal fun HistoryAchievementsCard(state: HistoryUiState, onViewAll: () -> Uni
 @Composable
 private fun AchievementBadge(achievement: HistoryAchievementUi, modifier: Modifier) {
     val accent = when (achievement.level) {
-        1 -> Color(0xFFFFB02E)
-        2 -> Color(0xFFFFC13D)
+        1 -> Color(0xFF00F5FF)
+        2 -> Color(0xFF4B8DFF)
         3 -> Color(0xFF59F27A)
-        else -> Color(0xFF18E8FF)
+        4 -> Color(0xFFB368FF)
+        5 -> Color(0xFFFFC13D)
+        else -> Color(0xFFFF5CE1)
     }
     Column(
         modifier = modifier
-            .height(102.dp)
-            .clip(RoundedCornerShape(17.dp))
-            .background(accent.copy(alpha = 0.09f))
-            .border(1.dp, accent.copy(alpha = 0.22f), RoundedCornerShape(17.dp))
-            .padding(8.dp),
+            .height(112.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(accent.copy(alpha = 0.075f))
+            .border(1.dp, accent.copy(alpha = 0.18f), RoundedCornerShape(18.dp))
+            .padding(horizontal = 7.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        AchievementHex(progress = achievement.progress, color = accent, modifier = Modifier.size(38.dp))
-        Spacer(Modifier.height(5.dp))
-        Text(achievement.title, color = MaterialTheme.colorScheme.onSurface, fontSize = 10.5.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(achievementSubtitle(achievement.level), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 8.8.sp, lineHeight = 9.5.sp, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Image(
+            painter = painterResource(achievement.iconRes),
+            contentDescription = null,
+            modifier = Modifier.size(60.dp)
+        )
+        Spacer(Modifier.height(7.dp))
+        Text(
+            text = achievement.title,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 10.2.sp,
+            lineHeight = 11.2.sp,
+            fontWeight = FontWeight.ExtraBold,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

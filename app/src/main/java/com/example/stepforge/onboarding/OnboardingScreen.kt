@@ -59,6 +59,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -68,6 +69,7 @@ import kotlin.math.PI
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
+import com.example.stepforge.R
 
 private enum class OnbPageKind { SENSOR, BACKGROUND, PRIVACY, START }
 
@@ -101,58 +103,56 @@ fun OnboardingScreen(
     val textMain = cs.onSurface
     val textSub = cs.onSurface.copy(alpha = if (isDark) 0.78f else 0.74f)
 
-    val pages = remember {
-        listOf(
+    val pages = listOf(
             OnboardingPage(
                 kind = OnbPageKind.SENSOR,
                 icon = Icons.Outlined.DirectionsWalk,
-                title = "Automatic steps & distance",
-                body = "Track steps and estimate distance using your phone’s motion sensors.",
-                confidence = "Accurate daily totals with sensor-based tracking",
+                title = stringResource(R.string.hc_onboarding_auto_steps),
+                body = stringResource(R.string.hc_onboarding_auto_steps_body),
+                confidence = stringResource(R.string.hc_onboarding_auto_steps_note),
                 chips = listOf(
-                    FeatureChipData(Icons.Outlined.Speed, "Live steps"),
-                    FeatureChipData(Icons.Outlined.Tune, "Daily goal"),
-                    FeatureChipData(Icons.Outlined.CloudSync, "Widgets")
+                    FeatureChipData(Icons.Outlined.Speed, stringResource(R.string.hc_live_steps)),
+                    FeatureChipData(Icons.Outlined.Tune, stringResource(R.string.hc_daily_goal)),
+                    FeatureChipData(Icons.Outlined.CloudSync, stringResource(R.string.hc_widgets))
                 )
             ),
             OnboardingPage(
                 kind = OnbPageKind.BACKGROUND,
                 icon = Icons.Outlined.SettingsSuggest,
-                title = "Works in the background",
-                body = "Background activity keeps tracking consistent and reminders reliable.",
-                confidence = "Battery-friendly design with lightweight processing",
+                title = stringResource(R.string.hc_onboarding_background),
+                body = stringResource(R.string.hc_onboarding_background_body),
+                confidence = stringResource(R.string.hc_onboarding_background_note),
                 chips = listOf(
-                    FeatureChipData(Icons.Outlined.NotificationsActive, "Reminders"),
-                    FeatureChipData(Icons.Outlined.Speed, "Consistent totals"),
-                    FeatureChipData(Icons.Outlined.Tune, "You control settings")
+                    FeatureChipData(Icons.Outlined.NotificationsActive, stringResource(R.string.hc_reminders)),
+                    FeatureChipData(Icons.Outlined.Speed, stringResource(R.string.hc_consistent_totals)),
+                    FeatureChipData(Icons.Outlined.Tune, stringResource(R.string.hc_control_settings))
                 )
             ),
             OnboardingPage(
                 kind = OnbPageKind.PRIVACY,
                 icon = Icons.Outlined.Security,
-                title = "Privacy-first by design",
-                body = "Your data is used only for tracking and insights — not for ads.",
-                confidence = "No selling, no ad tracking, delete anytime",
+                title = stringResource(R.string.hc_onboarding_privacy),
+                body = stringResource(R.string.hc_onboarding_privacy_body),
+                confidence = stringResource(R.string.hc_onboarding_privacy_note),
                 chips = listOf(
-                    FeatureChipData(Icons.Outlined.Lock, "App Lock optional"),
-                    FeatureChipData(Icons.Outlined.Shield, "Local-first"),
-                    FeatureChipData(Icons.Outlined.CloudSync, "Optional sync")
+                    FeatureChipData(Icons.Outlined.Lock, stringResource(R.string.hc_app_lock_optional)),
+                    FeatureChipData(Icons.Outlined.Shield, stringResource(R.string.hc_local_first)),
+                    FeatureChipData(Icons.Outlined.CloudSync, stringResource(R.string.hc_optional_sync))
                 )
             ),
             OnboardingPage(
                 kind = OnbPageKind.START,
                 icon = Icons.Outlined.NotificationsActive,
-                title = "Ready to start",
-                body = "Next, we’ll request only what’s needed for step tracking and reminders.",
-                confidence = "Permissions are requested only on the next step",
+                title = stringResource(R.string.hc_onboarding_ready),
+                body = stringResource(R.string.hc_onboarding_ready_body),
+                confidence = stringResource(R.string.hc_onboarding_ready_note),
                 chips = listOf(
-                    FeatureChipData(Icons.Outlined.DirectionsWalk, "Activity Recognition"),
-                    FeatureChipData(Icons.Outlined.NotificationsActive, "Notifications (optional)"),
-                    FeatureChipData(Icons.Outlined.Security, "Privacy controls")
+                    FeatureChipData(Icons.Outlined.DirectionsWalk, stringResource(R.string.hc_activity_recognition)),
+                    FeatureChipData(Icons.Outlined.NotificationsActive, stringResource(R.string.hc_notifications_optional)),
+                    FeatureChipData(Icons.Outlined.Security, stringResource(R.string.hc_privacy_controls))
                 )
             )
         )
-    }
 
     var index by remember { mutableIntStateOf(0) }
     val page = pages[index]
@@ -190,7 +190,7 @@ fun OnboardingScreen(
             ) {
                 TextButton(onClick = onSkip) {
                     Text(
-                        text = "Skip",
+                        text = stringResource(R.string.hc_skip),
                         color = textMain.copy(alpha = 0.85f),
                         fontSize = 13.sp
                     )
@@ -249,9 +249,9 @@ fun OnboardingScreen(
 
                 Text(
                     text = if (isLast)
-                        "We’ll ask permissions only once you tap Start."
+                        stringResource(R.string.hc_permissions_on_start)
                     else
-                        "You can change settings anytime in Settings.",
+                        stringResource(R.string.hc_change_settings_anytime),
                     color = textSub,
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center,
@@ -279,7 +279,7 @@ fun OnboardingScreen(
                             containerColor = Color.Transparent
                         )
                     ) {
-                        Text("Back", fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        Text(stringResource(R.string.hc_back), fontWeight = FontWeight.SemiBold, maxLines = 1)
                     }
                     Spacer(Modifier.width(12.dp))
                 } else {
@@ -306,7 +306,7 @@ fun OnboardingScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (isLast) "Start" else "Continue",
+                            text = if (isLast) stringResource(R.string.hc_start) else stringResource(R.string.hc_continue),
                             color = if (isDark) Color.Black else Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,

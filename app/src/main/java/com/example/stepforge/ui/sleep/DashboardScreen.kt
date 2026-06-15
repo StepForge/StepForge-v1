@@ -88,6 +88,7 @@ fun DashboardScreen(
     today: SleepDay,
     prevDay: SleepDay?,
     weekHistory: List<SleepDay>,
+    sleepHistory: List<SleepDay> = emptyList(),
     onBack: () -> Unit,
     onOpenHistory: () -> Unit,
     onManualSave: (ManualSleepEntry) -> Unit,
@@ -158,6 +159,14 @@ fun DashboardScreen(
         }
     }
 
+    val manualCalendarMarks = remember(sleepHistory) {
+        sleepHistory
+            .filter { it.hasAnyData }
+            .associate { day ->
+                day.date to (day.totalSleepMinutes / (8 * 60f)).coerceIn(0.18f, 1f)
+            }
+    }
+
     if (showManualEntry) {
         ManualEntrySheet(
             sheetState = manualSheetState,
@@ -165,7 +174,8 @@ fun DashboardScreen(
             onSave     = { entry ->
                 onManualSave(entry)
                 showManualEntry = false
-            }
+            },
+            markedDates = manualCalendarMarks
         )
     }
 

@@ -139,7 +139,7 @@ class SleepViewModel(application: Application) : AndroidViewModel(application) {
             SleepMainSessionDeduper.deduplicate(sessionDao, stageDao)
             val sessions = sessionDao.getRecentSessions(100)
             val sessionGrouped = sessions.groupBy { it.date }
-            
+
             val today = LocalDate.now()
             val fullHistory = (29 downTo 0).map { i ->
                 val date = today.minusDays(i.toLong())
@@ -167,7 +167,7 @@ class SleepViewModel(application: Application) : AndroidViewModel(application) {
                     SleepDay(date = date, availability = DataAvailability.NONE)
                 }
             }
-            
+
             _history.value = fullHistory
         }
     }
@@ -219,7 +219,7 @@ class SleepViewModel(application: Application) : AndroidViewModel(application) {
         val today = LocalDate.now()
         val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val weekDates = (0..6).map { monday.plusDays(it.toLong()) }
-        
+
         val historyMap = historyList.associateBy { it.date }
         return weekDates.map { date ->
             historyMap[date] ?: SleepDay(date = date, availability = DataAvailability.NONE)
@@ -228,7 +228,7 @@ class SleepViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveManualEntry(entry: ManualSleepEntry) {
         viewModelScope.launch(Dispatchers.IO) {
-            val date = LocalDate.now()
+            val date = entry.date
 
             val existing = sessionDao.getSessionsForDate(date.toString())
 

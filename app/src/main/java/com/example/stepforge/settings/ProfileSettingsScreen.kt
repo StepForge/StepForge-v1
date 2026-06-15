@@ -1,5 +1,9 @@
 package com.example.stepforge.settings
 
+import com.example.stepforge.R
+
+import androidx.compose.ui.res.stringResource
+
 import android.app.DatePickerDialog
 import android.content.Intent
 import androidx.compose.animation.animateColorAsState
@@ -91,7 +95,8 @@ fun ProfileSettingsScreen(
     var birthDate by remember { mutableStateOf("") }
     var unit by remember { mutableStateOf("km") }
 
-    var lastSavedText by remember { mutableStateOf("All changes saved") }
+    val initialSavedText = stringResource(R.string.hc_all_changes_saved)
+    var lastSavedText by remember(initialSavedText) { mutableStateOf(initialSavedText) }
     var showSavedFlash by remember { mutableStateOf(false) }
     var achievementsState by remember { mutableStateOf(AchievementsUiState.empty()) }
 
@@ -158,7 +163,7 @@ fun ProfileSettingsScreen(
                 ds[UNIT] = unit
             }
             age = calcAge(birthDate)
-            lastSavedText = "All changes saved"
+            lastSavedText = ctx.getString(R.string.hc_all_changes_saved)
             showSavedFlash = true
             delay(1000)
             showSavedFlash = false
@@ -171,13 +176,13 @@ fun ProfileSettingsScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Profile",
+                            text = stringResource(R.string.wv2_nav_profile),
                             color = colors.onBackground,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Your data is applied instantly across StepForge.",
+                            text = stringResource(R.string.hc_profile_applied_info),
                             color = colors.onBackground.copy(alpha = 0.65f),
                             fontSize = 12.sp
                         )
@@ -187,7 +192,7 @@ fun ProfileSettingsScreen(
                     IconButton(onClick = onClose) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.hc_back),
                             tint = colors.onBackground
                         )
                     }
@@ -252,29 +257,35 @@ fun ProfileSettingsScreen(
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = if (username.isNotBlank()) username else "Tap to set your name",
+                                text = if (username.isNotBlank()) username else stringResource(R.string.hc_tap_set_name),
                                 color = colors.onSurface,
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(Modifier.height(4.dp))
+                            val localizedGender = when (gender) {
+                                "Male" -> stringResource(R.string.hc_male)
+                                "Female" -> stringResource(R.string.hc_female)
+                                "Other" -> stringResource(R.string.hc_other)
+                                else -> gender
+                            }
                             val summary = buildString {
-                                if (age > 0) append("$age yrs")
+                                if (age > 0) append(stringResource(R.string.hc_age_years_format, age))
                                 if (height.isNotBlank()) {
                                     if (isNotEmpty()) append(" • ")
-                                    append("${height}cm")
+                                    append(stringResource(R.string.hc_height_format, height))
                                 }
                                 if (weight.isNotBlank()) {
                                     if (isNotEmpty()) append(" • ")
-                                    append("${weight}kg")
+                                    append(stringResource(R.string.hc_weight_format, weight))
                                 }
                                 if (gender.isNotBlank()) {
                                     if (isNotEmpty()) append(" • ")
-                                    append(gender)
+                                    append(localizedGender)
                                 }
                             }
                             Text(
-                                text = if (summary.isNotBlank()) summary else "Complete your profile for better insights.",
+                                text = if (summary.isNotBlank()) summary else stringResource(R.string.hc_complete_profile),
                                 color = colors.onSurface.copy(alpha = 0.75f),
                                 fontSize = 12.sp
                             )
@@ -296,8 +307,8 @@ fun ProfileSettingsScreen(
 
                 // ---- NAME ----
                 LabeledFieldCard(
-                    title = "Name",
-                    description = "This name appears across StepForge in summaries and widgets.",
+                    title = stringResource(R.string.hc_name),
+                    description = stringResource(R.string.hc_name_description),
                     cardBg = cardBg,
                     onSurface = colors.onSurface
                 ) {
@@ -312,8 +323,8 @@ fun ProfileSettingsScreen(
 
                 // ---- HEIGHT & WEIGHT ----
                 LabeledFieldCard(
-                    title = "Body metrics",
-                    description = "Used to estimate distance and calories from your steps.",
+                    title = stringResource(R.string.hc_body_metrics),
+                    description = stringResource(R.string.hc_body_metrics_description),
                     cardBg = cardBg,
                     onSurface = colors.onSurface
                 ) {
@@ -323,7 +334,7 @@ fun ProfileSettingsScreen(
                     ) {
                         MetricField(
                             icon = Icons.Outlined.Straighten,
-                            label = "Height (cm)",
+                            label = stringResource(R.string.hc_height_cm),
                             value = height,
                             onValueChange = { v -> if (v.all(Char::isDigit)) height = v },
                             neon = neonB,
@@ -332,7 +343,7 @@ fun ProfileSettingsScreen(
                         )
                         MetricField(
                             icon = Icons.Outlined.Scale,
-                            label = "Weight (kg)",
+                            label = stringResource(R.string.hc_weight_kg),
                             value = weight,
                             onValueChange = { v -> if (v.all(Char::isDigit)) weight = v },
                             neon = neonB,
@@ -344,8 +355,8 @@ fun ProfileSettingsScreen(
 
                 // ---- GENDER ----
                 LabeledFieldCard(
-                    title = "Gender",
-                    description = "Optional. Used only in aggregated stats.",
+                    title = stringResource(R.string.hc_gender),
+                    description = stringResource(R.string.hc_gender_description),
                     cardBg = cardBg,
                     onSurface = colors.onSurface
                 ) {
@@ -360,8 +371,8 @@ fun ProfileSettingsScreen(
 
                 // ---- BIRTH DATE ----
                 LabeledFieldCard(
-                    title = "Birth date",
-                    description = "Helps StepForge understand your age group.",
+                    title = stringResource(R.string.hc_birth_date),
+                    description = stringResource(R.string.hc_birth_date_description),
                     cardBg = cardBg,
                     onSurface = colors.onSurface
                 ) {
@@ -384,8 +395,8 @@ fun ProfileSettingsScreen(
 
                 // ---- UNIT ----
                 LabeledFieldCard(
-                    title = "Distance unit",
-                    description = "Affects how your daily distance is displayed.",
+                    title = stringResource(R.string.hc_distance_unit),
+                    description = stringResource(R.string.hc_distance_unit_description),
                     cardBg = cardBg,
                     onSurface = colors.onSurface
                 ) {
@@ -410,7 +421,7 @@ fun ProfileSettingsScreen(
                         .height(50.dp)
                 ) {
                     Text(
-                        "Close",
+                        stringResource(R.string.common_close),
                         fontWeight = FontWeight.Bold,
                         color = Color.Black,
                         fontSize = 16.sp
@@ -516,17 +527,17 @@ private fun GenderSelector(
     colors: ColorScheme
 ) {
     val options = listOf(
-        Triple("Male", Icons.Outlined.Male, "M"),
-        Triple("Female", Icons.Outlined.Transgender, "F"),
-        Triple("Other", Icons.Outlined.Person, "O")
+        Triple(stringResource(R.string.hc_male), Icons.Outlined.Male, "Male"),
+        Triple(stringResource(R.string.hc_female), Icons.Outlined.Transgender, "Female"),
+        Triple(stringResource(R.string.hc_other), Icons.Outlined.Person, "Other")
     )
 
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        options.forEach { (label, icon, _) ->
-            val isSelected = selected == label
+        options.forEach { (label, icon, value) ->
+            val isSelected = selected == value
             val scale by animateFloatAsState(
                 targetValue = if (isSelected) 1.05f else 1f,
                 animationSpec = tween(250, easing = FastOutSlowInEasing),
@@ -552,7 +563,7 @@ private fun GenderSelector(
                         ),
                         shape = RoundedCornerShape(18.dp)
                     )
-                    .clickable { onSelect(label) },
+                    .clickable { onSelect(value) },
                 contentAlignment = Alignment.Center
             ) {
                 Row(

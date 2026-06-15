@@ -1018,19 +1018,7 @@ private fun rarityLabel(rarity: AchievementRarity): String = when (rarity) {
 
 @Composable
 private fun AchievementDefinition.requirementText(): String {
-    val value = target.formatAchievementRequirementNumberForDetail()
-    val suffix = when (category) {
-        AchievementCategory.STEPS -> R.string.ach_req_steps
-        AchievementCategory.DISTANCE -> R.string.ach_req_km
-        AchievementCategory.CALORIES -> R.string.ach_req_kcal
-        AchievementCategory.STREAKS -> R.string.ach_req_days
-        AchievementCategory.WORKOUTS -> R.string.ach_req_workouts
-        AchievementCategory.TIME -> R.string.ach_req_minutes
-        AchievementCategory.WEATHER -> R.string.ach_req_times
-        AchievementCategory.SPECIAL -> R.string.ach_req_times
-        AchievementCategory.ALL -> R.string.ach_req_times
-    }
-    return stringResource(suffix, value)
+    return stringResource(unlockHintRes())
 }
 
 private fun Float.formatAchievementRequirementNumberForDetail(): String {

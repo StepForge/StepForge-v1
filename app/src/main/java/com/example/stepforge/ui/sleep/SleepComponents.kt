@@ -108,6 +108,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.stepforge.R
+import com.example.stepforge.ui.components.CalendarActivity
+import com.example.stepforge.ui.components.CustomTimePicker
 import com.example.stepforge.ui.sleep.model.DataAvailability
 import com.example.stepforge.ui.sleep.model.InsightSeverity
 import com.example.stepforge.ui.sleep.model.ManualSleepEntry
@@ -118,7 +120,9 @@ import com.example.stepforge.ui.sleep.model.SleepStageData
 import com.example.stepforge.ui.sleep.model.StageType
 import com.example.stepforge.ui.sleep.model.TrackingMode
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 // ── Press scale modifier ──────────────────────────────────────────────────────
@@ -1368,7 +1372,8 @@ fun ScoreLineChart(days: List<SleepDay>, modifier: Modifier = Modifier) {
 fun ManualEntrySheet(
     sheetState: SheetState,
     onDismiss: () -> Unit,
-    onSave: (ManualSleepEntry) -> Unit
+    onSave: (ManualSleepEntry) -> Unit,
+    markedDates: Map<LocalDate, Float> = emptyMap()
 ) {
     val cs = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
@@ -1376,6 +1381,8 @@ fun ManualEntrySheet(
     var bedTime by remember { mutableStateOf(LocalTime.of(23, 0)) }
     var wakeTime by remember { mutableStateOf(LocalTime.of(7, 0)) }
     var isNap by remember { mutableStateOf(false) }
+    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+    var showCalendar by remember { mutableStateOf(false) }
 
     var quality by remember { mutableStateOf(ManualSleepQuality.BALANCED) }
     var wakeFeeling by remember { mutableStateOf(ManualWakeFeeling.BALANCED) }
@@ -1383,12 +1390,16 @@ fun ManualEntrySheet(
     var selectedFactors by remember { mutableStateOf(setOf<ManualSleepFactor>()) }
     var optionalNote by remember { mutableStateOf("") }
 
-    var pickerTarget by remember { mutableStateOf<ManualTimePickerTarget?>(null) }
+    var showTimePicker by remember { mutableStateOf(false) }
 
     val durationMinutes = remember(bedTime, wakeTime) {
         calculateManualSleepDurationMinutes(bedTime, wakeTime)
     }
     val durationText = remember(durationMinutes) { formatManualSleepDuration(durationMinutes) }
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("EEEE, dd MMM yyyy", Locale.getDefault()) }
+    val selectedDateText = remember(selectedDate) {
+        selectedDate.format(dateFormatter)
+    }
 
     val warningText = when {
         durationMinutes < 5 -> stringResource(R.string.sleep_manual_warning_too_short)
@@ -1436,13 +1447,18 @@ fun ManualEntrySheet(
                         onNapChange = { isNap = it }
                     )
 
+                    ManualSleepDateSelector(
+                        selectedDateText = selectedDateText,
+                        onClick = { showCalendar = true }
+                    )
+
                     ManualSleepTimeSection(
                         bedTime = bedTime,
                         wakeTime = wakeTime,
                         durationText = durationText,
                         warningText = warningText,
-                        onBedClick = { pickerTarget = ManualTimePickerTarget.BED },
-                        onWakeClick = { pickerTarget = ManualTimePickerTarget.WAKE }
+                        onBedClick = { showTimePicker = true },
+                        onWakeClick = { showTimePicker = true }
                     )
 
                     ManualQualityScaleSection(
@@ -1488,11 +1504,12 @@ fun ManualEntrySheet(
 
                             onSave(
                                 ManualSleepEntry(
-                                    bedTime,
-                                    wakeTime,
-                                    quality.rating,
-                                    packedNote,
-                                    if (isNap) SleepSessionType.NAP else SleepSessionType.MAIN
+                                    bedTime = bedTime,
+                                    wakeTime = wakeTime,
+                                    qualityRating = quality.rating,
+                                    notes = packedNote,
+                                    type = if (isNap) SleepSessionType.NAP else SleepSessionType.MAIN,
+                                    date = selectedDate
                                 )
                             )
 
@@ -1522,27 +1539,36 @@ fun ManualEntrySheet(
         }
     }
 
-    pickerTarget?.let { target ->
-        ManualTimePickerDialog(
-            title = when (target) {
-                ManualTimePickerTarget.BED -> stringResource(R.string.sleep_manual_bedtime)
-                ManualTimePickerTarget.WAKE -> stringResource(R.string.sleep_manual_wake_time)
+    if (showCalendar) {
+        CalendarActivity(
+            selectedDate = selectedDate,
+            onDateSelected = { pickedDate ->
+                selectedDate = pickedDate
+                showCalendar = false
             },
-            initialTime = when (target) {
-                ManualTimePickerTarget.BED -> bedTime
-                ManualTimePickerTarget.WAKE -> wakeTime
-            },
-            onDismiss = { pickerTarget = null },
-            onConfirm = { selectedTime ->
-                when (target) {
-                    ManualTimePickerTarget.BED -> bedTime = selectedTime
-                    ManualTimePickerTarget.WAKE -> wakeTime = selectedTime
-                }
-                pickerTarget = null
+            onDismiss = { showCalendar = false },
+            maxDate = LocalDate.now(),
+            markedDates = markedDates
+        )
+    }
+
+    if (showTimePicker) {
+        CustomTimePicker(
+            bedTime = bedTime,
+            wakeTime = wakeTime,
+            title = "Sleep duration",
+            subtitle = "Drag the start and end handles to set your sleep window.",
+            onDismiss = { showTimePicker = false },
+            onConfirm = { selectedBedTime, selectedWakeTime ->
+                bedTime = selectedBedTime
+                wakeTime = selectedWakeTime
+                showTimePicker = false
             }
         )
     }
+
 }
+
 
 @Composable
 private fun ManualSheetHeader(onDismiss: () -> Unit) {
@@ -1656,6 +1682,67 @@ private fun ManualSegmentButton(
 }
 
 @Composable
+private fun ManualSleepDateSelector(
+    selectedDateText: String,
+    onClick: () -> Unit
+) {
+    val cs = MaterialTheme.colorScheme
+
+    ManualPremiumCard {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .pressScale()
+                .clickable(onClick = onClick),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.sleep_manual_date_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = cs.primary
+                )
+                Text(
+                    text = selectedDateText,
+                    fontSize = 22.sp,
+                    lineHeight = 25.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = cs.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = stringResource(R.string.sleep_manual_date_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = cs.onSurfaceVariant,
+                    lineHeight = 16.sp
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(cs.primary.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.EditCalendar,
+                    contentDescription = null,
+                    tint = cs.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun ManualSleepTimeSection(
     bedTime: LocalTime,
     wakeTime: LocalTime,
@@ -1761,7 +1848,7 @@ private fun ManualTimeCard(
     onClick: () -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
-    val accent = if (isNight) Color(0xFF7C4DFF) else Color(0xFFFFB547)
+    val accent = if (isNight) Color(0xFF00F5C8) else Color(0xFF00F5C8)
     val glow = if (isNight) Color(0xFF3D5AFE) else Color(0xFFFFD166)
     val scale by animateFloatAsState(
         targetValue = 1f,
@@ -2199,7 +2286,7 @@ private fun ManualTimePickerDialog(
     var selectedTime by remember(initialTime) { mutableStateOf(initialTime) }
     val cs = MaterialTheme.colorScheme
     val isBedPicker = title == stringResource(R.string.sleep_manual_bedtime)
-    val accent = if (isBedPicker) Color(0xFF7C4DFF) else Color(0xFFFFB547)
+    val accent = if (isBedPicker) Color(0xFF00F5C8) else Color(0xFF00F5C8)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -2363,7 +2450,6 @@ private fun ManualPickerMiniButton(
     }
 }
 
-private enum class ManualTimePickerTarget { BED, WAKE }
 
 private enum class ManualSleepQuality(
     val rating: Int,

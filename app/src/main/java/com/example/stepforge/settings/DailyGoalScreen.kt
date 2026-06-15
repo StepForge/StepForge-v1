@@ -1,5 +1,9 @@
 package com.example.stepforge.settings
 
+import com.example.stepforge.R
+
+import androidx.compose.ui.res.stringResource
+
 import android.app.Activity
 import android.widget.Toast
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -92,13 +96,13 @@ fun DailyGoalScreen(activity: Activity) {
                 title = {
                     Column {
                         Text(
-                            text = "Daily Goal",
+                            text = stringResource(R.string.ach_title_02),
                             color = cs.onBackground,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Tune your target for the perfect challenge.",
+                            text = stringResource(R.string.hc_goal_subtitle),
                             color = cs.onBackground.copy(alpha = 0.65f),
                             fontSize = 12.sp
                         )
@@ -108,7 +112,7 @@ fun DailyGoalScreen(activity: Activity) {
                     IconButton(onClick = { activity.finish() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.hc_back),
                             tint = cs.onBackground
                         )
                     }
@@ -153,7 +157,7 @@ fun DailyGoalScreen(activity: Activity) {
                 )
 
                 SaveHintChip(
-                    text = "Changes are saved automatically",
+                    text = stringResource(R.string.hc_changes_saved_automatically),
                     cardBg = if (isDark) cs.surfaceVariant else Color(0xFFE5E9F2)
                 )
 
@@ -180,7 +184,7 @@ fun DailyGoalScreen(activity: Activity) {
                             Toast
                                 .makeText(
                                     ctx,
-                                    "Goal is already saved.",
+                                    ctx.getString(R.string.hc_goal_already_saved),
                                     Toast.LENGTH_SHORT
                                 )
                                 .show()
@@ -198,7 +202,7 @@ fun DailyGoalScreen(activity: Activity) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Close",
+                            text = stringResource(R.string.common_close),
                             color = if (isDark) Color.Black else Color.White,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
@@ -253,7 +257,7 @@ private fun GoalSummaryCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Today's target",
+                text = stringResource(R.string.hc_todays_target),
                 color = textPrimary.copy(alpha = 0.7f),
                 fontSize = 13.sp
             )
@@ -324,7 +328,7 @@ private fun GoalSummaryCard(
                         )
                     }
                     Text(
-                        text = "steps / day",
+                        text = stringResource(R.string.hc_steps_per_day),
                         color = textPrimary.copy(alpha = 0.7f),
                         fontSize = 12.sp
                     )
@@ -335,7 +339,7 @@ private fun GoalSummaryCard(
 
             val percentOf10k = (selectedGoal / 10000f * 100f).roundToInt()
             Text(
-                text = "≈ $percentOf10k% of the classic 10,000 steps",
+                text = stringResource(R.string.hc_classic_goal_percent, percentOf10k),
                 color = textPrimary.copy(alpha = 0.7f),
                 fontSize = 12.sp
             )
@@ -449,13 +453,13 @@ private fun FineTuneCard(
                 )
                 Column {
                     Text(
-                        text = "Fine tune",
+                        text = stringResource(R.string.hc_fine_tune),
                         color = textMain,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = "Adjust your goal in steps of 500 for a perfect fit.",
+                        text = stringResource(R.string.hc_fine_tune_info),
                         color = textSub,
                         fontSize = 11.sp
                     )
@@ -494,12 +498,12 @@ private fun FineTuneCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Min 3K",
+                    text = stringResource(R.string.hc_min_3k),
                     color = textSub,
                     fontSize = 11.sp
                 )
                 Text(
-                    text = "Max 20K",
+                    text = stringResource(R.string.hc_max_20k),
                     color = textSub,
                     fontSize = 11.sp
                 )
@@ -560,15 +564,14 @@ private fun InfoCard(cardBg: Color) {
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    text = "Insights",
+                    text = stringResource(R.string.wv2_nav_insights),
                     color = textMain,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 )
             }
             Text(
-                text = "A realistic goal is one you can reach most days. " +
-                        "Start lower, then gradually increase as you build consistency.",
+                text = stringResource(R.string.hc_realistic_goal_tip),
                 color = textSub,
                 fontSize = 12.sp
             )

@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.datastore.preferences.core.edit
 import com.example.stepforge.R
+import com.example.stepforge.core.AppLanguageHelper
 import com.example.stepforge.data.stepforgeStore
 import com.example.stepforge.ui.streak.PremiumCoachDecision
 import com.example.stepforge.ui.streak.PremiumCoachMessageType
@@ -16,6 +17,8 @@ import kotlinx.coroutines.flow.first
 class PremiumCoachNotifier(
     private val context: Context
 ) {
+    private val textContext: Context
+        get() = AppLanguageHelper.localizedContext(context)
 
     companion object {
         const val CHANNEL_ID = "premium_coach_alerts"
@@ -73,48 +76,48 @@ class PremiumCoachNotifier(
     private fun buildTitle(decision: PremiumCoachDecision): String {
         return when (decision.type) {
             PremiumCoachMessageType.STREAK_RISK ->
-                context.getString(R.string.premium_coach_title_streak_risk)
+                textContext.getString(R.string.premium_coach_title_streak_risk)
 
             PremiumCoachMessageType.NEXT_SHIELD_MILESTONE ->
-                context.getString(R.string.premium_coach_title_next_shield)
+                textContext.getString(R.string.premium_coach_title_next_shield)
 
             PremiumCoachMessageType.GOAL_ALMOST_COMPLETE ->
-                context.getString(R.string.premium_coach_title_goal_close)
+                textContext.getString(R.string.premium_coach_title_goal_close)
 
             PremiumCoachMessageType.RESCUE_AVAILABLE ->
-                context.getString(R.string.premium_coach_title_rescue_ready)
+                textContext.getString(R.string.premium_coach_title_rescue_ready)
 
             PremiumCoachMessageType.LOW_ACTIVITY_PATTERN ->
-                context.getString(R.string.premium_coach_title_low_activity)
+                textContext.getString(R.string.premium_coach_title_low_activity)
 
             null ->
-                context.getString(R.string.app_name)
+                textContext.getString(R.string.app_name)
         }
     }
 
     private fun buildBody(decision: PremiumCoachDecision): String {
         return when (decision.type) {
             PremiumCoachMessageType.STREAK_RISK ->
-                context.getString(R.string.premium_coach_body_streak_risk)
+                textContext.getString(R.string.premium_coach_body_streak_risk)
 
             PremiumCoachMessageType.NEXT_SHIELD_MILESTONE ->
-                context.getString(
+                textContext.getString(
                     R.string.premium_coach_body_next_shield,
                     decision.stepsRemainingToNextShieldHour
                 )
 
             PremiumCoachMessageType.GOAL_ALMOST_COMPLETE ->
-                context.getString(R.string.premium_coach_body_goal_close)
+                textContext.getString(R.string.premium_coach_body_goal_close)
 
             PremiumCoachMessageType.RESCUE_AVAILABLE ->
-                context.getString(
+                textContext.getString(
                     R.string.premium_coach_body_rescue_ready,
                     decision.currentShieldMinutesLeft / 60,
                     decision.currentShieldMinutesLeft % 60
                 )
 
             PremiumCoachMessageType.LOW_ACTIVITY_PATTERN ->
-                context.getString(R.string.premium_coach_body_low_activity)
+                textContext.getString(R.string.premium_coach_body_low_activity)
 
             null ->
                 ""
@@ -125,15 +128,12 @@ class PremiumCoachNotifier(
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val existing = manager.getNotificationChannel(CHANNEL_ID)
-        if (existing != null) return
-
         val channel = NotificationChannel(
             CHANNEL_ID,
-            context.getString(R.string.premium_coach_channel_name),
+            textContext.getString(R.string.premium_coach_channel_name),
             NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
-            description = context.getString(R.string.premium_coach_channel_desc)
+            description = textContext.getString(R.string.premium_coach_channel_desc)
         }
 
         manager.createNotificationChannel(channel)

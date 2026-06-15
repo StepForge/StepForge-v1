@@ -69,7 +69,8 @@ data class ManualSleepEntry(
     val wakeTime: LocalTime,
     val qualityRating: Int = 3,
     val notes: String = "",
-    val type: SleepSessionType = SleepSessionType.MAIN
+    val type: SleepSessionType = SleepSessionType.MAIN,
+    val date: LocalDate = LocalDate.now()
 )
 
 // ── SleepDay ──────────────────────────────────────────────────────────────────

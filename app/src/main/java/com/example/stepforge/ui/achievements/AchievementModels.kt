@@ -35,6 +35,62 @@ internal data class AchievementDefinition(
     val target: Float
 )
 
+@StringRes
+internal fun AchievementDefinition.unlockHintRes(): Int = when (id) {
+    "first_steps" -> R.string.ach_unlock_01
+    "daily_goal" -> R.string.ach_unlock_02
+    "power_day" -> R.string.ach_unlock_03
+    "monster_walk" -> R.string.ach_unlock_04
+    "total_steps_bronze" -> R.string.ach_unlock_05
+    "total_steps_silver" -> R.string.ach_unlock_06
+    "total_steps_gold" -> R.string.ach_unlock_07
+    "million_steps" -> R.string.ach_unlock_08
+    "distance_explorer" -> R.string.ach_unlock_09
+    "city_walker" -> R.string.ach_unlock_10
+    "long_road" -> R.string.ach_unlock_11
+    "marathon_spirit" -> R.string.ach_unlock_12
+    "distance_master" -> R.string.ach_unlock_13
+    "first_burn" -> R.string.ach_unlock_14
+    "calorie_burner" -> R.string.ach_unlock_15
+    "fire_engine" -> R.string.ach_unlock_16
+    "inferno_day" -> R.string.ach_unlock_17
+    "active_hour" -> R.string.ach_unlock_18
+    "two_hour_push" -> R.string.ach_unlock_19
+    "endurance_pro" -> R.string.ach_unlock_20
+    "first_workout" -> R.string.ach_unlock_21
+    "workout_builder" -> R.string.ach_unlock_22
+    "workout_machine" -> R.string.ach_unlock_23
+    "walker" -> R.string.ach_unlock_24
+    "runner" -> R.string.ach_unlock_25
+    "cyclist" -> R.string.ach_unlock_26
+    "streak_spark" -> R.string.ach_unlock_27
+    "week_streak" -> R.string.ach_unlock_28
+    "month_streak" -> R.string.ach_unlock_29
+    "unbreakable_streak" -> R.string.ach_unlock_30
+    "streak_shield" -> R.string.ach_unlock_31
+    "second_chance" -> R.string.ach_unlock_32
+    "building_week" -> R.string.ach_unlock_33
+    "strong_week" -> R.string.ach_unlock_34
+    "perfect_week" -> R.string.ach_unlock_35
+    "active_month" -> R.string.ach_unlock_36
+    "elite_month" -> R.string.ach_unlock_37
+    "goal_hunter" -> R.string.ach_unlock_38
+    "goal_machine" -> R.string.ach_unlock_39
+    "goal_master" -> R.string.ach_unlock_40
+    "early_bird" -> R.string.ach_unlock_41
+    "night_walker" -> R.string.ach_unlock_42
+    "weekend_warrior" -> R.string.ach_unlock_43
+    "rain_walker" -> R.string.ach_unlock_44
+    "snow_walker" -> R.string.ach_unlock_45
+    "comeback" -> R.string.ach_unlock_46
+    "new_record" -> R.string.ach_unlock_47
+    "top_day" -> R.string.ach_unlock_48
+    "weekly_champion" -> R.string.ach_unlock_49
+    "legendary_walker" -> R.string.ach_unlock_50
+    else -> R.string.ach_unlock_generic
+}
+
+
 internal data class AchievementItemUi(
     val definition: AchievementDefinition,
     val progress: Float,

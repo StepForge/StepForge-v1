@@ -1,5 +1,7 @@
 package com.example.stepforge.settings
 
+import androidx.compose.ui.res.stringResource
+
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -135,7 +137,7 @@ fun IntegrationModal(
                         IconButton(onClick = onDismiss) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.hc_back),
                                 tint = if (isDark) Color.White else Color(0xFF111111)
                             )
                         }
@@ -258,7 +260,7 @@ fun HealthConnectCard(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.health_connect_logo),
-                        contentDescription = "Health Connect Logo",
+                        contentDescription = stringResource(R.string.hc_health_connect_logo),
                         modifier = Modifier.size(84.dp).clip(RoundedCornerShape(18.dp))
                     )
                 }
@@ -269,7 +271,7 @@ fun HealthConnectCard(
 
         // ✅ BURASI: Dinamik Başlık
         Text(
-            text = if (isConnected) "Successfully\nConnected" else "Health Connect\nIntegration",
+            text = if (isConnected) stringResource(R.string.hc_successfully_connected) else stringResource(R.string.hc_health_connect_integration_lines),
             fontSize = 22.sp,
             color = if (isConnected) ringGreen else textMain,
             fontWeight = FontWeight.Bold,
@@ -281,8 +283,8 @@ fun HealthConnectCard(
 
         // ✅ BURASI: Dinamik Açıklama
         Text(
-            text = if (isConnected) "StepForge is now synced with your Health account. Your activity data will be imported automatically."
-            else "Connect your Google Health account to import walking data into StepForge. All your records are unified in one place.",
+            text = if (isConnected) stringResource(R.string.hc_health_connected_body)
+            else stringResource(R.string.hc_health_connect_body),
             color = textSub,
             fontSize = 15.sp,
             lineHeight = 20.sp,
@@ -308,7 +310,7 @@ fun HealthConnectCard(
                     modifier = Modifier.fillMaxSize().background(connectBrush, RoundedCornerShape(50)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(if (isConnected) "Connected" else "Connect", fontWeight = FontWeight.Bold, color = connectTextColor)
+                    Text(if (isConnected) stringResource(R.string.hc_connected) else stringResource(R.string.hc_connect), fontWeight = FontWeight.Bold, color = connectTextColor)
                 }
             }
 
@@ -319,7 +321,7 @@ fun HealthConnectCard(
                 border = BorderStroke(1.dp, if (dark) Color.Gray.copy(alpha = 0.4f) else Color(0x330F172A)),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = textMain)
             ) {
-                Text(if (isConnected) "Close" else "Later", fontWeight = FontWeight.SemiBold)
+                Text(if (isConnected) stringResource(R.string.common_close) else stringResource(R.string.hc_later), fontWeight = FontWeight.SemiBold)
             }
         }
         Spacer(Modifier.height(4.dp))

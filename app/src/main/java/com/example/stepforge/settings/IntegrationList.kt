@@ -1,5 +1,7 @@
 package com.example.stepforge.settings
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
@@ -19,11 +21,11 @@ fun IntegrationList(
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         IntegrationCard(
             logoRes = R.drawable.health_connect_logo,
-            title = "Health Connect Integration",
+            title = stringResource(R.string.hc_health_connect_integration),
             description = if (isHealthConnected)
-                "Connected • Your steps are synced via Health Connect."
+                stringResource(R.string.hc_health_connected_steps)
             else
-                "Connect your fitness data via Health Connect in one place.",
+                stringResource(R.string.hc_health_connect_steps_info),
             onClick = onHealthConnectClick,
             darkTheme = darkTheme
         )

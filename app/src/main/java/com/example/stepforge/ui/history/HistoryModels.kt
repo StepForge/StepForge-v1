@@ -83,7 +83,8 @@ internal data class HistoryAchievementUi(
     val title: String,
     val subtitle: String,
     val progress: Float,
-    val level: Int
+    val level: Int,
+    val iconRes: Int
 )
 
 internal data class HistoryUiState(

@@ -36,6 +36,7 @@ import androidx.annotation.StringRes
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.example.stepforge.core.AppLanguageHelper
 import com.example.stepforge.R as AppR
 
 import java.text.Normalizer
@@ -127,6 +128,7 @@ object SleepReminderStore {
         val enabled = prefs.getBoolean(KEY_ENABLED, true)
         if (!enabled && !includeDisabled) return null
 
+        val textContext = AppLanguageHelper.localizedContext(context)
         val soundUri = prefs.getString(KEY_RINGTONE, null)
         val backgroundUri = prefs.getString(KEY_BACKGROUND, null)
 
@@ -143,10 +145,10 @@ object SleepReminderStore {
                 "normal"
             ) ?: "normal",
             soundUriString = soundUri,
-            soundTitle = prefs.getString(KEY_RINGTONE_TITLE, null) ?: context.getString(AppR.string.sleep_reminder_system_alarm),
+            soundTitle = prefs.getString(KEY_RINGTONE_TITLE, null) ?: textContext.getString(AppR.string.sleep_reminder_system_alarm),
             backgroundUriString = backgroundUri,
-            backgroundTitle = prefs.getString(KEY_BACKGROUND_TITLE, null) ?: context.getString(AppR.string.sleep_reminder_theme_background),
-            message = prefs.getString(KEY_MESSAGE, null) ?: context.getString(AppR.string.sleep_reminder_time_to_wind_down),
+            backgroundTitle = prefs.getString(KEY_BACKGROUND_TITLE, null) ?: textContext.getString(AppR.string.sleep_reminder_theme_background),
+            message = prefs.getString(KEY_MESSAGE, null) ?: textContext.getString(AppR.string.sleep_reminder_time_to_wind_down),
             clockStyle = prefs.getString(KEY_CLOCK_STYLE, null) ?: AlarmClockStyles.STYLE_STACKED,
             ringtoneUri = soundUri,
             backgroundUri = backgroundUri
@@ -227,7 +229,7 @@ object AlarmBackgroundPresets {
         val preset = random()
         return reminder.copy(
             backgroundUriString = preset.uriString,
-            backgroundTitle = context.getString(preset.titleRes),
+            backgroundTitle = AppLanguageHelper.localizedContext(context).getString(preset.titleRes),
             backgroundUri = preset.uriString
         )
     }
@@ -253,7 +255,7 @@ object AlarmClockStyles {
 
     fun titleFor(context: Context, id: String): String {
         val titleRes = all.firstOrNull { it.id == id }?.titleRes ?: AppR.string.sleep_clock_stacked
-        return context.getString(titleRes)
+        return AppLanguageHelper.localizedContext(context).getString(titleRes)
     }
 }
 
@@ -608,10 +610,11 @@ object AlarmNotificationHelper {
         launchFullscreen: Boolean
     ): Notification {
         ensureChannel(context)
+        val textContext = AppLanguageHelper.localizedContext(context)
         val alarmTime = formatNotificationAlarmTime(context, reminder.hour, reminder.minute)
         val timeText = alarmTime.displayTime
         val message = reminder.message.ifBlank {
-            context.getString(AppR.string.sleep_reminder_time_to_wind_down)
+            textContext.getString(AppR.string.sleep_reminder_time_to_wind_down)
         }
 
         val fullScreenIntent = Intent(context, AlarmRingActivity::class.java).apply {
@@ -649,8 +652,8 @@ object AlarmNotificationHelper {
             AlarmScheduler.NOTIFICATION_STOP_REQUEST_CODE,
             stopIntent
         )
-        val notificationTitle = context.getString(AppR.string.sleep_reminder_notification_title)
-        val notificationText = context.getString(
+        val notificationTitle = textContext.getString(AppR.string.sleep_reminder_notification_title)
+        val notificationText = textContext.getString(
             AppR.string.sleep_reminder_notification_text,
             message,
             timeText
@@ -662,7 +665,7 @@ object AlarmNotificationHelper {
         ).apply {
             setTextViewText(
                 AppR.id.alarm_notification_app_name,
-                context.getString(AppR.string.app_name)
+                textContext.getString(AppR.string.app_name)
             )
 
             setTextViewText(
@@ -679,12 +682,12 @@ object AlarmNotificationHelper {
 
             setTextViewText(
                 AppR.id.action_stop_alarm,
-                context.getString(AppR.string.sleep_reminder_action_stop_short)
+                textContext.getString(AppR.string.sleep_reminder_action_stop_short)
             )
 
             setTextViewText(
                 AppR.id.action_snooze_alarm,
-                context.getString(AppR.string.sleep_reminder_action_snooze_short)
+                textContext.getString(AppR.string.sleep_reminder_action_snooze_short)
             )
 
             setOnClickPendingIntent(
@@ -737,9 +740,10 @@ object AlarmNotificationHelper {
     }
 
     private fun formatNotificationAlarmTime(context: Context, hour: Int, minute: Int): NotificationAlarmTime {
+        val locale = AppLanguageHelper.selectedLocale(context)
         if (DateFormat.is24HourFormat(context)) {
             return NotificationAlarmTime(
-                time = "%02d:%02d".format(Locale.getDefault(), hour, minute),
+                time = "%02d:%02d".format(locale, hour, minute),
                 amPm = null
             )
         }
@@ -749,7 +753,7 @@ object AlarmNotificationHelper {
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
         }
-        val formatted = SimpleDateFormat("h:mm a", Locale.getDefault()).format(calendar.time).trim()
+        val formatted = SimpleDateFormat("h:mm a", locale).format(calendar.time).trim()
         val spaceIndex = formatted.lastIndexOf(' ')
         return if (spaceIndex > 0) {
             NotificationAlarmTime(
@@ -791,12 +795,13 @@ object AlarmNotificationHelper {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val textContext = AppLanguageHelper.localizedContext(context)
         val ringingChannel = NotificationChannel(
             AlarmReceiver.RINGING_CHANNEL_ID,
-            context.getString(AppR.string.sleep_reminder_ringing_channel_name),
+            textContext.getString(AppR.string.sleep_reminder_ringing_channel_name),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = context.getString(AppR.string.sleep_reminder_ringing_channel_description)
+            description = textContext.getString(AppR.string.sleep_reminder_ringing_channel_description)
             setSound(null, null)
             enableVibration(false)
             setShowBadge(false)
@@ -804,19 +809,19 @@ object AlarmNotificationHelper {
         }
         val normalChannel = NotificationChannel(
             AlarmReceiver.CHANNEL_ID,
-            context.getString(AppR.string.sleep_reminder_channel_name),
+            textContext.getString(AppR.string.sleep_reminder_channel_name),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = context.getString(AppR.string.sleep_reminder_channel_description)
+            description = textContext.getString(AppR.string.sleep_reminder_channel_description)
             enableVibration(true)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         val silentChannel = NotificationChannel(
             AlarmReceiver.SILENT_CHANNEL_ID,
-            context.getString(AppR.string.sleep_reminder_silent_channel_name),
+            textContext.getString(AppR.string.sleep_reminder_silent_channel_name),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = context.getString(AppR.string.sleep_reminder_silent_channel_description)
+            description = textContext.getString(AppR.string.sleep_reminder_silent_channel_description)
             setSound(null, null)
             enableVibration(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC

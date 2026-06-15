@@ -38,8 +38,11 @@ import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,6 +50,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -150,17 +154,26 @@ private fun StreakScreenContent(
                     Column {
                         Text(stringResource(R.string.streak_analytics), fontWeight = FontWeight.SemiBold)
                         Text(
-                            text = stringResource(R.string.premium_enabled),
+                            text = if (premiumEnabled) stringResource(R.string.premium_enabled)
+                            else stringResource(R.string.premium_preview),
                             fontSize = 11.sp,
-                            color = cs.onSurface.copy(alpha = 0.6f)
+                            color = if (premiumEnabled) Color(0xFF00FFA3) else cs.onSurface.copy(alpha = 0.6f)
                         )
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.hc_back))
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = { ctx.startActivity(Intent(ctx, SettingsActivity::class.java)) }
+                    ) {
                         Icon(
-                            Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = stringResource(R.string.streak_nav_back)
+                            imageVector = if (premiumEnabled) Icons.Outlined.Info else Icons.Outlined.Lock,
+                            contentDescription = stringResource(R.string.premium_enabled),
+                            tint = if (premiumEnabled) Color(0xFF00FFA3) else cs.onSurface.copy(alpha = 0.9f)
                         )
                     }
                 },
@@ -273,8 +286,10 @@ private fun StreakScreenContent(
                 item(key = "premiumRescue") {
                     PremiumRescueCard(
                         rescuesLeft = state.premiumRescuesLeft,
+                        behaviorState = state.streakBehaviorState,
                         shadow = cardShadow,
-                        border = border
+                        border = border,
+                        onUseRescue = onProtectStreak
                     )
                 }
             }
@@ -539,20 +554,10 @@ private fun StreakScreenContent(
     }
 
     if (state.recovery.visible) {
-        val remainingMinutesTotal = (state.recovery.remainingMillis / 60_000L).coerceAtLeast(0L)
-        val remainingText = if (remainingMinutesTotal <= 0L) {
-            stringResource(R.string.streak_recovery_expired)
-        } else {
-            stringResource(
-                R.string.streak_recovery_remaining,
-                remainingMinutesTotal / 60L,
-                remainingMinutesTotal % 60L
-            )
-        }
         StreakRecoveryDialog(
             streakDays = state.recovery.lostStreakDays,
             formattedPrice = state.recovery.displayPrice,
-            remainingText = remainingText,
+            remainingText = state.recovery.remainingText,
             onDismiss = onDismissLostRestore,
             onRestore = onRestoreStreak
         )
@@ -1175,8 +1180,10 @@ private fun ShieldStatusCard(
 @Composable
 private fun PremiumRescueCard(
     rescuesLeft: Int,
+    behaviorState: StreakBehaviorState,
     shadow: androidx.compose.ui.unit.Dp,
-    border: Color
+    border: Color,
+    onUseRescue: () -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
 
@@ -1206,6 +1213,23 @@ private fun PremiumRescueCard(
                 fontSize = 12.sp,
                 color = cs.onSurface.copy(alpha = 0.72f)
             )
+
+            Button(
+                onClick = onUseRescue,
+                enabled = rescuesLeft > 0 && behaviorState != StreakBehaviorState.LOST,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF00F5FF),
+                    contentColor = Color(0xFF061014),
+                    disabledContainerColor = cs.onSurface.copy(alpha = 0.08f),
+                    disabledContentColor = cs.onSurface.copy(alpha = 0.36f)
+                )
+            ) {
+                Text(
+                    text = stringResource(R.string.premium_rescue_use),
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }

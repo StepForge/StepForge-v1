@@ -66,8 +66,12 @@ class StreakViewModel(
                 val allDaily: List<DailySteps> = dailyDao.getAllSteps()
                     .filter { !it.date.startsWith("TEST-") }
 
-                val sortedAsc = allDaily.sortedBy { it.date }
-                val mapByDate: Map<String, Int> = allDaily.associate { it.date to it.steps }
+                val mapByDate: Map<String, Int> = allDaily
+                    .groupBy { it.date }
+                    .mapValues { entry -> entry.value.maxOf { it.steps } }
+                val sortedAsc = mapByDate
+                    .map { (date, steps) -> DailySteps(date = date, steps = steps) }
+                    .sortedBy { it.date }
 
                 val today = ymd.format(Date())
                 val todaySteps = mapByDate[today] ?: 0
@@ -110,20 +114,21 @@ class StreakViewModel(
                 val rescueUsedToday = rescueUsedDate == today
                 val rescuedActive = behavior.rescuedUntilMs > System.currentTimeMillis()
 
-                val todayCountsForStreak = StreakDayQualifier.qualifyDay(
+                val todayQualification = StreakDayQualifier.qualifyDay(
                     steps = todaySteps,
                     goal = goal,
                     behaviorBufferMinutes = bufferMinutes,
                     rescueUsedForDay = rescueUsedToday,
                     rescuedActive = rescuedActive
-                ).countsForStreak
+                )
 
                 val computedStreak = StreakAnalyticsEngine.computeCurrentStreakWithTodayOverride(
                     dailyByDate = mapByDate,
                     goal = goal,
                     today = today,
-                    todayCountsForStreak = todayCountsForStreak,
-                    protectedDates = protectedDates
+                    todayCountsForStreak = todayQualification.countsForStreak,
+                    protectedDates = protectedDates,
+                    todayProtectedBridge = todayQualification.countsForStreak && !todayQualification.reachedGoal
                 )
 
                 val currentStreak = if (behavior.state == StreakBehaviorState.LOST) {
@@ -227,7 +232,7 @@ class StreakViewModel(
                     showRescueDialog = behavior.showRescueDialog && isPremium,
                     showLostRestoreDialog = _ui.value.recovery.visible,
                     lostStreakSnapshot = lostSnapshot,
-                    recoveryWindowActive = _ui.value.recovery.visible,
+                    recoveryWindowActive = behavior.recoveryWindowActive || _ui.value.recovery.visible,
                     recovery = _ui.value.recovery
                 )
             }

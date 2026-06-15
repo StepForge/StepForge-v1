@@ -1,6 +1,7 @@
 package com.example.stepforge
 
 import android.app.Application
+import com.example.stepforge.core.AppLanguageHelper
 import com.example.stepforge.core.AppStateMigrationManager
 import com.example.stepforge.debug.AnrWatchdog
 import com.example.stepforge.debug.DebugInitializer
@@ -15,6 +16,7 @@ class StepForgeApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
+        AppLanguageHelper.initialize(this)
         DebugInitializer.init(this)
 
         MainScope().launch {

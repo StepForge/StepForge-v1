@@ -59,6 +59,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.stepforge.AchievementsActivity
 import com.example.stepforge.HistoryDetailActivity
 import com.example.stepforge.R
 import com.example.stepforge.data.DailySteps
@@ -117,6 +118,7 @@ internal fun HistoryRoute(
         weatherMood
     ) {
         HistoryBackend.buildState(
+            context = activity,
             stepsHistory = stepsHistory,
             waterHistory = waterHistory,
             sleepHistory = sleepHistory,
@@ -150,6 +152,9 @@ internal fun HistoryRoute(
                     putExtra("waterMl", day.waterMl)
                 }
             )
+        },
+        onViewAchievements = {
+            activity.startActivity(Intent(activity, AchievementsActivity::class.java))
         }
     )
 }
@@ -164,7 +169,8 @@ private fun HistoryScreen(
     onDateSelected: (LocalDate) -> Unit,
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
-    onOpenDetails: (HistoryDayUi) -> Unit
+    onOpenDetails: (HistoryDayUi) -> Unit,
+    onViewAchievements: () -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
     var activeSheet by remember { mutableStateOf<HistorySheetType?>(null) }
@@ -217,7 +223,14 @@ private fun HistoryScreen(
                 item {
                     HistoryCalendarCard(
                         state = state,
-                        onDateSelected = onDateSelected,
+                        onDateSelected = { date ->
+                            val day = state.calendarDays.firstOrNull { it.date == date }?.day
+                            if (day != null) {
+                                onOpenDetails(day)
+                            } else {
+                                onDateSelected(date)
+                            }
+                        },
                         onPreviousMonth = onPreviousMonth,
                         onNextMonth = onNextMonth
                     )
@@ -238,7 +251,7 @@ private fun HistoryScreen(
                 item {
                     HistoryAchievementsCard(
                         state = state,
-                        onViewAll = { activeSheet = HistorySheetType.ACHIEVEMENTS }
+                        onViewAll = onViewAchievements
                     )
                 }
             }

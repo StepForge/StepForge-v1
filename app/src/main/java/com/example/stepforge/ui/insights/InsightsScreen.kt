@@ -2,10 +2,15 @@
 
 package com.example.stepforge.ui.insights
 
+import com.example.stepforge.R
+
+import androidx.compose.ui.res.stringResource
+
 import android.content.Context
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import java.util.Locale
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
@@ -131,14 +136,14 @@ fun InsightsScreen(
                 title = {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
-                            text = "Insights",
+                            text = stringResource(R.string.wv2_nav_insights),
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 18.sp
                         )
 
                         Text(
                             modifier = Modifier.alpha(subtitleAlpha),
-                            text = "Activity overview",
+                            text = stringResource(R.string.hc_activity_overview),
                             fontSize = 11.sp,
                             color = cs.onSurface.copy(alpha = 0.55f)
                         )
@@ -148,7 +153,7 @@ fun InsightsScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.hc_back)
                         )
                     }
                 },
@@ -286,7 +291,7 @@ fun InsightsScreen(
                             IconButton(onClick = { sheet = null }) {
                                 Icon(
                                     imageVector = Icons.Filled.Close,
-                                    contentDescription = "Close"
+                                    contentDescription = stringResource(R.string.common_close)
                                 )
                             }
                         }
@@ -361,7 +366,7 @@ private fun PremiumTabs(
                 onClick = { onSelect(InsightsMode.WEEKLY) },
                 text = {
                     Text(
-                        text = "Weekly",
+                        text = stringResource(R.string.hc_weekly),
                         fontWeight = if (selectedMode == InsightsMode.WEEKLY)
                             FontWeight.Bold
                         else
@@ -379,7 +384,7 @@ private fun PremiumTabs(
                 onClick = { onSelect(InsightsMode.MONTHLY) },
                 text = {
                     Text(
-                        text = "Monthly",
+                        text = stringResource(R.string.hc_monthly),
                         fontWeight = if (selectedMode == InsightsMode.MONTHLY)
                             FontWeight.Bold
                         else
@@ -428,9 +433,9 @@ private fun LoadingInsightsCard() {
             modifier = Modifier.padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Loading insights...", fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.hc_loading_insights), fontWeight = FontWeight.SemiBold)
             Text(
-                "Analyzing your activity data...",
+                stringResource(R.string.hc_analyzing_activity),
                 color = cs.onSurface.copy(alpha = 0.7f),
                 fontSize = 12.sp
             )
@@ -503,7 +508,13 @@ private fun DateRangeCard(
                         fontSize = 13.sp
                     )
                     Text(
-                        text = "${formatNumber(totalSteps)} steps • Avg ${formatNumber(dailyAverage)} • $activeDays/$periodDays active",
+                        text = stringResource(
+                            R.string.hc_period_summary_format,
+                            formatNumber(totalSteps),
+                            formatNumber(dailyAverage),
+                            activeDays,
+                            periodDays
+                        ),
                         fontSize = 11.sp,
                         color = cs.onSurface.copy(alpha = 0.7f)
                     )
@@ -586,12 +597,12 @@ private fun HeroChartCard(
 
                         Column {
                             Text(
-                                text = "Steps Trend",
+                                text = stringResource(R.string.hc_steps_trend),
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp
                             )
                             Text(
-                                text = "Tap to explore details",
+                                text = stringResource(R.string.hc_tap_explore_details),
                                 fontSize = 10.sp,
                                 color = cs.onSurface.copy(alpha = 0.55f)
                             )
@@ -608,7 +619,7 @@ private fun HeroChartCard(
                         Spacer(modifier = Modifier.width(6.dp))
 
                         val t = if (data.trendLabel == "New") {
-                            "New"
+                            stringResource(R.string.hc_new)
                         } else {
                             if (data.trendPercent > 0) "+${data.trendPercent}%" else "${data.trendPercent}%"
                         }
@@ -635,9 +646,9 @@ private fun HeroChartCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    MiniInfo("Best", "${data.bestDayLabel} • ${formatNumber(data.bestDaySteps)}")
-                    MiniInfo("Worst", "${data.worstDayLabel} • ${formatNumber(data.worstDaySteps)}")
-                    MiniInfo("Peak", data.peakHourLabel)
+                    MiniInfo(stringResource(R.string.hc_best), "${data.bestDayLabel} • ${formatNumber(data.bestDaySteps)}")
+                    MiniInfo(stringResource(R.string.hc_worst), "${data.worstDayLabel} • ${formatNumber(data.worstDaySteps)}")
+                    MiniInfo(stringResource(R.string.hc_peak), data.peakHourLabel)
                 }
             }
         }
@@ -727,16 +738,16 @@ private fun QuickStatsGrid(
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             StatCard(
-                title = "Total Steps",
+                title = stringResource(R.string.hc_total_steps),
                 value = formatNumber(data.totalSteps),
-                desc = "Total amount of steps you walked in this period.",
+                desc = stringResource(R.string.hc_total_steps_desc),
                 modifier = Modifier.weight(1f),
                 onClick = onStatClick
             )
             StatCard(
-                title = "Daily Avg",
+                title = stringResource(R.string.hc_daily_avg),
                 value = formatNumber(data.dailyAverage),
-                desc = "Average steps per day. Great for tracking long-term consistency.",
+                desc = stringResource(R.string.hc_daily_avg_desc),
                 modifier = Modifier.weight(1f),
                 onClick = onStatClick
             )
@@ -744,16 +755,16 @@ private fun QuickStatsGrid(
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             StatCard(
-                title = "Active Days",
+                title = stringResource(R.string.hc_active_days),
                 value = data.activeDays.toString(),
-                desc = "Days where you reached a minimum activity threshold.",
+                desc = stringResource(R.string.hc_active_days_desc),
                 modifier = Modifier.weight(1f),
                 onClick = onStatClick
             )
             StatCard(
-                title = "Consistency",
+                title = stringResource(R.string.hc_consistency),
                 value = "${data.consistencyScore}/100",
-                desc = "Measures how stable your activity is across the period.",
+                desc = stringResource(R.string.hc_consistency_desc),
                 modifier = Modifier.weight(1f),
                 onClick = onStatClick
             )
@@ -816,7 +827,7 @@ private fun StatCard(
                     color = cs.onSurface
                 )
                 Text(
-                    text = "Tap for details",
+                    text = stringResource(R.string.hc_tap_for_details),
                     fontSize = 10.sp,
                     color = Color(0xFF00FFA3).copy(alpha = 0.8f)
                 )
@@ -839,11 +850,11 @@ private fun ActivityScoreCard(
         .coerceIn(0, 100)
 
     val scoreLabel = when {
-        score >= 85 -> "Elite"
-        score >= 70 -> "Strong"
-        score >= 50 -> "Average"
-        score >= 30 -> "Low"
-        else -> "Very Low"
+        score >= 85 -> stringResource(R.string.hc_score_elite)
+        score >= 70 -> stringResource(R.string.hc_score_strong)
+        score >= 50 -> stringResource(R.string.hc_score_average)
+        score >= 30 -> stringResource(R.string.hc_score_low)
+        else -> stringResource(R.string.hc_score_very_low)
     }
 
     val progressAnim by animateFloatAsState(
@@ -886,7 +897,7 @@ private fun ActivityScoreCard(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Activity Score",
+                text = stringResource(R.string.hc_activity_score),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -910,7 +921,7 @@ private fun ActivityScoreCard(
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = "Consistency + Goal success",
+                        text = stringResource(R.string.hc_score_formula),
                         fontSize = 11.sp,
                         color = cs.onSurface.copy(alpha = 0.65f)
                     )
@@ -938,13 +949,13 @@ private fun ActivityScoreCard(
             }
 
             Text(
-                text = "Peak Hour: ${data.peakHourLabel} • Active days: ${data.activeDays}",
+                text = stringResource(R.string.hc_peak_active_format, data.peakHourLabel, data.activeDays),
                 fontSize = 12.sp,
                 color = cs.onSurface.copy(alpha = 0.75f)
             )
 
             Text(
-                text = "Tap to learn how this score is calculated",
+                text = stringResource(R.string.hc_tap_score_info),
                 fontSize = 10.sp,
                 color = Color(0xFF00FFA3).copy(alpha = 0.85f)
             )
@@ -996,7 +1007,7 @@ private fun SmartSummaryCard(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "Smart Summary",
+                text = stringResource(R.string.hc_smart_summary),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -1011,7 +1022,7 @@ private fun SmartSummaryCard(
             }
 
             Text(
-                text = "Tap to view full summary",
+                text = stringResource(R.string.hc_tap_full_summary),
                 fontSize = 10.sp,
                 color = Color(0xFF00FFA3).copy(alpha = 0.85f)
             )
@@ -1030,19 +1041,15 @@ private fun TrendDetailsSheet(
     val cs = MaterialTheme.colorScheme
 
     val tipsWeekly = listOf(
-        "Try to stay active earlier in the day for better consistency.",
-        "A short 15-minute walk daily is more powerful than one big day.",
-        "Consistency beats intensity. Small daily wins matter most.",
-        "Try adding a quick evening walk after dinner.",
-        "Set a small goal and increase it gradually every week."
+        stringResource(R.string.hc_insight_tip_consistency),
+        stringResource(R.string.hc_insight_tip_walk),
+        stringResource(R.string.hc_insight_tip_goal)
     )
 
     val tipsMonthly = listOf(
-        "Your monthly progress is shaped by habits, not motivation. Build routines.",
-        "If your steps drop mid-month, try planning 2 active days ahead.",
-        "Try increasing your daily average by just +300 steps this month.",
-        "Consistency streaks create the strongest long-term improvement.",
-        "Monthly performance improves when weekends stay active too."
+        stringResource(R.string.hc_insight_tip_consistency),
+        stringResource(R.string.hc_insight_tip_goal),
+        stringResource(R.string.hc_insight_tip_weekends)
     )
 
     val tipText = remember(mode) {
@@ -1052,7 +1059,7 @@ private fun TrendDetailsSheet(
     val bestColor = Color(0xFF00FFA3)
     val worstColor = Color(0xFFFF4D6D)
 
-    val periodTitle = if (mode == InsightsMode.WEEKLY) "Last 7 days" else "Last 30 days"
+    val periodTitle = if (mode == InsightsMode.WEEKLY) stringResource(R.string.hc_last_7_days) else stringResource(R.string.hc_last_30_days)
 
     val bestIndex = remember(data.chartData) {
         data.chartData.indexOfFirst { dayShortName(it.date) == data.bestDayLabel }
@@ -1081,14 +1088,14 @@ private fun TrendDetailsSheet(
     ) {
 
         Text(
-            text = "Steps Trend Details",
+            text = stringResource(R.string.hc_steps_trend_details),
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = cs.onSurface
         )
 
         Text(
-            text = "This breakdown highlights your strongest and weakest days over the $periodTitle.",
+            text = stringResource(R.string.hc_trend_details_info, periodTitle),
             fontSize = 13.sp,
             color = cs.onSurface.copy(alpha = 0.72f),
             lineHeight = 18.sp
@@ -1110,7 +1117,7 @@ private fun TrendDetailsSheet(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "Best Day",
+                        text = stringResource(R.string.hc_best_day),
                         fontSize = 11.sp,
                         color = cs.onSurface.copy(alpha = 0.65f)
                     )
@@ -1131,7 +1138,7 @@ private fun TrendDetailsSheet(
                     }
 
                     Text(
-                        text = "${formatNumber(data.bestDaySteps)} steps",
+                        text = stringResource(R.string.hc_steps_format, formatNumber(data.bestDaySteps)),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = bestColor
@@ -1154,7 +1161,7 @@ private fun TrendDetailsSheet(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "Worst Day",
+                        text = stringResource(R.string.hc_worst_day),
                         fontSize = 11.sp,
                         color = cs.onSurface.copy(alpha = 0.65f)
                     )
@@ -1175,7 +1182,7 @@ private fun TrendDetailsSheet(
                     }
 
                     Text(
-                        text = "${formatNumber(data.worstDaySteps)} steps",
+                        text = stringResource(R.string.hc_steps_format, formatNumber(data.worstDaySteps)),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = worstColor
@@ -1200,7 +1207,7 @@ private fun TrendDetailsSheet(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Peak Hour",
+                    text = stringResource(R.string.hc_peak_hour),
                     fontSize = 11.sp,
                     color = cs.onSurface.copy(alpha = 0.65f)
                 )
@@ -1213,7 +1220,7 @@ private fun TrendDetailsSheet(
                 )
 
                 Text(
-                    text = "This is the time range where you were most active in this period.",
+                    text = stringResource(R.string.hc_peak_hour_info),
                     fontSize = 13.sp,
                     color = cs.onSurface.copy(alpha = 0.72f),
                     lineHeight = 18.sp
@@ -1242,14 +1249,14 @@ private fun TrendDetailsSheet(
                 ) {
 
                     Text(
-                        text = "Monthly Breakdown",
+                        text = stringResource(R.string.hc_monthly_breakdown),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = cs.onSurface
                     )
 
                     Text(
-                        text = "Your month is grouped into weekly performance blocks.",
+                        text = stringResource(R.string.hc_monthly_breakdown_info),
                         fontSize = 12.sp,
                         color = cs.onSurface.copy(alpha = 0.72f),
                         lineHeight = 16.sp
@@ -1271,7 +1278,7 @@ private fun TrendDetailsSheet(
                                 )
 
                                 Text(
-                                    text = "${formatNumber(total)} steps",
+                                    text = stringResource(R.string.hc_steps_format, formatNumber(total)),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = if (index == bestWeekIndex) Color(0xFF00FFA3)
@@ -1287,7 +1294,7 @@ private fun TrendDetailsSheet(
                     }
 
                     Text(
-                        text = "Best Week: ${weekLabel(bestWeekIndex)} • ${formatNumber(maxWeek)} steps",
+                        text = stringResource(R.string.hc_best_week_format, weekLabel(bestWeekIndex), formatNumber(maxWeek)),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF00FFA3)
@@ -1299,12 +1306,13 @@ private fun TrendDetailsSheet(
             HeatmapCard(
                 chartData = data.chartData,
                 startDate = data.startDate,
-                title = "Consistency Heatmap",
-                subtitle = "A premium view of how consistent your activity was across the month."
+                title = stringResource(R.string.hc_consistency_heatmap),
+                subtitle = stringResource(R.string.hc_consistency_heatmap_info)
             )
 
-            val streakInfo = remember(data.chartData) {
-                calculateStreakInfo(data.chartData)
+            val context = LocalContext.current
+            val streakInfo = remember(data.chartData, context) {
+                calculateStreakInfo(data.chartData, context)
             }
 
             Surface(
@@ -1317,14 +1325,14 @@ private fun TrendDetailsSheet(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "Streak System",
+                        text = stringResource(R.string.hc_streak_system),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = cs.onSurface
                     )
 
                     Text(
-                        text = "Premium tracking of your daily momentum and habits.",
+                        text = stringResource(R.string.hc_streak_system_info),
                         fontSize = 12.sp,
                         color = cs.onSurface.copy(alpha = 0.72f),
                         lineHeight = 16.sp
@@ -1335,15 +1343,15 @@ private fun TrendDetailsSheet(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         StreakMiniCard(
-                            title = "Current Streak",
-                            value = "${streakInfo.currentStreak} days",
+                            title = stringResource(R.string.hc_current_streak),
+                            value = stringResource(R.string.hc_days_value, streakInfo.currentStreak),
                             accent = Color(0xFF00FFA3),
                             modifier = Modifier.weight(1f)
                         )
 
                         StreakMiniCard(
-                            title = "Best Streak",
-                            value = "${streakInfo.bestStreak} days",
+                            title = stringResource(R.string.hc_best_streak),
+                            value = stringResource(R.string.hc_days_value, streakInfo.bestStreak),
                             accent = Color(0xFF00F5FF),
                             modifier = Modifier.weight(1f)
                         )
@@ -1370,7 +1378,7 @@ private fun TrendDetailsSheet(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Tip",
+                    text = stringResource(R.string.hc_tip),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF00FFA3)
@@ -1415,13 +1423,9 @@ private fun calculateWeekBuckets(chartData: List<DayStepEntry>): List<Int> {
     return sums
 }
 
+@Composable
 private fun weekLabel(index: Int): String {
-    return when (index) {
-        0 -> "Week 1"
-        1 -> "Week 2"
-        2 -> "Week 3"
-        else -> "Week 4"
-    }
+    return stringResource(R.string.hc_week_number, index + 1)
 }
 
 
@@ -1605,7 +1609,7 @@ private fun HeatmapCard(
             }
 
             Text(
-                text = "Brighter blocks mean higher activity days.",
+                text = stringResource(R.string.hc_heatmap_brightness_info),
                 fontSize = 11.sp,
                 color = cs.onSurface.copy(alpha = 0.60f)
             )
@@ -1679,12 +1683,12 @@ private data class StreakInfo(
     val message: String
 )
 
-private fun calculateStreakInfo(chartData: List<DayStepEntry>): StreakInfo {
+private fun calculateStreakInfo(chartData: List<DayStepEntry>, context: Context): StreakInfo {
     if (chartData.isEmpty()) {
         return StreakInfo(
             currentStreak = 0,
             bestStreak = 0,
-            message = "No activity data available yet."
+            message = context.getString(R.string.hc_no_activity_data)
         )
     }
 
@@ -1711,11 +1715,11 @@ private fun calculateStreakInfo(chartData: List<DayStepEntry>): StreakInfo {
     }
 
     val msg = when {
-        current >= 14 -> "Elite consistency. You're building a real habit."
-        current >= 7 -> "Strong momentum. Keep going to reach a 14-day streak."
-        current >= 3 -> "Nice streak. You're close to forming a stable routine."
-        current == 1 -> "Good start. Try to make tomorrow another active day."
-        else -> "No current streak. Start today and build momentum."
+        current >= 14 -> context.getString(R.string.hc_streak_elite)
+        current >= 7 -> context.getString(R.string.hc_streak_strong)
+        current >= 3 -> context.getString(R.string.hc_streak_nice)
+        current == 1 -> context.getString(R.string.hc_streak_start)
+        else -> context.getString(R.string.hc_streak_none)
     }
 
     return StreakInfo(
@@ -1775,32 +1779,32 @@ private fun ActivityScoreDetailsSheet(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = "How Activity Score Works",
+            text = stringResource(R.string.hc_how_score_works),
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
         )
 
         Text(
-            text = "Your Activity Score is calculated using a mix of consistency and goal success.",
+            text = stringResource(R.string.hc_score_explanation),
             fontSize = 13.sp,
             color = cs.onSurface.copy(alpha = 0.75f),
             lineHeight = 18.sp
         )
 
         Text(
-            text = "• Consistency Score: ${data.consistencyScore}/100",
+            text = stringResource(R.string.hc_consistency_score_format, data.consistencyScore),
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold
         )
 
         Text(
-            text = "• Goal Success: ${data.goalSuccess} days",
+            text = stringResource(R.string.hc_goal_success_format, data.goalSuccess),
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold
         )
 
         Text(
-            text = "Tip: Improve your score by walking consistently, not only on one or two big days.",
+            text = stringResource(R.string.hc_score_tip),
             fontSize = 13.sp,
             color = Color(0xFF00FFA3),
             lineHeight = 18.sp
@@ -1821,7 +1825,7 @@ private fun SummaryDetailsSheet(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(
-            text = "Full Smart Summary",
+            text = stringResource(R.string.hc_full_smart_summary),
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
         )
@@ -1885,15 +1889,7 @@ private fun dayShortName(date: String): String {
         val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
         val localDate = java.time.LocalDate.parse(date, formatter)
 
-        when (localDate.dayOfWeek) {
-            java.time.DayOfWeek.MONDAY -> "Mon"
-            java.time.DayOfWeek.TUESDAY -> "Tue"
-            java.time.DayOfWeek.WEDNESDAY -> "Wed"
-            java.time.DayOfWeek.THURSDAY -> "Thu"
-            java.time.DayOfWeek.FRIDAY -> "Fri"
-            java.time.DayOfWeek.SATURDAY -> "Sat"
-            java.time.DayOfWeek.SUNDAY -> "Sun"
-        }
+        localDate.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.getDefault())
     } catch (_: Exception) {
         "?"
     }

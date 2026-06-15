@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
 import com.example.stepforge.R
+import com.example.stepforge.core.AppLanguageHelper
 
 class SleepTrackerApplication : Application() {
 
@@ -16,13 +17,14 @@ class SleepTrackerApplication : Application() {
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = getSystemService(NotificationManager::class.java)
+            val textContext = AppLanguageHelper.localizedContext(this)
 
             NotificationChannel(
                 ALARM_CHANNEL_ID,
-                getString(R.string.sleep_channel_alarm_name),
+                textContext.getString(R.string.sleep_channel_alarm_name),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = getString(R.string.sleep_channel_alarm_desc)
+                description = textContext.getString(R.string.sleep_channel_alarm_desc)
                 setSound(null, null)
                 enableVibration(false)
                 enableLights(true)
@@ -31,10 +33,10 @@ class SleepTrackerApplication : Application() {
 
             NotificationChannel(
                 ALARM_SERVICE_CHANNEL_ID,
-                getString(R.string.sleep_channel_alarm_service_name),
+                textContext.getString(R.string.sleep_channel_alarm_service_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = getString(R.string.sleep_channel_alarm_service_desc)
+                description = textContext.getString(R.string.sleep_channel_alarm_service_desc)
                 setSound(null, null)
                 enableVibration(false)
                 setShowBadge(false)
@@ -43,10 +45,10 @@ class SleepTrackerApplication : Application() {
 
             NotificationChannel(
                 TRACKING_CHANNEL_ID,
-                getString(R.string.sleep_channel_tracking_name),
+                textContext.getString(R.string.sleep_channel_tracking_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = getString(R.string.sleep_channel_tracking_desc)
+                description = textContext.getString(R.string.sleep_channel_tracking_desc)
                 setShowBadge(false)
                 manager.createNotificationChannel(this)
             }

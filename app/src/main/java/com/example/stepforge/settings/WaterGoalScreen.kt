@@ -1,5 +1,9 @@
 package com.example.stepforge.settings
 
+import com.example.stepforge.R
+
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -75,7 +79,7 @@ fun WaterGoalScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Daily Water Goal", fontWeight = FontWeight.SemiBold) },
+                title = { Text(stringResource(R.string.hc_daily_water_goal), fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null)
@@ -101,7 +105,7 @@ fun WaterGoalScreen(onBack: () -> Unit) {
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "Goal",
+                        text = stringResource(R.string.goal),
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
                         color = cs.onSurface
@@ -150,14 +154,14 @@ fun WaterGoalScreen(onBack: () -> Unit) {
                                 .background(neon, RoundedCornerShape(14.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                        Text("Save", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.hc_save), color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
             }
 
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "Tip: Start with a reachable goal (e.g., 2000 ml) and adjust based on your routine.",
+                text = stringResource(R.string.hc_water_goal_tip),
                 color = cs.onSurface.copy(alpha = 0.7f),
                 fontSize = 12.sp
             )

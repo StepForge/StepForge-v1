@@ -54,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -65,6 +66,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import com.example.stepforge.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,8 +113,8 @@ fun DebugPanelScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Debug Console", fontWeight = FontWeight.Bold)
-                        Text("${filtered.size} logs", fontSize = 11.sp, color = cs.onSurface.copy(alpha = 0.65f))
+                        Text(stringResource(R.string.debug_console), fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.debug_logs_count, filtered.size), fontSize = 11.sp, color = cs.onSurface.copy(alpha = 0.65f))
                     }
                 },
                 navigationIcon = {
@@ -139,10 +141,10 @@ fun DebugPanelScreen(
                             if (file != null) {
                                 val shared = DebugLogExporter.shareFile(ctx, file)
                                 if (!shared) {
-                                    Toast.makeText(ctx, "Share failed", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(ctx, ctx.getString(R.string.debug_share_failed), Toast.LENGTH_SHORT).show()
                                 }
                             } else {
-                                Toast.makeText(ctx, "Export failed", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(ctx, ctx.getString(R.string.debug_export_failed), Toast.LENGTH_SHORT).show()
                             }
                         }
                     ) {
@@ -171,7 +173,7 @@ fun DebugPanelScreen(
                 value = query,
                 onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search logs") },
+                placeholder = { Text(stringResource(R.string.debug_search_logs)) },
                 colors = OutlinedTextFieldDefaults.colors()
             )
 
@@ -179,7 +181,7 @@ fun DebugPanelScreen(
                 value = packageFilter,
                 onValueChange = { packageFilter = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Package filter") },
+                placeholder = { Text(stringResource(R.string.debug_package_filter)) },
                 colors = OutlinedTextFieldDefaults.colors()
             )
 
@@ -187,7 +189,7 @@ fun DebugPanelScreen(
                 value = threadFilter,
                 onValueChange = { threadFilter = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Thread filter") },
+                placeholder = { Text(stringResource(R.string.debug_thread_filter)) },
                 colors = OutlinedTextFieldDefaults.colors()
             )
 
@@ -298,7 +300,8 @@ private fun DebugLogDetailDialog(
     entry: DebugLogEntry,
     onDismiss: () -> Unit
 ) {
-    val analysis = remember(entry) { DebugIssueAnalyzer.analyze(entry) }
+    val context = LocalContext.current
+    val analysis = remember(entry, context) { DebugIssueAnalyzer.analyze(context, entry) }
     val sdf = remember { SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault()) }
     val scrollState = rememberScrollState()
 
@@ -306,11 +309,11 @@ private fun DebugLogDetailDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.common_close))
             }
         },
         title = {
-            Text("Log Detail", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.debug_log_detail), fontWeight = FontWeight.Bold)
         },
         text = {
             Column(
@@ -320,24 +323,24 @@ private fun DebugLogDetailDialog(
                     .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("Time: ${sdf.format(Date(entry.timestamp))}")
-                Text("Level: ${entry.level}")
-                Text("Tag: ${entry.tag}")
-                Text("Thread: ${entry.threadName}")
-                Text("Class: ${entry.className}")
-                Text("Method: ${entry.methodName}")
-                Text("Line: ${entry.lineNumber}")
-                Text("Message: ${entry.message}")
+                Text(stringResource(R.string.debug_time_format, sdf.format(Date(entry.timestamp))))
+                Text(stringResource(R.string.debug_level_format, entry.level))
+                Text(stringResource(R.string.debug_tag_format, entry.tag))
+                Text(stringResource(R.string.debug_thread_format, entry.threadName))
+                Text(stringResource(R.string.debug_class_format, entry.className))
+                Text(stringResource(R.string.debug_method_format, entry.methodName))
+                Text(stringResource(R.string.debug_line_format, entry.lineNumber))
+                Text(stringResource(R.string.debug_message_format, entry.message))
 
                 if (!entry.stackTrace.isNullOrBlank()) {
-                    Text("Stacktrace:", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.debug_stacktrace), fontWeight = FontWeight.Bold)
                     Text(entry.stackTrace!!)
                 }
 
-                Text("Probable cause:", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.debug_probable_cause), fontWeight = FontWeight.Bold)
                 Text(analysis.probableCause)
 
-                Text("Suggestion:", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.debug_suggestion), fontWeight = FontWeight.Bold)
                 Text(analysis.suggestion)
             }
         }

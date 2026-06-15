@@ -640,7 +640,8 @@
     <string name="sleep_stage_rem_benefit_2">Creativity</string>
     <string name="sleep_stage_rem_benefit_3">Emotional balance</string>
     <string name="sleep_stage_awake_benefit_1">Natural sleep rhythm</string>
-
+    <string name="sleep_manual_date_title">Sleep date</string>
+    <string name="sleep_manual_date_hint">Tap to choose another day for manual sleep.</string>
 
     <string name="wv2_title">Workouts</string>
     <string name="wv2_subtitle_short">Train. Move. Progress.</string>
@@ -1014,7 +1015,108 @@
     <string name="ach_unit_workouts">workouts</string>
     <string name="ach_unit_minutes">min</string>
     <string name="ach_unit_times">times</string>
-    <string name="ach_share_app_subtitle_clean">Step, streak and achievement companion</string>
-    <string name="ach_share_app_cta_clean">Track your progress and build better habits.</string>
+    <string name="ach_share_app_subtitle_clean">Designed to keep you moving.</string>
+    <string name="ach_share_app_cta_clean">Track steps, build streaks, and celebrate every milestone.</string>
+    <string name="premium_rescue_use">Use Rescue</string>
+    <string name="debug_console">Debug Console</string>
+    <string name="debug_logs_count">%1$d logs</string>
+    <string name="debug_share_failed">Share failed</string>
+    <string name="debug_export_failed">Export failed</string>
+    <string name="debug_search_logs">Search logs</string>
+    <string name="debug_package_filter">Package filter</string>
+    <string name="debug_thread_filter">Thread filter</string>
+    <string name="debug_log_detail">Log Detail</string>
+    <string name="debug_time_format">Time: %1$s</string>
+    <string name="debug_level_format">Level: %1$s</string>
+    <string name="debug_tag_format">Tag: %1$s</string>
+    <string name="debug_thread_format">Thread: %1$s</string>
+    <string name="debug_class_format">Class: %1$s</string>
+    <string name="debug_method_format">Method: %1$s</string>
+    <string name="debug_line_format">Line: %1$d</string>
+    <string name="debug_message_format">Message: %1$s</string>
+    <string name="debug_stacktrace">Stacktrace:</string>
+    <string name="debug_probable_cause">Probable cause:</string>
+    <string name="debug_suggestion">Suggestion:</string>
+    <string name="debug_cause_null">A nullable object was accessed without a safety check.</string>
+    <string name="debug_suggestion_null">Check the referenced object and add null validation before use.</string>
+    <string name="debug_cause_state">The app entered an invalid runtime state for the requested operation.</string>
+    <string name="debug_suggestion_state">Inspect the surrounding state transitions and guard the operation with preconditions.</string>
+    <string name="debug_cause_security">A permission, package identity, or restricted API issue occurred.</string>
+    <string name="debug_suggestion_security">Verify manifest permissions, runtime permissions, and external service configuration.</string>
+    <string name="debug_cause_database">A local database query, migration, or entity mismatch may have failed.</string>
+    <string name="debug_suggestion_database">Check DAO queries, migration versioning, and entity-field compatibility.</string>
+    <string name="debug_cause_firebase">A Firebase API request or authentication flow may have failed.</string>
+    <string name="debug_suggestion_firebase">Verify Firebase configuration, connectivity, auth state, and request payload.</string>
+    <string name="debug_cause_unknown">No high-confidence automatic diagnosis is available.</string>
+    <string name="debug_suggestion_unknown">Inspect the full stack trace, related logs, and runtime context.</string>
 
+    <!-- Achievement unlock instructions -->
+    <string name="ach_unlock_01">Take at least one step so StepForge can record your first movement.</string>
+    <string name="ach_unlock_02">Reach your daily step goal on any day.</string>
+    <string name="ach_unlock_03">Reach 20,000 steps in a single day.</string>
+    <string name="ach_unlock_04">Reach 30,000 steps in a single day.</string>
+    <string name="ach_unlock_05">Accumulate 50,000 total steps across all recorded days.</string>
+    <string name="ach_unlock_06">Accumulate 250,000 total steps across all recorded days.</string>
+    <string name="ach_unlock_07">Accumulate 500,000 total steps across all recorded days.</string>
+    <string name="ach_unlock_08">Accumulate 1,000,000 total steps across all recorded days.</string>
+    <string name="ach_unlock_09">Accumulate 5 km of total distance from your recorded steps.</string>
+    <string name="ach_unlock_10">Accumulate 25 km of total distance from your recorded steps.</string>
+    <string name="ach_unlock_11">Accumulate 100 km of total distance from your recorded steps.</string>
+    <string name="ach_unlock_12">Accumulate 42.2 km of total distance from your recorded steps.</string>
+    <string name="ach_unlock_13">Accumulate 1,000 km of total distance from your recorded steps.</string>
+    <string name="ach_unlock_14">Burn 1,000 total calories from your recorded steps.</string>
+    <string name="ach_unlock_15">Burn 5,000 total calories from your recorded steps.</string>
+    <string name="ach_unlock_16">Burn 50,000 total calories from your recorded steps.</string>
+    <string name="ach_unlock_17">Burn 1,000 calories in a single day.</string>
+    <string name="ach_unlock_18">Record at least 60 active minutes in a single day.</string>
+    <string name="ach_unlock_19">Record at least 120 active minutes in a single day.</string>
+    <string name="ach_unlock_20">Accumulate 6,000 active minutes across all recorded days.</string>
+    <string name="ach_unlock_21">Complete your first workout session.</string>
+    <string name="ach_unlock_22">Complete 10 workout sessions.</string>
+    <string name="ach_unlock_23">Complete 50 workout sessions.</string>
+    <string name="ach_unlock_24">Complete 10 walking workout sessions.</string>
+    <string name="ach_unlock_25">Complete 10 running workout sessions.</string>
+    <string name="ach_unlock_26">Complete 10 cycling workout sessions.</string>
+    <string name="ach_unlock_27">Keep your daily goal streak alive for 3 days.</string>
+    <string name="ach_unlock_28">Keep your daily goal streak alive for 7 days.</string>
+    <string name="ach_unlock_29">Keep your daily goal streak alive for 30 days.</string>
+    <string name="ach_unlock_30">Keep your daily goal streak alive for 100 days.</string>
+    <string name="ach_unlock_31">Use a Streak Shield once to protect your streak.</string>
+    <string name="ach_unlock_32">Restore a lost streak once and keep going.</string>
+    <string name="ach_unlock_33">Be active on 3 different days within any 7-day window.</string>
+    <string name="ach_unlock_34">Be active on 5 different days within any 7-day window.</string>
+    <string name="ach_unlock_35">Be active on all 7 days within any 7-day window.</string>
+    <string name="ach_unlock_36">Be active on 15 different days within any 30-day window.</string>
+    <string name="ach_unlock_37">Be active on 25 different days within any 30-day window.</string>
+    <string name="ach_unlock_38">Reach your daily step goal 10 times.</string>
+    <string name="ach_unlock_39">Reach your daily step goal 50 times.</string>
+    <string name="ach_unlock_40">Reach your daily step goal 100 times.</string>
+    <string name="ach_unlock_41">Complete 10 workouts between 05:00 and 08:59.</string>
+    <string name="ach_unlock_42">Complete 10 workouts at night between 21:00 and 04:59.</string>
+    <string name="ach_unlock_43">Be active on 10 weekend days.</string>
+    <string name="ach_unlock_44">Record activity on a rainy day when rainy weather is active.</string>
+    <string name="ach_unlock_45">Record activity on a snowy day when snowy weather is active.</string>
+    <string name="ach_unlock_46">After a low-activity day, come back and reach your goal again.</string>
+    <string name="ach_unlock_47">Set a new personal best for daily steps.</string>
+    <string name="ach_unlock_48">Create one of your best step days by setting a personal record.</string>
+    <string name="ach_unlock_49">Be active on at least 5 days within a 7-day week.</string>
+    <string name="ach_unlock_50">Accumulate 5,000,000 total steps across all recorded days.</string>
+    <string name="ach_unlock_generic">Complete the required action for this achievement.</string>
+
+
+    <!-- History detail editing -->
+    <string name="h3_adjust_day_data">Adjust this day</string>
+    <string name="h3_adjust_day_data_info">Correct the saved steps or water for this selected history day. Today also refreshes live tracking.</string>
+    <string name="h3_adjust_steps">Steps</string>
+    <string name="h3_adjust_water">Water (ml)</string>
+    <string name="h3_save_steps">Save steps</string>
+    <string name="h3_save_water">Save water</string>
+    <string name="h3_steps_saved">Steps updated</string>
+    <string name="h3_water_saved">Water updated</string>
+
+    <!-- History detail edit dialog -->
+    <string name="h3_edit">Edit</string>
+    <string name="h3_edit_day">Edit day</string>
+    <string name="h3_save_changes">Save changes</string>
+    <string name="h3_day_updated">Day updated</string>
 </resources>

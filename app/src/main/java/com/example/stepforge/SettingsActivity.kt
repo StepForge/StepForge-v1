@@ -46,7 +46,7 @@ class SettingsActivity : ComponentActivity() {
             val allGranted = granted.containsAll(required)
 
             if (allGranted) {
-                Toast.makeText(this, "Health Connect Connected ✅", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.hc_health_connected), Toast.LENGTH_SHORT).show()
 
                 // Steps sync (mevcut)
                 healthSyncManager.syncStepsData()
@@ -63,7 +63,7 @@ class SettingsActivity : ComponentActivity() {
             } else {
                 val missing = required - granted
                 Log.e("HealthConnect", "Missing permissions: $missing")
-                Toast.makeText(this, "Permissions Missing ❌", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.hc_permissions_missing), Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -81,11 +81,11 @@ class SettingsActivity : ComponentActivity() {
         val availability = HealthConnectClient.getSdkStatus(this)
 
         if (availability == HealthConnectClient.SDK_UNAVAILABLE) {
-            Toast.makeText(this, "Health Connect not supported ❌", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.hc_health_not_supported), Toast.LENGTH_LONG).show()
             return
         }
         if (availability == HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) {
-            Toast.makeText(this, "Please install/update Health Connect ⚠️", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.hc_install_health_connect), Toast.LENGTH_LONG).show()
             return
         }
 
@@ -95,8 +95,8 @@ class SettingsActivity : ComponentActivity() {
             Log.d("HealthConnect", "Launching permissions: $perms")
             permissionLauncher.launch(perms)
         } catch (e: Exception) {
-            Log.e("HealthConnect", "Error launching permissions", e)
-            Toast.makeText(this, "Error launching permissions", Toast.LENGTH_SHORT).show()
+            Log.e("HealthConnect", getString(R.string.hc_permission_launch_error), e)
+            Toast.makeText(this, getString(R.string.hc_permission_launch_error), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -136,7 +136,7 @@ class SettingsActivity : ComponentActivity() {
                 calendar.timeInMillis,
                 pendingIntent
             )
-            Toast.makeText(this, "Reminder set for ${calendar.time}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.hc_reminder_set_format, calendar.time.toString()), Toast.LENGTH_SHORT).show()
         } catch (e: SecurityException) {
             Log.e("Settings", "Alarm scheduling failed", e)
         }

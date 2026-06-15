@@ -1,5 +1,9 @@
 package com.example.stepforge.settings
 
+import com.example.stepforge.R
+
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -95,7 +99,7 @@ fun AdjustStepsCard(
             Spacer(Modifier.width(10.dp))
 
             Text(
-                text = "Synchronization notice • Tap to read",
+                text = stringResource(R.string.hc_sync_notice),
                 color = Color(0xFFFFB74D),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold
@@ -146,7 +150,7 @@ fun AdjustStepsCard(
                         singleLine = true,
                         placeholder = {
                             Text(
-                                if (currentSteps > 0) currentSteps.toString() else "Enter steps",
+                                if (currentSteps > 0) currentSteps.toString() else stringResource(R.string.hc_enter_steps),
                                 color = textSub
                             )
                         },
@@ -185,7 +189,7 @@ fun AdjustStepsCard(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            "Live Ring",
+                            stringResource(R.string.hc_live_ring),
                             color = textMain,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
@@ -200,7 +204,7 @@ fun AdjustStepsCard(
         val previewTarget = text.toIntOrNull() ?: currentSteps
         val pct = (previewTarget.toFloat() / dailyGoal * 100f).coerceIn(0f, 999f)
         Text(
-            text = "Preview: ${pct.roundToInt()}% of daily goal",
+            text = stringResource(R.string.hc_goal_preview_format, pct.roundToInt()),
             color = textSub,
             fontSize = 13.sp
         )
@@ -227,7 +231,7 @@ fun AdjustStepsCard(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "APPLY",
+                    stringResource(R.string.hc_apply).uppercase(),
                     color = if (isDark) Color.Black else Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp
@@ -263,7 +267,7 @@ fun AdjustStepsCard(
                 tint = textMain
             )
             Spacer(Modifier.width(8.dp))
-            Text("Reset Steps", fontSize = 15.sp)
+            Text(stringResource(R.string.hc_reset_steps), fontSize = 15.sp)
         }
 
         if (showWarningDialog) {
@@ -280,20 +284,20 @@ fun AdjustStepsCard(
                         )
                     ) {
                         Text(
-                            "Understood",
+                            stringResource(R.string.hc_understood),
                             color = if (isDark) Color.Black else Color.White
                         )
                     }
                 },
                 title = {
                     Text(
-                        "Synchronization Warning",
+                        stringResource(R.string.hc_sync_warning),
                         fontWeight = FontWeight.Bold
                     )
                 },
                 text = {
                     Text(
-                        "Manually adjusting or resetting steps may cause display inconsistencies if Health Connect is active. The system might override these changes during the next synchronization cycle."
+                        stringResource(R.string.hc_sync_warning_body)
                     )
                 }
             )

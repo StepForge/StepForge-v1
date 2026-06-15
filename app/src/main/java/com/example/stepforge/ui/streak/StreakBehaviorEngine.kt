@@ -16,7 +16,8 @@ object StreakBehaviorEngine {
     const val PREMIUM_MONTHLY_RESCUES = 5
     const val PREMIUM_RESCUE_PROTECTION_MS = 24L * 60L * 60L * 1000L
     const val CRITICAL_GRACE_MS = 8L * 60L * 60L * 1000L
-    const val LOST_RECOVERY_WINDOW_MS = 72L * 60L * 60L * 1000L
+    const val LOST_RECOVERY_WINDOW_HOURS = 24
+    const val LOST_RECOVERY_WINDOW_MS = LOST_RECOVERY_WINDOW_HOURS * 60L * 60L * 1000L
 
     private const val MAX_INTERNAL_BUFFER_MINUTES = 12 * 60
     private const val PREMIUM_MAX_INTERNAL_BUFFER_MINUTES = 16 * 60
@@ -98,10 +99,8 @@ object StreakBehaviorEngine {
         val safeSteps = steps.coerceAtLeast(0)
         val safeGoal = goal.coerceAtLeast(1000)
         val reachedGoal = safeSteps >= safeGoal
-        val activeEnough = safeSteps >= MIN_STEPS_TO_PAUSE_DECAY
-        val protectedByBehavior = !reachedGoal && activeEnough &&
-                (internalBufferMinutes > 0 || rescuedActive)
-        val protectedByPremiumRescue = !reachedGoal && activeEnough && rescueUsedForDay
+        val protectedByBehavior = !reachedGoal && (internalBufferMinutes > 0 || rescuedActive)
+        val protectedByPremiumRescue = !reachedGoal && rescueUsedForDay
 
         return StreakDayQualifier.DayQualificationResult(
             countsForStreak = reachedGoal || protectedByBehavior || protectedByPremiumRescue,
@@ -287,12 +286,12 @@ object StreakBehaviorEngine {
         StreakRecoveryManager.triggerRecovery(
             context = context,
             streakDays = lostStreakDays,
-            recoveryHours = 48
+            recoveryHours = LOST_RECOVERY_WINDOW_HOURS
         )
         context.stepforgeStore.edit {
             it[StreakBehaviorPrefs.STREAK_BEHAVIOR_STATE] = StreakBehaviorState.LOST.name
             it[StreakBehaviorPrefs.STREAK_LOST_AT_MS] = now
-            it[StreakBehaviorPrefs.STREAK_RECOVERY_UNTIL_MS] = now + 48L * 60L * 60L * 1000L
+            it[StreakBehaviorPrefs.STREAK_RECOVERY_UNTIL_MS] = now + LOST_RECOVERY_WINDOW_MS
             it[StreakBehaviorPrefs.STREAK_LOST_SNAPSHOT_DAYS] = lostStreakDays.coerceAtLeast(0)
             it[StreakBehaviorPrefs.STREAK_LOST_DATE] = missedDate
             it[StreakBehaviorPrefs.STREAK_DISPLAY_OVERRIDE_DAYS] = 0
@@ -322,6 +321,11 @@ object StreakBehaviorEngine {
     suspend fun applyManualRescue(context: android.content.Context): Boolean {
         val store = context.stepforgeStore
         val prefs = store.data.first()
+        val now = System.currentTimeMillis()
+        val lostAt = prefs[StreakBehaviorPrefs.STREAK_LOST_AT_MS] ?: 0L
+        val recoveryUntil = prefs[StreakBehaviorPrefs.STREAK_RECOVERY_UNTIL_MS] ?: 0L
+        if (lostAt > 0L && now <= recoveryUntil) return false
+
         val isPremium = (prefs[androidx.datastore.preferences.core.intPreferencesKey("premium_enabled")] ?: 0) == 1
         if (!isPremium) return false
         if (premiumRescuesLeft(prefs) <= 0) return false
@@ -334,7 +338,6 @@ object StreakBehaviorEngine {
             0
         }
 
-        val now = System.currentTimeMillis()
         val rescueMinutes = StreakShieldEngine.getPremiumRescueHours() * 60
 
         store.edit {
@@ -372,10 +375,12 @@ object StreakBehaviorEngine {
     suspend fun restoreLostStreak(context: android.content.Context): Boolean {
         val store = context.stepforgeStore
         val prefs = store.data.first()
+        val snapshot = prefs[StreakBehaviorPrefs.STREAK_LOST_SNAPSHOT_DAYS] ?: 0
         val recoveryUntil = prefs[StreakBehaviorPrefs.STREAK_RECOVERY_UNTIL_MS] ?: 0L
         val lostAt = prefs[StreakBehaviorPrefs.STREAK_LOST_AT_MS] ?: 0L
         val savedLostDate = prefs[StreakBehaviorPrefs.STREAK_LOST_DATE] ?: ""
         val now = System.currentTimeMillis()
+        if (snapshot <= 0 && savedLostDate.isBlank()) return false
         if (lostAt <= 0L && savedLostDate.isBlank()) return false
         if (recoveryUntil > 0L && now > recoveryUntil) return false
 
@@ -383,8 +388,6 @@ object StreakBehaviorEngine {
         val protectedDates = readProtectedDates(
             prefs[StreakBehaviorPrefs.STREAK_PROTECTED_DATES]
         ).toMutableSet()
-
-        // Restore must be idempotent: the same missed day is protected once, never stacked.
         protectedDates.add(missedDate)
 
         store.edit {
@@ -426,7 +429,9 @@ object StreakBehaviorEngine {
     ): Int {
         val db = com.example.stepforge.data.AppDatabase.getDatabase(context)
         val all = db.dailyStepsDao().getAllSteps().filter { !it.date.startsWith("TEST-") }
-        val mapByDate = all.associate { it.date to it.steps }
+        val mapByDate = all
+            .groupBy { it.date }
+            .mapValues { entry -> entry.value.maxOf { it.steps } }
         val today = todayKey()
         val prefs = context.stepforgeStore.data.first()
         val protected = readProtectedDates(prefs[StreakBehaviorPrefs.STREAK_PROTECTED_DATES])
@@ -434,19 +439,20 @@ object StreakBehaviorEngine {
         val rescueDate = prefs[StreakShieldPrefs.PREMIUM_RESCUE_USED_FOR_DATE] ?: ""
         val rescuedUntil = prefs[StreakBehaviorPrefs.STREAK_RESCUED_UNTIL_MS] ?: 0L
         val rescuedActive = rescuedUntil > System.currentTimeMillis()
-        val todayCounts = qualifyDay(
+        val todayQualification = qualifyDay(
             steps = todaySteps,
             goal = goal,
             internalBufferMinutes = buffer,
             rescuedActive = rescuedActive,
             rescueUsedForDay = rescueDate == today
-        ).countsForStreak
+        )
         return StreakAnalyticsEngine.computeCurrentStreakWithTodayOverride(
             dailyByDate = mapByDate,
             goal = goal,
             today = today,
-            todayCountsForStreak = todayCounts,
-            protectedDates = protected
+            todayCountsForStreak = todayQualification.countsForStreak,
+            protectedDates = protected,
+            todayProtectedBridge = todayQualification.countsForStreak && !todayQualification.reachedGoal
         )
     }
 
@@ -464,25 +470,21 @@ object StreakBehaviorEngine {
         val today = todayKey()
         val yesterday = yesterdayKey()
 
-        // Today is still live. A low step count today must never reset the streak.
-        val todayQualified = qualifyDay(
-            steps = todaySteps,
-            goal = goal,
-            internalBufferMinutes = prefs[StreakShieldPrefs.SHIELD_TODAY_MINUTES_LEFT] ?: 0,
-            rescuedActive = (prefs[StreakBehaviorPrefs.STREAK_RESCUED_UNTIL_MS] ?: 0L) > now,
-            rescueUsedForDay = (prefs[StreakShieldPrefs.PREMIUM_RESCUE_USED_FOR_DATE] ?: "") == today
-        ).countsForStreak
-        if (todayQualified) return false
+        // Today is still live. Only yesterday can close a streak and trigger recovery.
 
         val db = com.example.stepforge.data.AppDatabase.getDatabase(context)
         val dailyByDate = db.dailyStepsDao()
             .getAllSteps()
             .filter { !it.date.startsWith("TEST-") }
-            .associate { it.date to it.steps }
+            .groupBy { it.date }
+            .mapValues { entry -> entry.value.maxOf { it.steps } }
 
         val protectedDates = readProtectedDates(prefs[StreakBehaviorPrefs.STREAK_PROTECTED_DATES])
         val yesterdayQualified = (dailyByDate[yesterday] ?: 0) >= goal || protectedDates.contains(yesterday)
         if (yesterdayQualified) return false
+
+        val alreadyRestoredYesterday = prefs[StreakBehaviorPrefs.STREAK_LAST_RESTORED_DATE] == yesterday
+        if (alreadyRestoredYesterday) return false
 
         val streakBeforeMiss = StreakAnalyticsEngine.computeClosedStreakEndingAt(
             dailyByDate = dailyByDate,
@@ -492,9 +494,6 @@ object StreakBehaviorEngine {
         )
 
         if (streakBeforeMiss <= 0) return false
-
-        val alreadyRestoredYesterday = prefs[StreakBehaviorPrefs.STREAK_LAST_RESTORED_DATE] == yesterday
-        if (alreadyRestoredYesterday) return false
 
         markLost(context, streakBeforeMiss, missedDate = yesterday)
         return true

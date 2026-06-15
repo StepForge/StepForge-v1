@@ -13,6 +13,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import com.example.stepforge.MainActivity
 import com.example.stepforge.R
 import com.example.stepforge.data.stepforgeStore
+import com.example.stepforge.core.AppLanguageHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -37,6 +38,7 @@ class ReminderReceiver : BroadcastReceiver() {
     }
 
     private fun showNotification(context: Context, steps: Int) {
+        val textContext = AppLanguageHelper.localizedContext(context)
 
         val notificationManager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -45,10 +47,10 @@ class ReminderReceiver : BroadcastReceiver() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Daily Reminders",
+                textContext.getString(R.string.hc_daily_reminders_channel),
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Daily activity reminders"
+                description = textContext.getString(R.string.hc_daily_reminders_channel_info)
             }
 
             notificationManager.createNotificationChannel(channel)
@@ -67,11 +69,11 @@ class ReminderReceiver : BroadcastReceiver() {
         )
 
         // ✅ Mesaj
-        val title = "Time to Move 🚶"
+        val title = textContext.getString(R.string.hc_move_reminder_title)
         val message = if (steps < 1000) {
-            "You haven't moved much today. Let's take a short walk!"
+            textContext.getString(R.string.hc_move_reminder_low)
         } else {
-            "Nice! You've already walked $steps steps today."
+            textContext.getString(R.string.hc_move_reminder_progress, steps)
         }
 
         // ✅ Notification (SADE - alarm yok)

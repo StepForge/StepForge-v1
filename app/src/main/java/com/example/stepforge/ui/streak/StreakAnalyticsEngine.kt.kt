@@ -42,15 +42,32 @@ object StreakAnalyticsEngine {
         goal: Int,
         protectedDates: Set<String> = emptySet()
     ): Int {
+        val dailyByDate = dailySortedAsc
+            .groupBy { it.date }
+            .mapValues { entry -> entry.value.maxOf { it.steps } }
+
+        val allDates = (dailyByDate.keys + protectedDates).filter { it.isNotBlank() }.sorted()
+        if (allDates.isEmpty()) return 0
+
         var best = 0
         var temp = 0
-        for (d in dailySortedAsc) {
-            if (d.steps >= goal || protectedDates.contains(d.date)) {
-                temp++
-                if (temp > best) best = temp
-            } else {
-                temp = 0
+        val cal = Calendar.getInstance().apply { time = ymd.parse(allDates.first()) ?: return 0 }
+        val end = Calendar.getInstance().apply { time = ymd.parse(allDates.last()) ?: return 0 }
+
+        while (!cal.after(end)) {
+            val d = ymd.format(cal.time)
+            val steps = dailyByDate[d] ?: 0
+            when {
+                steps >= goal -> {
+                    temp++
+                    if (temp > best) best = temp
+                }
+                protectedDates.contains(d) -> {
+                    // Bridge days protect the chain but do not add an extra streak day.
+                }
+                else -> temp = 0
             }
+            cal.add(Calendar.DAY_OF_YEAR, 1)
         }
         return best
     }
@@ -266,30 +283,21 @@ object StreakAnalyticsEngine {
     }
 
 
-    /**
-     * Stable streak calculation.
-     *
-     * Important rule: today is still a live day. If today has not reached the goal yet,
-     * the existing streak must NOT drop to zero at midnight/morning. In that case we
-     * continue counting from yesterday. If today later qualifies, today is added.
-     */
     fun computeCurrentStreakWithTodayOverride(
         dailyByDate: Map<String, Int>,
         goal: Int,
         today: String,
         todayCountsForStreak: Boolean,
-        protectedDates: Set<String> = emptySet()
+        protectedDates: Set<String> = emptySet(),
+        todayProtectedBridge: Boolean = false
     ): Int {
-        val startDate = if (todayCountsForStreak) {
-            today
-        } else {
-            previousDate(today)
-        }
+        val bridgeDates = if (todayProtectedBridge) protectedDates + today else protectedDates
+        val startDate = if (todayCountsForStreak) today else previousDate(today)
         return computeClosedStreakEndingAt(
             dailyByDate = dailyByDate,
             goal = goal,
             endDate = startDate,
-            protectedDates = protectedDates
+            protectedDates = bridgeDates
         )
     }
 
@@ -300,18 +308,21 @@ object StreakAnalyticsEngine {
         protectedDates: Set<String> = emptySet()
     ): Int {
         var streak = 0
-        var cal = Calendar.getInstance().apply { time = ymd.parse(endDate) ?: return 0 }
+        val cal = Calendar.getInstance().apply { time = ymd.parse(endDate) ?: return 0 }
 
         while (true) {
             val d = ymd.format(cal.time)
             val steps = dailyByDate[d] ?: 0
-            val counts = steps >= goal || protectedDates.contains(d)
-
-            if (counts) {
-                streak++
-                cal.add(Calendar.DAY_OF_YEAR, -1)
-            } else {
-                break
+            when {
+                steps >= goal -> {
+                    streak++
+                    cal.add(Calendar.DAY_OF_YEAR, -1)
+                }
+                protectedDates.contains(d) -> {
+                    // Bridge days preserve the chain but do not increment the streak.
+                    cal.add(Calendar.DAY_OF_YEAR, -1)
+                }
+                else -> break
             }
         }
 

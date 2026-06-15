@@ -473,119 +473,249 @@ private fun createAchievementShareImage(
     description: String,
     status: String
 ): android.net.Uri {
-    val width = 1080
-    val height = 1920
+    val metrics = context.resources.displayMetrics
+    val width = metrics.widthPixels.coerceAtLeast(1080)
+    val height = metrics.heightPixels.coerceAtLeast((width * 2.0f).toInt())
     val accent = item.definition.rarity.accentColor().toAndroidColorInt()
+    val gold = AndroidColor.rgb(214, 180, 112)
+    val offWhite = AndroidColor.rgb(245, 240, 228)
     val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
     val canvas = AndroidCanvas(bitmap)
 
     val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         shader = LinearGradient(
-            0f, 0f, width.toFloat(), height.toFloat(),
+            0f,
+            0f,
+            width.toFloat(),
+            height.toFloat(),
             intArrayOf(
-                AndroidColor.rgb(7, 18, 34),
-                blendColor(AndroidColor.rgb(18, 104, 128), accent, 0.32f),
-                AndroidColor.rgb(12, 56, 82),
-                AndroidColor.rgb(5, 12, 24)
+                AndroidColor.rgb(4, 14, 36),
+                AndroidColor.rgb(5, 20, 56),
+                blendColor(AndroidColor.rgb(6, 26, 64), accent, 0.10f),
+                AndroidColor.rgb(4, 14, 36)
             ),
-            floatArrayOf(0f, 0.38f, 0.74f, 1f),
+            floatArrayOf(0f, 0.22f, 0.72f, 1f),
             Shader.TileMode.CLAMP
         )
     }
     canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bgPaint)
 
-    val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.argb(36, AndroidColor.red(accent), AndroidColor.green(accent), AndroidColor.blue(accent))
-    }
-    canvas.drawCircle(width / 2f, 735f, 440f, glowPaint)
-    canvas.drawCircle(width / 2f, 1180f, 520f, glowPaint.apply { alpha = 18 })
-
-    val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.WHITE
-        textAlign = Paint.Align.CENTER
-        typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
-    }
-    val mutedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.argb(220, 190, 208, 225)
-        textAlign = Paint.Align.CENTER
-        typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
-    }
-    val accentPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = accent
-        textAlign = Paint.Align.CENTER
-        typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
-    }
-
-    textPaint.textSize = 62f
-    canvas.drawText(status, width / 2f, 170f, textPaint)
-
-    val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.argb(145, AndroidColor.red(accent), AndroidColor.green(accent), AndroidColor.blue(accent))
-        strokeWidth = 4f
-    }
-    canvas.drawLine(245f, 235f, 455f, 235f, dividerPaint)
-    canvas.drawLine(625f, 235f, 835f, 235f, dividerPaint)
-    textPaint.textSize = 38f
-    canvas.drawText("✦", width / 2f, 250f, textPaint)
-
-    val iconBitmap = BitmapFactory.decodeResource(context.resources, item.definition.iconRes)?.trimTransparentPixels()
-    if (iconBitmap != null) {
-        val targetRect = Rect(255, 410, 825, 980)
-        canvas.drawBitmap(iconBitmap, null, targetRect, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
-    }
-
-    textPaint.textSize = 68f
-    drawCenteredMultiline(canvas, title, textPaint, width / 2f, 1120f, 76f, width - 170)
-    mutedPaint.textSize = 38f
-    drawCenteredMultiline(canvas, description, mutedPaint, width / 2f, 1260f, 48f, width - 190)
-
-    val badgeRect = android.graphics.RectF(150f, 1415f, 930f, 1528f)
-    val badgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = AndroidColor.argb(42, 255, 255, 255) }
-    val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = accent
-        style = Paint.Style.STROKE
-        strokeWidth = 4f
-    }
-    canvas.drawRoundRect(badgeRect, 50f, 50f, badgePaint)
-    canvas.drawRoundRect(badgeRect, 50f, 50f, strokePaint)
-    accentPaint.textSize = 34f
-    canvas.drawText(context.getString(R.string.ach_share_earned_in_stepforge), width / 2f, 1485f, accentPaint)
-
-    val footerRect = android.graphics.RectF(72f, 1638f, 1008f, 1844f)
-    val footerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    val shimmer = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         shader = LinearGradient(
-            72f, 1638f, 1008f, 1844f,
-            intArrayOf(AndroidColor.argb(238, 8, 22, 38), AndroidColor.argb(238, 18, 86, 112)),
+            width * 0.18f,
+            0f,
+            width * 0.82f,
+            height.toFloat(),
+            intArrayOf(AndroidColor.argb(18, 255, 255, 255), AndroidColor.argb(0, 255, 255, 255), AndroidColor.argb(16, 255, 255, 255)),
             null,
             Shader.TileMode.CLAMP
         )
     }
-    canvas.drawRoundRect(footerRect, 44f, 44f, footerPaint)
-    val footerStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AndroidColor.argb(120, AndroidColor.red(accent), AndroidColor.green(accent), AndroidColor.blue(accent))
+    canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), shimmer)
+
+    val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = offWhite
+        textAlign = Paint.Align.CENTER
+        typeface = android.graphics.Typeface.create("serif", android.graphics.Typeface.BOLD)
+    }
+    val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = AndroidColor.argb(220, 230, 235, 243)
+        textAlign = Paint.Align.CENTER
+        typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.NORMAL)
+    }
+    val accentPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = gold
+        textAlign = Paint.Align.CENTER
+        typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+    }
+    val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = AndroidColor.argb(220, 202, 174, 109)
+        strokeWidth = width * 0.0028f
+    }
+
+    val statusY = height * 0.095f
+    titlePaint.textSize = width * 0.075f
+    canvas.drawText(status, width / 2f, statusY, titlePaint)
+    val lineY = statusY + width * 0.040f
+    canvas.drawLine(width * 0.18f, lineY, width * 0.44f, lineY, dividerPaint)
+    canvas.drawLine(width * 0.56f, lineY, width * 0.82f, lineY, dividerPaint)
+    accentPaint.textSize = width * 0.035f
+    canvas.drawText("◇", width / 2f, lineY + width * 0.014f, accentPaint)
+
+    val iconBitmap = BitmapFactory.decodeResource(context.resources, item.definition.iconRes)?.trimTransparentPixels()
+    if (iconBitmap != null) {
+        val maxIcon = (width * 0.62f).toInt()
+        val iconTop = (height * 0.16f).toInt()
+        val ratio = iconBitmap.width.toFloat() / iconBitmap.height.toFloat()
+        val targetW: Int
+        val targetH: Int
+        if (ratio >= 1f) {
+            targetW = maxIcon
+            targetH = (maxIcon / ratio).toInt()
+        } else {
+            targetH = maxIcon
+            targetW = (maxIcon * ratio).toInt()
+        }
+        val left = (width - targetW) / 2
+        val top = iconTop
+        val rect = Rect(left, top, left + targetW, top + targetH)
+        canvas.drawBitmap(iconBitmap, null, rect, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+    }
+
+    titlePaint.textSize = width * 0.080f
+    drawCenteredMultiline(canvas, title, titlePaint, width / 2f, height * 0.53f, width * 0.085f, (width * 0.80f).toInt())
+    bodyPaint.textSize = width * 0.043f
+    drawCenteredMultiline(canvas, description, bodyPaint, width / 2f, height * 0.615f, width * 0.054f, (width * 0.78f).toInt())
+
+    val chipLeft = width * 0.22f
+    val chipTop = height * 0.685f
+    val chipRight = width * 0.78f
+    val chipBottom = chipTop + height * 0.052f
+    val chipRect = android.graphics.RectF(chipLeft, chipTop, chipRight, chipBottom)
+    val chipBg = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = AndroidColor.argb(26, 255, 255, 255) }
+    val chipStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = AndroidColor.argb(208, 202, 174, 109)
         style = Paint.Style.STROKE
-        strokeWidth = 3f
+        strokeWidth = width * 0.0025f
     }
-    canvas.drawRoundRect(footerRect, 44f, 44f, footerStroke)
+    canvas.drawRoundRect(chipRect, width * 0.03f, width * 0.03f, chipBg)
+    canvas.drawRoundRect(chipRect, width * 0.03f, width * 0.03f, chipStroke)
+    accentPaint.textSize = width * 0.032f
+    canvas.drawText("✦ ${context.getString(R.string.ach_share_earned_in_stepforge)}", width / 2f, chipTop + (chipBottom - chipTop) * 0.66f, accentPaint)
 
-    val appIcon = BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)
-    if (appIcon != null) {
-        val logoRect = Rect(112, 1688, 222, 1798)
-        canvas.drawBitmap(appIcon, null, logoRect, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+    val footerTop = height * 0.742f
+    val footerBottom = height * 0.948f
+    val footerRect = android.graphics.RectF(width * 0.08f, footerTop, width * 0.92f, footerBottom)
+    val footerHeight = footerRect.height()
+    val footerBg = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = AndroidColor.argb(132, 10, 26, 52)
+    }
+    val footerStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = AndroidColor.argb(110, 110, 150, 210)
+        style = Paint.Style.STROKE
+        strokeWidth = width * 0.0025f
+    }
+    canvas.drawRoundRect(footerRect, width * 0.04f, width * 0.04f, footerBg)
+    canvas.drawRoundRect(footerRect, width * 0.04f, width * 0.04f, footerStroke)
+
+    val iconBox = android.graphics.RectF(
+        width * 0.115f,
+        footerTop + footerHeight * 0.22f,
+        width * 0.355f,
+        footerTop + footerHeight * 0.78f
+    )
+    val iconPanel = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = AndroidColor.argb(120, 14, 31, 67)
+    }
+    canvas.drawRoundRect(iconBox, width * 0.03f, width * 0.03f, iconPanel)
+
+    runCatching {
+        val drawable = context.packageManager.getApplicationIcon(context.packageName)
+        val pad = width * 0.018f
+        drawable.setBounds(
+            (iconBox.left + pad).roundToInt(),
+            (iconBox.top + pad).roundToInt(),
+            (iconBox.right - pad).roundToInt(),
+            (iconBox.bottom - pad).roundToInt()
+        )
+        drawable.draw(canvas)
+    }.onFailure {
+        val fallbackIcon = BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)
+        if (fallbackIcon != null) {
+            val pad = width * 0.018f
+            val logoRect = Rect(
+                (iconBox.left + pad).roundToInt(),
+                (iconBox.top + pad).roundToInt(),
+                (iconBox.right - pad).roundToInt(),
+                (iconBox.bottom - pad).roundToInt()
+            )
+            canvas.drawBitmap(fallbackIcon, null, logoRect, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+        }
     }
 
-    textPaint.textAlign = Paint.Align.LEFT
-    textPaint.textSize = 46f
-    canvas.drawText(context.getString(R.string.ach_share_app_title), 250f, 1718f, textPaint)
-    mutedPaint.textAlign = Paint.Align.LEFT
-    mutedPaint.textSize = 30f
-    canvas.drawText(context.getString(R.string.ach_share_app_subtitle_clean), 250f, 1772f, mutedPaint)
-    mutedPaint.textSize = 25f
-    canvas.drawText(context.getString(R.string.ach_share_app_cta_clean), 250f, 1814f, mutedPaint)
+    titlePaint.textAlign = Paint.Align.LEFT
+    bodyPaint.textAlign = Paint.Align.LEFT
+    titlePaint.textSize = width * 0.060f
+    val textX = width * 0.40f
+    val textMaxWidth = (footerRect.right - textX - width * 0.055f).roundToInt()
+    canvas.drawText(context.getString(R.string.ach_share_app_title), textX, footerTop + footerHeight * 0.25f, titlePaint)
+
+    drawLeftFittedMultiline(
+        canvas = canvas,
+        text = context.getString(R.string.ach_share_app_subtitle_clean) + " " + context.getString(R.string.ach_share_app_cta_clean),
+        paint = bodyPaint,
+        startX = textX,
+        startY = footerTop + footerHeight * 0.44f,
+        maxWidth = textMaxWidth,
+        maxBottom = footerRect.bottom - footerHeight * 0.10f,
+        maxLines = 5,
+        initialTextSize = width * 0.037f,
+        minTextSize = width * 0.024f
+    )
 
     val file = File(context.cacheDir, "achievement_share_${item.definition.id}.png")
     FileOutputStream(file).use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) }
     return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+}
+
+private fun drawLeftFittedMultiline(
+    canvas: AndroidCanvas,
+    text: String,
+    paint: Paint,
+    startX: Float,
+    startY: Float,
+    maxWidth: Int,
+    maxBottom: Float,
+    maxLines: Int,
+    initialTextSize: Float,
+    minTextSize: Float
+) {
+    var chosenSize = initialTextSize
+    var chosenLines = emptyList<String>()
+    var chosenLineHeight = initialTextSize * 1.24f
+
+    var size = initialTextSize
+    while (size >= minTextSize) {
+        paint.textSize = size
+        val lineHeight = size * 1.24f
+        val lines = wrapTextLines(text, paint, maxWidth)
+        val fitsLineCount = lines.size <= maxLines
+        val fitsHeight = startY + ((lines.size - 1).coerceAtLeast(0) * lineHeight) <= maxBottom
+        chosenSize = size
+        chosenLines = lines
+        chosenLineHeight = lineHeight
+        if (fitsLineCount && fitsHeight) break
+        size -= 2f
+    }
+
+    paint.textSize = chosenSize
+    val visibleLines = if (chosenLines.size <= maxLines) {
+        chosenLines
+    } else {
+        chosenLines.take(maxLines)
+    }
+    visibleLines.forEachIndexed { index, line ->
+        canvas.drawText(line, startX, startY + index * chosenLineHeight, paint)
+    }
+}
+
+private fun wrapTextLines(text: String, paint: Paint, maxWidth: Int): List<String> {
+    val words = text.split(" ").filter { it.isNotBlank() }
+    val lines = mutableListOf<String>()
+    var current = ""
+
+    words.forEach { word ->
+        val attempt = if (current.isBlank()) word else "$current $word"
+        if (paint.measureText(attempt) <= maxWidth || current.isBlank()) {
+            current = attempt
+        } else {
+            lines += current
+            current = word
+        }
+    }
+
+    if (current.isNotBlank()) lines += current
+    return lines
 }
 
 private fun drawCenteredMultiline(

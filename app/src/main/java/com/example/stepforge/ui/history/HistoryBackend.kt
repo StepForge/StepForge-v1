@@ -9,10 +9,13 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import androidx.core.content.ContextCompat
+import com.example.stepforge.R
 import com.example.stepforge.data.DailySteps
 import com.example.stepforge.data.DailyWater
 import com.example.stepforge.data.SleepSession
 import com.example.stepforge.data.WorkoutSession
+import com.example.stepforge.ui.achievements.AchievementRarity
+import com.example.stepforge.ui.achievements.AchievementsRepository
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.LocalDate
@@ -25,6 +28,7 @@ import org.json.JSONObject
 
 internal object HistoryBackend {
     fun buildState(
+        context: Context,
         stepsHistory: List<DailySteps>,
         waterHistory: List<DailyWater>,
         sleepHistory: List<SleepSession>,
@@ -115,7 +119,7 @@ internal object HistoryBackend {
             totalCalories = totalCalories,
             totalActiveMinutes = totalActive,
             topDays = topDays,
-            achievements = buildAchievements(allDays, stepGoal),
+            achievements = buildAchievements(context, stepsHistory, workouts, stepGoal),
             weatherMood = weatherMood
         )
     }
@@ -125,17 +129,45 @@ internal object HistoryBackend {
         return (steps / 105f).roundToInt().coerceAtLeast(1)
     }
 
-    private fun buildAchievements(days: List<HistoryDayUi>, stepGoal: Int): List<HistoryAchievementUi> {
-        val totalSteps = days.sumOf { it.steps }
-        val streak = currentGoalStreak(days, stepGoal)
-        val totalDistance = days.sumOf { it.distanceKm.toDouble() }.toFloat()
-        val activeDays = days.count { it.activeMinutes > 0 || it.steps > 0 }
-        return listOf(
-            HistoryAchievementUi("100K", "Steps", (totalSteps / 100_000f).coerceIn(0f, 1f), 1),
-            HistoryAchievementUi("30", "Day Streak", (streak / 30f).coerceIn(0f, 1f), 2),
-            HistoryAchievementUi("42K", "Marathon", (totalDistance / 42.2f).coerceIn(0f, 1f), 3),
-            HistoryAchievementUi("10", "Active Days", (activeDays / 10f).coerceIn(0f, 1f), 4)
+    private fun buildAchievements(
+        context: Context,
+        stepsHistory: List<DailySteps>,
+        workouts: List<WorkoutSession>,
+        stepGoal: Int
+    ): List<HistoryAchievementUi> {
+        val achievementsState = AchievementsRepository.buildState(
+            dailySteps = stepsHistory,
+            workouts = workouts,
+            stepGoal = stepGoal
         )
+
+        val selected = (
+                achievementsState.recentUnlocked +
+                        listOfNotNull(achievementsState.bestAchievement) +
+                        achievementsState.nextTargets +
+                        achievementsState.achievements
+                )
+            .distinctBy { it.definition.id }
+            .take(3)
+
+        return selected.map { item ->
+            HistoryAchievementUi(
+                title = context.getString(item.definition.titleRes),
+                subtitle = context.getString(item.definition.descriptionRes),
+                progress = item.progress,
+                level = item.definition.rarity.historyLevel(),
+                iconRes = item.definition.iconRes
+            )
+        }
+    }
+
+    private fun AchievementRarity.historyLevel(): Int = when (this) {
+        AchievementRarity.COMMON -> 1
+        AchievementRarity.UNCOMMON -> 2
+        AchievementRarity.RARE -> 3
+        AchievementRarity.EPIC -> 4
+        AchievementRarity.LEGENDARY -> 5
+        AchievementRarity.MYTHIC -> 6
     }
 
     private fun currentGoalStreak(days: List<HistoryDayUi>, stepGoal: Int): Int {
@@ -166,13 +198,28 @@ internal object HistoryBackend {
             if (!hasUsableNetwork(context)) return@runCatching fallback
             val location = lastKnownLocation(context) ?: return@runCatching fallback
             val current = fetchOpenMeteoCurrent(location) ?: return@runCatching fallback
+
+            val now = LocalDateTime.now()
             val code = current.optInt("weather_code", -1)
-            val isDay = current.optInt("is_day", if (LocalDateTime.now().hour in 6..20) 1 else 0) == 1
+            val isDay = current.optInt("is_day", if (now.hour in 6..20) 1 else 0) == 1
             val windSpeed = current.optDouble("wind_speed_10m", 0.0).toFloat()
+            val windGusts = current.optDouble("wind_gusts_10m", windSpeed.toDouble()).toFloat()
+            val precipitation = current.optDouble("precipitation", 0.0).toFloat()
+            val rain = current.optDouble("rain", 0.0).toFloat()
+            val showers = current.optDouble("showers", 0.0).toFloat()
+            val snowfall = current.optDouble("snowfall", 0.0).toFloat()
+            val cloudCover = current.optDouble("cloud_cover", -1.0).toFloat()
+
             code.toWeatherMood(
                 isDay = isDay,
-                now = LocalDateTime.now(),
-                windSpeed = windSpeed
+                now = now,
+                windSpeed = windSpeed,
+                windGusts = windGusts,
+                precipitation = precipitation,
+                rain = rain,
+                showers = showers,
+                snowfall = snowfall,
+                cloudCover = cloudCover
             )
         }.getOrElse { fallback }
     }
@@ -184,8 +231,7 @@ internal object HistoryBackend {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 val network = manager.activeNetwork ?: return@runCatching false
                 val capabilities = manager.getNetworkCapabilities(network) ?: return@runCatching false
-                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                        capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             } else {
                 manager.activeNetworkInfo?.isConnected == true
             }
@@ -197,15 +243,15 @@ internal object HistoryBackend {
             append("https://api.open-meteo.com/v1/forecast")
             append("?latitude=${location.latitude}")
             append("&longitude=${location.longitude}")
-            append("&current=weather_code,is_day,wind_speed_10m")
+            append("&current=weather_code,is_day,precipitation,rain,showers,snowfall,cloud_cover,wind_speed_10m,wind_gusts_10m")
             append("&timezone=auto")
             append("&forecast_days=1")
         }
 
         val connection = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
-            connectTimeout = 4_000
-            readTimeout = 4_000
+            connectTimeout = 5_000
+            readTimeout = 5_000
             setRequestProperty("Accept", "application/json")
         }
 
@@ -227,55 +273,78 @@ internal object HistoryBackend {
         val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         if (!hasFine && !hasCoarse) return null
+
         val manager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return null
         return runCatching {
-            val providers = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)
-            providers.mapNotNull { provider ->
-                runCatching {
-                    if (!manager.isProviderEnabled(provider)) null else manager.getLastKnownLocation(provider)
-                }.getOrNull()
-            }.maxByOrNull { it.time }
+            manager.getProviders(true)
+                .ifEmpty { listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER) }
+                .mapNotNull { provider ->
+                    runCatching { manager.getLastKnownLocation(provider) }.getOrNull()
+                }
+                .maxByOrNull { it.time }
         }.getOrNull()
     }
 
     private fun Int.toWeatherMood(
         isDay: Boolean,
         now: LocalDateTime,
-        windSpeed: Float
+        windSpeed: Float,
+        windGusts: Float,
+        precipitation: Float,
+        rain: Float,
+        showers: Float,
+        snowfall: Float,
+        cloudCover: Float
     ): HistoryWeatherMood {
         val hour = now.hour
         val isSunriseWindow = isDay && hour in 5..7
         val isSunsetWindow = isDay && hour in 18..20
 
-        val dayMood = when (this) {
-            0, 1 -> when {
+        val wetAmount = maxOf(precipitation, rain, showers)
+        val rainNow = wetAmount >= 0.10f
+        val snowNow = snowfall >= 0.05f
+        val strongWind = windGusts >= 55f || windSpeed >= 40f
+        val rainCode = this in listOf(51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82)
+        val snowCode = this in listOf(71, 73, 75, 77, 85, 86)
+        val thunderCode = this in listOf(95, 96, 99)
+
+        val dayMood = when {
+            thunderCode && rainNow -> HistoryWeatherMood.THUNDERSTORM
+            thunderCode && strongWind -> HistoryWeatherMood.STORM
+            rainNow && strongWind -> HistoryWeatherMood.STORM
+            snowNow -> if (strongWind) HistoryWeatherMood.BLIZZARD else HistoryWeatherMood.SNOW
+            rainNow -> HistoryWeatherMood.RAIN
+            snowCode -> if (snowNow || precipitation >= 0.10f) {
+                if (strongWind) HistoryWeatherMood.BLIZZARD else HistoryWeatherMood.SNOW
+            } else {
+                HistoryWeatherMood.CLOUDY
+            }
+            rainCode -> if (rainNow) {
+                HistoryWeatherMood.RAIN
+            } else {
+                HistoryWeatherMood.CLOUDY
+            }
+            this in listOf(45, 48) -> HistoryWeatherMood.FOG
+            this in listOf(2, 3) || cloudCover >= 70f -> HistoryWeatherMood.CLOUDY
+            this in listOf(0, 1) -> when {
                 isSunriseWindow -> HistoryWeatherMood.SUNRISE
-                isSunsetWindow && windSpeed >= 20f -> HistoryWeatherMood.WINDY_SUNSET
+                isSunsetWindow && strongWind -> HistoryWeatherMood.WINDY_SUNSET
                 isSunsetWindow -> HistoryWeatherMood.SUNSET
+                strongWind -> HistoryWeatherMood.CLOUDY
                 else -> HistoryWeatherMood.CLEAR
             }
-            2, 3 -> when {
-                isSunriseWindow -> HistoryWeatherMood.SUNRISE
-                isSunsetWindow && windSpeed >= 20f -> HistoryWeatherMood.WINDY_SUNSET
-                isSunsetWindow -> HistoryWeatherMood.SUNSET
-                else -> HistoryWeatherMood.CLOUDY
-            }
-            45, 48 -> HistoryWeatherMood.FOG
-            51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82 -> HistoryWeatherMood.RAIN
-            71, 73, 75, 77, 85, 86 -> if (windSpeed >= 28f) HistoryWeatherMood.BLIZZARD else HistoryWeatherMood.SNOW
-            95 -> HistoryWeatherMood.STORM
-            96, 99 -> HistoryWeatherMood.THUNDERSTORM
             else -> fallbackWeatherMood(now)
         }
+
         if (isDay) return dayMood
         return when (dayMood) {
             HistoryWeatherMood.RAIN -> HistoryWeatherMood.RAIN_NIGHT
             HistoryWeatherMood.SNOW -> HistoryWeatherMood.SNOW_NIGHT
             HistoryWeatherMood.FOG -> HistoryWeatherMood.FOG_NIGHT
-            HistoryWeatherMood.STORM, HistoryWeatherMood.THUNDERSTORM -> HistoryWeatherMood.THUNDERSTORM_NIGHT
-            HistoryWeatherMood.CLOUDY, HistoryWeatherMood.CLEAR, HistoryWeatherMood.SUNRISE, HistoryWeatherMood.SUNSET, HistoryWeatherMood.WINDY_SUNSET -> HistoryWeatherMood.NIGHT
+            HistoryWeatherMood.STORM,
+            HistoryWeatherMood.THUNDERSTORM -> HistoryWeatherMood.THUNDERSTORM_NIGHT
             HistoryWeatherMood.BLIZZARD -> HistoryWeatherMood.BLIZZARD
-            else -> dayMood
+            else -> HistoryWeatherMood.NIGHT
         }
     }
 }

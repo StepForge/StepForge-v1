@@ -35,7 +35,7 @@ class SyncBackupActivity : ComponentActivity() {
     ) { result ->
         val data = result.data
         if (data == null) {
-            Toast.makeText(this, "Google sign-in cancelled.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.hc_google_sign_in_cancelled), Toast.LENGTH_SHORT).show()
             return@registerForActivityResult
         }
 
@@ -64,27 +64,27 @@ class SyncBackupActivity : ComponentActivity() {
                             Log.d("SyncBackup", "FirebaseAuth success uid=$uid")
                             Toast.makeText(
                                 this,
-                                "Connected as ${email ?: "Google user"}",
+                                getString(R.string.hc_connected_as_user, email ?: getString(R.string.hc_google_user)),
                                 Toast.LENGTH_SHORT
                             ).show()
                         } else {
                             Log.e("SyncBackup", "FirebaseAuth failed", authTask.exception)
-                            Toast.makeText(this, "Firebase auth failed.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, getString(R.string.hc_firebase_auth_failed), Toast.LENGTH_SHORT).show()
                         }
                     }
             } else {
                 Toast.makeText(
                     this,
-                    "Google account selected, but no ID token.",
+                    getString(R.string.hc_google_no_id_token),
                     Toast.LENGTH_LONG
                 ).show()
             }
         } catch (e: ApiException) {
             Log.e("SyncBackup", "GoogleSignIn failed: code=${e.statusCode}", e)
             if (e.statusCode == 12501) {
-                Toast.makeText(this, "Google sign-in cancelled.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.hc_google_sign_in_cancelled), Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(this, "Google sign-in error (${e.statusCode})", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.hc_google_sign_in_error_format, e.statusCode), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -149,7 +149,7 @@ class SyncBackupActivity : ComponentActivity() {
         // Google sign out + revoke (best-effort)
         googleClient.signOut().addOnCompleteListener {
             googleClient.revokeAccess().addOnCompleteListener {
-                Toast.makeText(this, "Disconnected.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.hc_disconnected), Toast.LENGTH_SHORT).show()
             }
         }
     }

@@ -19,6 +19,7 @@ import com.example.stepforge.MainActivity
 import com.example.stepforge.R
 import com.example.stepforge.StepCounterService
 import com.example.stepforge.data.stepforgeStore
+import com.example.stepforge.core.AppLanguageHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -29,8 +30,8 @@ import java.util.Locale
 
 class StepWidgetLargeProvider : AppWidgetProvider() {
 
-    private fun dotFormatter(): DecimalFormat {
-        val symbols = DecimalFormatSymbols(Locale.getDefault()).apply { groupingSeparator = '.' }
+    private fun dotFormatter(context: Context): DecimalFormat {
+        val symbols = DecimalFormatSymbols(AppLanguageHelper.selectedLocale(context))
         return DecimalFormat("#,###", symbols)
     }
 
@@ -157,8 +158,9 @@ class StepWidgetLargeProvider : AppWidgetProvider() {
         goal: Int,
         dark: Boolean
     ): RemoteViews {
+        val textContext = AppLanguageHelper.localizedContext(context)
         val rv = RemoteViews(context.packageName, layoutId)
-        val formatter = dotFormatter()
+        val formatter = dotFormatter(textContext)
         val stepsText = formatter.format(steps)
         val safeGoal = goal.coerceAtLeast(1)
         val percent = (steps.toFloat() / safeGoal * 100f).coerceIn(0f, 100f).toInt()
@@ -172,7 +174,7 @@ class StepWidgetLargeProvider : AppWidgetProvider() {
         when (layoutId) {
             R.layout.widget_stepforge_compact -> {
                 rv.setTextViewText(R.id.textStepsCompact, stepsText)
-                rv.setTextViewText(R.id.textLabelCompact, context.getString(R.string.widget_steps_label))
+                rv.setTextViewText(R.id.textLabelCompact, textContext.getString(R.string.widget_steps_label))
                 rv.setProgressBar(R.id.progressBarCompact, 100, percent, false)
                 applyTheme(
                     rv,
@@ -190,7 +192,7 @@ class StepWidgetLargeProvider : AppWidgetProvider() {
                 rv.setTextViewText(R.id.textSteps, stepsText)
                 rv.setTextViewText(
                     R.id.textGoal,
-                    context.getString(R.string.widget_goal_format, formatter.format(goal))
+                    textContext.getString(R.string.widget_goal_format, formatter.format(goal))
                 )
                 rv.setProgressBar(R.id.progressBar, 100, percent, false)
                 applyTheme(
@@ -207,22 +209,22 @@ class StepWidgetLargeProvider : AppWidgetProvider() {
 
             R.layout.widget_stepforge_large -> {
                 val dist = (steps * 0.762) / 1000.0
-                rv.setTextViewText(R.id.textTitleLarge, context.getString(R.string.widget_today))
+                rv.setTextViewText(R.id.textTitleLarge, textContext.getString(R.string.widget_today))
                 rv.setTextViewText(R.id.textStepsLarge, stepsText)
                 rv.setTextViewText(
                     R.id.textGoalLarge,
-                    context.getString(R.string.widget_goal_of_format, formatter.format(goal))
+                    textContext.getString(R.string.widget_goal_of_format, formatter.format(goal))
                 )
                 rv.setProgressBar(R.id.progressBarLarge, 100, percent, false)
                 rv.setTextViewText(
                     R.id.textPercentLarge,
-                    context.getString(R.string.widget_percent_of_goal_format, percent)
+                    textContext.getString(R.string.widget_percent_of_goal_format, percent)
                 )
                 rv.setTextViewText(
                     R.id.textDistanceLarge,
-                    context.getString(
+                    textContext.getString(
                         R.string.widget_distance_approx_km_format,
-                        String.format(Locale.getDefault(), "%.1f", dist)
+                        String.format(AppLanguageHelper.selectedLocale(textContext), "%.1f", dist)
                     )
                 )
                 applyThemeLarge(rv, dark)

@@ -26,7 +26,7 @@
 
             <TextView
                 android:id="@+id/textStepsCompact"
-                android:text="0"
+                android:text="@string/hc_zero"
                 android:textSize="22sp"
                 android:textStyle="bold"
                 android:textColor="@android:color/white"

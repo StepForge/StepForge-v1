@@ -1,5 +1,9 @@
 package com.example.stepforge.settings
 
+import com.example.stepforge.R
+
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -90,7 +94,7 @@ fun CustomWaterIntakeScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Custom Intake", fontWeight = FontWeight.SemiBold) },
+                title = { Text(stringResource(R.string.hc_custom_intake), fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null)
@@ -116,7 +120,7 @@ fun CustomWaterIntakeScreen(onBack: () -> Unit) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Icon(Icons.Outlined.LocalDrink, contentDescription = null, tint = cs.primary)
-                        Text("Enter amount (ml)", fontWeight = FontWeight.SemiBold, color = cs.onSurface)
+                        Text(stringResource(R.string.hc_enter_amount_ml), fontWeight = FontWeight.SemiBold, color = cs.onSurface)
                     }
 
                     OutlinedTextField(
@@ -124,7 +128,7 @@ fun CustomWaterIntakeScreen(onBack: () -> Unit) {
                         onValueChange = { v -> amount = v.filter(Char::isDigit).take(4) },
                         singleLine = true,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
-                        placeholder = { Text("e.g. 300") },
+                        placeholder = { Text(stringResource(R.string.hc_example_300)) },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFF00F5FF),
                             cursorColor = Color(0xFF00F5FF)
@@ -132,7 +136,7 @@ fun CustomWaterIntakeScreen(onBack: () -> Unit) {
                     )
 
                     Text(
-                        "Quick presets",
+                        stringResource(R.string.hc_quick_presets),
                         color = cs.onSurface.copy(alpha = 0.75f),
                         fontSize = 12.sp
                     )
@@ -203,7 +207,7 @@ fun CustomWaterIntakeScreen(onBack: () -> Unit) {
                                 .background(neon, RoundedCornerShape(14.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Add", color = Color.Black, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.hc_add), color = Color.Black, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -211,7 +215,7 @@ fun CustomWaterIntakeScreen(onBack: () -> Unit) {
 
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "Tip: Use smaller entries to reflect real sips. Your timeline will show each entry.",
+                text = stringResource(R.string.hc_water_entry_tip),
                 color = cs.onSurface.copy(alpha = 0.7f),
                 fontSize = 12.sp
             )

@@ -1,5 +1,8 @@
 package com.example.stepforge.debug
 
+import android.content.Context
+import com.example.stepforge.R
+
 object DebugIssueAnalyzer {
 
     data class Analysis(
@@ -7,7 +10,7 @@ object DebugIssueAnalyzer {
         val suggestion: String
     )
 
-    fun analyze(entry: DebugLogEntry): Analysis {
+    fun analyze(context: Context, entry: DebugLogEntry): Analysis {
         val trace = entry.stackTrace.orEmpty()
         val type = entry.throwableType.orEmpty()
         val message = entry.message
@@ -16,42 +19,42 @@ object DebugIssueAnalyzer {
             type.contains("NullPointerException", ignoreCase = true) ||
                     trace.contains("NullPointerException", ignoreCase = true) ->
                 Analysis(
-                    probableCause = "A nullable object was accessed without a safety check.",
-                    suggestion = "Check the referenced object and add null validation before use."
+                    probableCause = context.getString(R.string.debug_cause_null),
+                    suggestion = context.getString(R.string.debug_suggestion_null)
                 )
 
             type.contains("IllegalStateException", ignoreCase = true) ||
                     trace.contains("IllegalStateException", ignoreCase = true) ->
                 Analysis(
-                    probableCause = "The app entered an invalid runtime state for the requested operation.",
-                    suggestion = "Inspect the surrounding state transitions and guard the operation with preconditions."
+                    probableCause = context.getString(R.string.debug_cause_state),
+                    suggestion = context.getString(R.string.debug_suggestion_state)
                 )
 
             type.contains("SecurityException", ignoreCase = true) ||
                     trace.contains("SecurityException", ignoreCase = true) ->
                 Analysis(
-                    probableCause = "A permission, package identity, or restricted API issue occurred.",
-                    suggestion = "Verify manifest permissions, runtime permissions, and external service configuration."
+                    probableCause = context.getString(R.string.debug_cause_security),
+                    suggestion = context.getString(R.string.debug_suggestion_security)
                 )
 
             type.contains("SQLite", ignoreCase = true) ||
                     trace.contains("Room", ignoreCase = true) ->
                 Analysis(
-                    probableCause = "A local database query, migration, or entity mismatch may have failed.",
-                    suggestion = "Check DAO queries, migration versioning, and entity-field compatibility."
+                    probableCause = context.getString(R.string.debug_cause_database),
+                    suggestion = context.getString(R.string.debug_suggestion_database)
                 )
 
             trace.contains("Firebase", ignoreCase = true) ||
                     message.contains("Firebase", ignoreCase = true) ->
                 Analysis(
-                    probableCause = "A Firebase API request or authentication flow may have failed.",
-                    suggestion = "Verify Firebase configuration, connectivity, auth state, and request payload."
+                    probableCause = context.getString(R.string.debug_cause_firebase),
+                    suggestion = context.getString(R.string.debug_suggestion_firebase)
                 )
 
             else ->
                 Analysis(
-                    probableCause = "No high-confidence automatic diagnosis is available.",
-                    suggestion = "Inspect the full stack trace, related logs, and runtime context."
+                    probableCause = context.getString(R.string.debug_cause_unknown),
+                    suggestion = context.getString(R.string.debug_suggestion_unknown)
                 )
         }
     }

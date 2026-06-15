@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import com.example.stepforge.R
 import com.example.stepforge.WaterReminderActivity
 import com.example.stepforge.data.stepforgeStore
+import com.example.stepforge.core.AppLanguageHelper
 import kotlinx.coroutines.runBlocking
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -87,16 +88,17 @@ class WaterReminderReceiver : BroadcastReceiver() {
     }
 
     private fun showNotification(context: Context) {
+        val textContext = AppLanguageHelper.localizedContext(context)
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         // Kanal
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Water Reminders",
+                textContext.getString(R.string.hc_water_reminders_channel),
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Reminders to drink water"
+                description = textContext.getString(R.string.hc_water_reminders_channel_info)
             }
             manager.createNotificationChannel(channel)
         }
@@ -113,8 +115,8 @@ class WaterReminderReceiver : BroadcastReceiver() {
 
         val notif = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_walk) // su ikonu varsa değiştirebilirsin
-            .setContentTitle("Time to drink water 💧")
-            .setContentText("Take a small sip and stay hydrated.")
+            .setContentTitle(textContext.getString(R.string.hc_water_reminder_title))
+            .setContentText(textContext.getString(R.string.hc_water_reminder_message))
             .setContentIntent(contentIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

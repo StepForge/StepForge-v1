@@ -2,6 +2,10 @@
 
 package com.example.stepforge.settings
 
+import com.example.stepforge.R
+
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.fadeIn
@@ -207,7 +211,7 @@ private fun ProgressScreenContent(
             .background(pageBg)
     ) {
         TopAppBar(
-            title = { Text("Progress", fontWeight = FontWeight.SemiBold, color = titleColor) },
+            title = { Text(stringResource(R.string.hc_progress), fontWeight = FontWeight.SemiBold, color = titleColor) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, tint = titleColor)
@@ -234,7 +238,7 @@ private fun ProgressScreenContent(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Text("Daily timeline", color = textMain, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+                    Text(stringResource(R.string.hc_daily_timeline), color = textMain, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
                     Text(formatWeekRangeNumeric(headerWeekStart), color = textSub, fontSize = 14.sp)
                 }
             }
@@ -476,7 +480,7 @@ private fun BarsCard(
                         append(dm)
                         if (isToday) {
                             append("\n")
-                            append("Today")
+                            append(stringResource(R.string.hc_today))
                         }
                     }
 
@@ -502,7 +506,7 @@ private fun BarsCard(
             }
 
             Text(
-                text = "Goal line: $stepGoal steps",
+                text = stringResource(R.string.hc_goal_line_format, stepGoal),
                 color = textSub.copy(alpha = 0.95f),
                 fontSize = 11.sp
             )
@@ -539,9 +543,9 @@ private fun StatsCardFilled(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            StatItem(label = "Avg / day", value = stats.avg.toString(), textMain = textMain, textSub = textSub)
-            StatItem(label = "Best day", value = stats.best.toString(), textMain = textMain, textSub = textSub)
-            StatItem(label = "Total", value = "${stats.totalKm.roundToInt()} km", textMain = textMain, textSub = textSub)
+            StatItem(label = stringResource(R.string.hc_avg_per_day), value = stats.avg.toString(), textMain = textMain, textSub = textSub)
+            StatItem(label = stringResource(R.string.hc_best_day_short), value = stats.best.toString(), textMain = textMain, textSub = textSub)
+            StatItem(label = stringResource(R.string.hc_total), value = "${stats.totalKm.roundToInt()} km", textMain = textMain, textSub = textSub)
         }
     }
 }
@@ -582,13 +586,13 @@ private fun DetailCardFilled(
             ) {
                 if (s == null) {
                     Text(
-                        "Great consistency!",
+                        stringResource(R.string.hc_great_consistency),
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
                         color = textMain
                     )
                     Text(
-                        "Swipe to change week. Tap a bar to see details.",
+                        stringResource(R.string.hc_progress_chart_hint),
                         color = textSub,
                         fontSize = 13.sp
                     )
@@ -605,14 +609,19 @@ private fun DetailCardFilled(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        MiniDetail("Steps", s.steps.toString(), textMain, textSub)
+                        MiniDetail(stringResource(R.string.hc_total_steps), s.steps.toString(), textMain, textSub)
                         MiniDetail(
-                            "Distance",
+                            stringResource(R.string.hc_distance),
                             String.format(Locale.getDefault(), "%.1f km", s.distanceKm),
                             textMain,
                             textSub
                         )
-                        MiniDetail("Active", "${s.activeMin} min", textMain, textSub)
+                        MiniDetail(
+                            stringResource(R.string.hc_active),
+                            stringResource(R.string.wv2_minutes_format, s.activeMin),
+                            textMain,
+                            textSub
+                        )
                     }
 
                     val avg = if (bars.isNotEmpty()) bars.sumOf { it.steps } / bars.size else 0
@@ -621,9 +630,9 @@ private fun DetailCardFilled(
 
                     Text(
                         text = if (delta >= 0)
-                            "You walked $pct% more than this week’s average."
+                            stringResource(R.string.hc_more_than_average, pct)
                         else
-                            "You walked ${-pct}% less than this week’s average.",
+                            stringResource(R.string.hc_less_than_average, -pct),
                         color = accent,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp

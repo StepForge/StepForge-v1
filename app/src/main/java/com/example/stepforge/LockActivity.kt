@@ -1,5 +1,7 @@
 package com.example.stepforge
 
+import androidx.compose.ui.res.stringResource
+
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
@@ -72,7 +74,7 @@ class LockActivity : FragmentActivity() {
                 override fun onAuthenticationFailed() {
                     Toast.makeText(
                         this@LockActivity,
-                        "Biometric authentication failed.",
+                        getString(R.string.hc_biometric_failed),
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -80,9 +82,9 @@ class LockActivity : FragmentActivity() {
         )
 
         promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock StepForge")
-            .setSubtitle("Use your biometric credential to unlock.")
-            .setNegativeButtonText("Cancel")
+            .setTitle(getString(R.string.hc_unlock_stepforge))
+            .setSubtitle(getString(R.string.hc_biometric_unlock_info))
+            .setNegativeButtonText(getString(R.string.hc_cancel))
             .setAllowedAuthenticators(
                 BiometricManager.Authenticators.BIOMETRIC_STRONG or
                         BiometricManager.Authenticators.BIOMETRIC_WEAK
@@ -192,12 +194,12 @@ private fun LockScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Unlock StepForge", color = cs.onBackground) },
+                title = { Text(stringResource(R.string.hc_unlock_stepforge), color = cs.onBackground) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.hc_back),
                             tint = cs.onBackground
                         )
                     }
@@ -233,7 +235,7 @@ private fun LockScreen(
                         modifier = Modifier.size(40.dp)
                     )
                     Text(
-                        text = "Enter your PIN to unlock StepForge.",
+                        text = stringResource(R.string.hc_enter_pin_unlock),
                         color = cs.onSurface,
                         fontSize = 14.sp,
                         maxLines = 1,
@@ -280,7 +282,7 @@ private fun LockScreen(
                                 }
                                 onUnlockSuccess()
                             } else {
-                                pinError = "Incorrect PIN. Try again."
+                                pinError = ctx.getString(R.string.hc_incorrect_pin_try_again)
                                 pinField = TextFieldValue("")
                             }
                         },
@@ -298,7 +300,7 @@ private fun LockScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                "Unlock",
+                                stringResource(R.string.hc_unlock),
                                 color = if (isDark) Color.Black else Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
@@ -311,7 +313,7 @@ private fun LockScreen(
                             if (secQuestion.isNullOrBlank() || secAnswer.isNullOrBlank()) {
                                 Toast.makeText(
                                     ctx,
-                                    "Security question not configured. Use Privacy & Security to reset App Lock.",
+                                    ctx.getString(R.string.hc_security_question_missing),
                                     Toast.LENGTH_LONG
                                 ).show()
                             } else {
@@ -323,7 +325,7 @@ private fun LockScreen(
                         }
                     ) {
                         Text(
-                            text = "Forgot PIN?",
+                            text = stringResource(R.string.hc_forgot_pin_short),
                             color = if (isDark) Color(0xFFFFB74D) else Color(0xFFFB8C00),
                             fontSize = 13.sp
                         )
@@ -332,7 +334,7 @@ private fun LockScreen(
                     if (biometricAvailable && biometricAllowed) {
                         TextButton(onClick = { onBiometricRequested() }) {
                             Text(
-                                text = "Use biometric instead",
+                                text = stringResource(R.string.hc_use_biometric),
                                 color = neonB,
                                 fontSize = 13.sp
                             )
@@ -356,7 +358,7 @@ private fun LockScreen(
                                 if (!answerOk) {
                                     Toast.makeText(
                                         ctx,
-                                        "Security answer is incorrect.",
+                                        ctx.getString(R.string.hc_security_answer_incorrect),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                     return@TextButton
@@ -364,7 +366,7 @@ private fun LockScreen(
                                 if (np.length != 4 || !np.all(Char::isDigit) || np != npc) {
                                     Toast.makeText(
                                         ctx,
-                                        "PINs must match and be 4 digits.",
+                                        ctx.getString(R.string.hc_pin_must_match),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                     return@TextButton
@@ -377,7 +379,7 @@ private fun LockScreen(
                                     }
                                     Toast.makeText(
                                         ctx,
-                                        "PIN reset successfully.",
+                                        ctx.getString(R.string.hc_pin_reset_success),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                     showSecurityDialog = false
@@ -385,17 +387,17 @@ private fun LockScreen(
                                 }
                             }
                         ) {
-                            Text("Reset PIN", color = neonB)
+                            Text(stringResource(R.string.hc_reset_pin), color = neonB)
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { showSecurityDialog = false }) {
-                            Text("Cancel", color = cs.onSurface.copy(alpha = 0.85f))
+                            Text(stringResource(R.string.hc_cancel), color = cs.onSurface.copy(alpha = 0.85f))
                         }
                     },
                     title = {
                         Text(
-                            text = "Reset PIN",
+                            text = stringResource(R.string.hc_reset_pin),
                             color = cs.onSurface,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp
@@ -413,7 +415,7 @@ private fun LockScreen(
                                 value = secUserAnswer,
                                 onValueChange = { secUserAnswer = it },
                                 singleLine = true,
-                                placeholder = { Text("Your answer") },
+                                placeholder = { Text(stringResource(R.string.hc_your_answer)) },
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = neonB,
                                     unfocusedBorderColor = cs.outlineVariant,
@@ -424,7 +426,7 @@ private fun LockScreen(
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                text = "Choose a new 4‑digit PIN:",
+                                text = stringResource(R.string.hc_choose_new_pin),
                                 color = cs.onSurface.copy(alpha = 0.85f),
                                 fontSize = 13.sp
                             )
@@ -435,7 +437,7 @@ private fun LockScreen(
                                         newPin = it
                                 },
                                 singleLine = true,
-                                placeholder = { Text("New PIN") },
+                                placeholder = { Text(stringResource(R.string.hc_new_pin)) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = neonB,
@@ -452,7 +454,7 @@ private fun LockScreen(
                                         newPinConfirm = it
                                 },
                                 singleLine = true,
-                                placeholder = { Text("Confirm new PIN") },
+                                placeholder = { Text(stringResource(R.string.hc_confirm_new_pin)) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = neonB,

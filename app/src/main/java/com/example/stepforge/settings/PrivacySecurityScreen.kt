@@ -1,5 +1,9 @@
 package com.example.stepforge.settings
 
+import com.example.stepforge.R
+
+import androidx.compose.ui.res.stringResource
+
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
@@ -150,13 +154,13 @@ fun PrivacySecurityScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Privacy & Security",
+                            text = stringResource(R.string.hc_privacy_security),
                             color = topTitle,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Control your data and manage security preferences.",
+                            text = stringResource(R.string.hc_privacy_subtitle),
                             color = topSub,
                             fontSize = 12.sp
                         )
@@ -166,7 +170,7 @@ fun PrivacySecurityScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.hc_back),
                             tint = topTitle
                         )
                     }
@@ -194,8 +198,8 @@ fun PrivacySecurityScreen(
             // 1) Data Permissions
             PrivacyCard(
                 icon = Icons.Outlined.Security,
-                title = "Data Permissions",
-                subtitle = "Choose what health data StepForge can access.",
+                title = stringResource(R.string.hc_data_permissions),
+                subtitle = stringResource(R.string.hc_data_permissions_info),
                 cardBg = cardBg,
                 borderBrush = neonBorder,
                 titleColor = surfaceText,
@@ -204,8 +208,7 @@ fun PrivacySecurityScreen(
             ) {
                 val ctxLocal = LocalContext.current
                 Text(
-                    text = "StepForge relies on Activity Recognition, notification access and optional " +
-                            "Health Connect permissions to track and display your activity.",
+                    text = stringResource(R.string.hc_permissions_body),
                     color = surfaceText.copy(alpha = 0.82f),
                     fontSize = 13.sp
                 )
@@ -217,13 +220,13 @@ fun PrivacySecurityScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Android app permissions",
+                            text = stringResource(R.string.hc_android_permissions),
                             color = surfaceText,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "Open the system page where you can grant or revoke StepForge permissions.",
+                            text = stringResource(R.string.hc_android_permissions_info),
                             color = surfaceSub,
                             fontSize = 11.sp
                         )
@@ -237,7 +240,7 @@ fun PrivacySecurityScreen(
                                 }
                                 ctxLocal.startActivity(intent)
                             } catch (_: Exception) {
-                                Toast.makeText(ctxLocal, "Unable to open system settings.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(ctxLocal, ctxLocal.getString(R.string.hc_unable_open_settings), Toast.LENGTH_SHORT).show()
                             }
                         },
                         shape = RoundedCornerShape(999.dp),
@@ -247,7 +250,7 @@ fun PrivacySecurityScreen(
                             containerColor = Color.Transparent
                         )
                     ) {
-                        Text("Review", fontSize = 12.sp)
+                        Text(stringResource(R.string.hc_review), fontSize = 12.sp)
                     }
                 }
             }
@@ -255,8 +258,8 @@ fun PrivacySecurityScreen(
             // 2) Account Privacy
             PrivacyCard(
                 icon = Icons.Outlined.People,
-                title = "Account Privacy",
-                subtitle = "Manage who can see your progress or activity data.",
+                title = stringResource(R.string.hc_account_privacy),
+                subtitle = stringResource(R.string.hc_account_privacy_info),
                 cardBg = cardBg,
                 borderBrush = neonBorder,
                 titleColor = surfaceText,
@@ -264,14 +267,13 @@ fun PrivacySecurityScreen(
                 iconTint = accentB
             ) {
                 Text(
-                    text = "StepForge stores your profile and step history locally on this device. " +
-                            "If you enable Sync & Backup, your supported history/settings can be backed up to the cloud.",
+                    text = stringResource(R.string.hc_local_storage_info),
                     color = surfaceText.copy(alpha = 0.82f),
                     fontSize = 13.sp
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "If you connect Health Connect, your data access is governed by Health Connect permissions.",
+                    text = stringResource(R.string.hc_health_permissions_info),
                     color = surfaceSub,
                     fontSize = 12.sp
                 )
@@ -280,8 +282,8 @@ fun PrivacySecurityScreen(
             // 3) App Lock
             PrivacyCard(
                 icon = Icons.Outlined.Lock,
-                title = "App Lock",
-                subtitle = "Enable PIN or biometric lock for extra security.",
+                title = stringResource(R.string.hc_app_lock),
+                subtitle = stringResource(R.string.hc_app_lock_info),
                 cardBg = cardBg,
                 borderBrush = if (appLockEnabled) {
                     Brush.horizontalGradient(listOf(accentA, accentB, accentA))
@@ -299,14 +301,14 @@ fun PrivacySecurityScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = if (appLockEnabled)
-                                    "App Lock is currently enabled with a 4‑digit PIN."
+                                    stringResource(R.string.hc_app_lock_enabled_info)
                                 else
-                                    "Protect StepForge with a 4‑digit PIN requested when opening the app.",
+                                    stringResource(R.string.hc_app_lock_disabled_info),
                                 color = surfaceText.copy(alpha = 0.82f),
                                 fontSize = 13.sp
                             )
                             Text(
-                                text = "Biometric unlock can be allowed on top of the PIN if your device supports it.",
+                                text = stringResource(R.string.hc_biometric_extra_info),
                                 color = surfaceSub,
                                 fontSize = 11.sp
                             )
@@ -363,24 +365,24 @@ fun PrivacySecurityScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "PIN options",
+                                    text = stringResource(R.string.hc_pin_options),
                                     color = surfaceText,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
-                                    text = "Update your PIN or reset App Lock if you forgot it.",
+                                    text = stringResource(R.string.hc_pin_options_info),
                                     color = surfaceSub,
                                     fontSize = 11.sp
                                 )
                             }
                             Spacer(Modifier.width(8.dp))
                             TextButton(onClick = { showChangePinDialog = true }) {
-                                Text("Change", color = accentB, fontSize = 12.sp)
+                                Text(stringResource(R.string.hc_change), color = accentB, fontSize = 12.sp)
                             }
                             Spacer(Modifier.width(4.dp))
                             TextButton(onClick = { showForgotPinDialog = true }) {
-                                Text("Forgot?", color = Color(0xFFFFB74D), fontSize = 12.sp)
+                                Text(stringResource(R.string.hc_forgot), color = Color(0xFFFFB74D), fontSize = 12.sp)
                             }
                         }
 
@@ -393,16 +395,16 @@ fun PrivacySecurityScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Allow biometric unlock",
+                                    text = stringResource(R.string.hc_allow_biometric),
                                     color = surfaceText,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
                                     text = if (biometricAvailable)
-                                        "Use your fingerprint or face as an alternative to PIN."
+                                        stringResource(R.string.hc_biometric_available_info)
                                     else
-                                        "Biometrics are not available or not enrolled on this device.",
+                                        stringResource(R.string.hc_biometric_unavailable_info),
                                     color = surfaceSub,
                                     fontSize = 11.sp
                                 )
@@ -414,7 +416,7 @@ fun PrivacySecurityScreen(
                                     if (!biometricAvailable) {
                                         Toast.makeText(
                                             ctxLocal,
-                                            "No biometric hardware or enrolled credentials.",
+                                            ctxLocal.getString(R.string.hc_no_biometric),
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     } else {
@@ -438,22 +440,22 @@ fun PrivacySecurityScreen(
 
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                text = "Lock when leaving StepForge",
+                                text = stringResource(R.string.hc_lock_when_leaving),
                                 color = surfaceText,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
-                                text = "Choose how quickly App Lock should trigger after you leave the app.",
+                                text = stringResource(R.string.hc_lock_timeout_info),
                                 color = surfaceSub,
                                 fontSize = 11.sp
                             )
 
                             val options = listOf(
-                                0 to "Immediately (on every return)",
-                                5 to "After 5 seconds",
-                                30 to "After 30 seconds",
-                                60 to "After 60 seconds"
+                                0 to stringResource(R.string.hc_lock_immediately),
+                                5 to stringResource(R.string.hc_lock_after_5),
+                                30 to stringResource(R.string.hc_lock_after_30),
+                                60 to stringResource(R.string.hc_lock_after_60)
                             )
 
                             Column(
@@ -499,8 +501,8 @@ fun PrivacySecurityScreen(
             // 4) Clear Data (Local + Cloud + Account sign-out)
             PrivacyCard(
                 icon = Icons.Outlined.DeleteSweep,
-                title = "Clear Data",
-                subtitle = "Delete StepForge data from this device and cloud backup.",
+                title = stringResource(R.string.hc_clear_data),
+                subtitle = stringResource(R.string.hc_clear_data_info),
                 cardBg = cardBg,
                 borderBrush = neonBorder,
                 titleColor = surfaceText,
@@ -508,11 +510,7 @@ fun PrivacySecurityScreen(
                 iconTint = accentB
             ) {
                 Text(
-                    text = "This is a destructive action. It will attempt to:\n" +
-                            "• Delete local preferences and all local history (steps, water, sleep)\n" +
-                            "• Delete your cloud backup data (latest backups for the signed-in user)\n" +
-                            "• Sign you out from the backup account\n\n" +
-                            "Health Connect data is managed by Health Connect and is not deleted here.",
+                    text = stringResource(R.string.hc_clear_data_body),
                     color = surfaceText.copy(alpha = 0.82f),
                     fontSize = 13.sp
                 )
@@ -539,15 +537,15 @@ fun PrivacySecurityScreen(
                         containerColor = Color.Transparent
                     )
                 ) {
-                    Text(if (isWiping) "Deleting…" else "Delete Everything", fontSize = 12.sp)
+                    Text(if (isWiping) stringResource(R.string.hc_deleting) else stringResource(R.string.hc_delete_everything), fontSize = 12.sp)
                 }
             }
 
             // 5) Privacy Policy
             PrivacyCard(
                 icon = Icons.Outlined.Description,
-                title = "Privacy Policy",
-                subtitle = "Read how we collect and protect your data.",
+                title = stringResource(R.string.hc_privacy_policy),
+                subtitle = stringResource(R.string.hc_privacy_policy_info),
                 cardBg = cardBg,
                 borderBrush = neonBorder,
                 titleColor = surfaceText,
@@ -556,8 +554,7 @@ fun PrivacySecurityScreen(
             ) {
                 val ctxLocal = LocalContext.current
                 Text(
-                    text = "Our Privacy Policy explains what information StepForge processes, how it is stored, " +
-                            "and how optional integrations such as Health Connect and cloud backup are handled.",
+                    text = stringResource(R.string.hc_privacy_policy_body),
                     color = surfaceText.copy(alpha = 0.82f),
                     fontSize = 13.sp
                 )
@@ -572,7 +569,7 @@ fun PrivacySecurityScreen(
                                 )
                                 ctxLocal.startActivity(intent)
                             } catch (_: Exception) {
-                                Toast.makeText(ctxLocal, "Unable to open Privacy Policy in browser.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(ctxLocal, ctxLocal.getString(R.string.hc_unable_open_privacy_policy), Toast.LENGTH_SHORT).show()
                             }
                         },
                         shape = RoundedCornerShape(999.dp),
@@ -582,7 +579,7 @@ fun PrivacySecurityScreen(
                             containerColor = Color.Transparent
                         )
                     ) {
-                        Text("Open", fontSize = 12.sp)
+                        Text(stringResource(R.string.hc_open), fontSize = 12.sp)
                     }
                 }
             }
@@ -621,12 +618,12 @@ fun PrivacySecurityScreen(
                             }
                             pinField = TextFieldValue("")
                             pinConfirmField = TextFieldValue("")
-                            Toast.makeText(ctx, "App Lock enabled.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctx, ctx.getString(R.string.hc_app_lock_enabled), Toast.LENGTH_SHORT).show()
                         } else {
-                            Toast.makeText(ctx, "PINs must match and be 4 digits.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctx, ctx.getString(R.string.hc_pin_must_match), Toast.LENGTH_SHORT).show()
                         }
                     }
-                ) { Text("Save", color = accentB) }
+                ) { Text(stringResource(R.string.hc_save), color = accentB) }
             },
             dismissButton = {
                 TextButton(
@@ -635,15 +632,15 @@ fun PrivacySecurityScreen(
                         pinField = TextFieldValue("")
                         pinConfirmField = TextFieldValue("")
                     }
-                ) { Text("Cancel", color = dialogTitle.copy(alpha = 0.85f)) }
+                ) { Text(stringResource(R.string.hc_cancel), color = dialogTitle.copy(alpha = 0.85f)) }
             },
             title = {
-                Text("Set App Lock PIN", color = dialogTitle, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                Text(stringResource(R.string.hc_set_app_lock_pin), color = dialogTitle, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Choose a 4‑digit PIN. You will be asked to enter this PIN when opening StepForge.",
+                        text = stringResource(R.string.hc_choose_pin_info),
                         color = dialogText,
                         fontSize = 13.sp
                     )
@@ -665,7 +662,7 @@ fun PrivacySecurityScreen(
                         value = pinConfirmField,
                         onValueChange = { if (it.text.length <= 4 && it.text.all(Char::isDigit)) pinConfirmField = it },
                         singleLine = true,
-                        placeholder = { Text("Confirm PIN") },
+                        placeholder = { Text(stringResource(R.string.hc_confirm_pin)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = accentB,
@@ -699,7 +696,7 @@ fun PrivacySecurityScreen(
                         val confirm = pinConfirmField.text.trim()
 
                         if (currentPin.isNullOrEmpty() || oldPin != currentPin) {
-                            Toast.makeText(ctx, "Current PIN is incorrect.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctx, ctx.getString(R.string.hc_current_pin_incorrect), Toast.LENGTH_SHORT).show()
                             return@TextButton
                         }
 
@@ -712,12 +709,12 @@ fun PrivacySecurityScreen(
                             pinOldField = TextFieldValue("")
                             pinField = TextFieldValue("")
                             pinConfirmField = TextFieldValue("")
-                            Toast.makeText(ctx, "PIN updated.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctx, ctx.getString(R.string.hc_pin_updated), Toast.LENGTH_SHORT).show()
                         } else {
-                            Toast.makeText(ctx, "New PINs must match and be 4 digits.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctx, ctx.getString(R.string.hc_new_pin_must_match), Toast.LENGTH_SHORT).show()
                         }
                     }
-                ) { Text("Save", color = accentB) }
+                ) { Text(stringResource(R.string.hc_save), color = accentB) }
             },
             dismissButton = {
                 TextButton(
@@ -727,13 +724,13 @@ fun PrivacySecurityScreen(
                         pinField = TextFieldValue("")
                         pinConfirmField = TextFieldValue("")
                     }
-                ) { Text("Cancel", color = dialogTitle.copy(alpha = 0.85f)) }
+                ) { Text(stringResource(R.string.hc_cancel), color = dialogTitle.copy(alpha = 0.85f)) }
             },
-            title = { Text("Change PIN", color = dialogTitle, fontWeight = FontWeight.SemiBold, fontSize = 16.sp) },
+            title = { Text(stringResource(R.string.hc_change_pin), color = dialogTitle, fontWeight = FontWeight.SemiBold, fontSize = 16.sp) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Enter your current PIN, then choose a new 4‑digit PIN.",
+                        text = stringResource(R.string.hc_change_pin_info),
                         color = dialogText,
                         fontSize = 13.sp
                     )
@@ -741,7 +738,7 @@ fun PrivacySecurityScreen(
                         value = pinOldField,
                         onValueChange = { if (it.text.length <= 4 && it.text.all(Char::isDigit)) pinOldField = it },
                         singleLine = true,
-                        placeholder = { Text("Current PIN") },
+                        placeholder = { Text(stringResource(R.string.hc_current_pin)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = accentB,
@@ -755,7 +752,7 @@ fun PrivacySecurityScreen(
                         value = pinField,
                         onValueChange = { if (it.text.length <= 4 && it.text.all(Char::isDigit)) pinField = it },
                         singleLine = true,
-                        placeholder = { Text("New PIN") },
+                        placeholder = { Text(stringResource(R.string.hc_new_pin)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, autoCorrect = false),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = accentB,
@@ -769,7 +766,7 @@ fun PrivacySecurityScreen(
                         value = pinConfirmField,
                         onValueChange = { if (it.text.length <= 4 && it.text.all(Char::isDigit)) pinConfirmField = it },
                         singleLine = true,
-                        placeholder = { Text("Confirm new PIN") },
+                        placeholder = { Text(stringResource(R.string.hc_confirm_new_pin)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = accentB,
@@ -798,7 +795,7 @@ fun PrivacySecurityScreen(
                     onClick = {
                         val oldPin = pinOldField.text.trim()
                         if (currentPin.isNullOrEmpty() || oldPin != currentPin) {
-                            Toast.makeText(ctx, "PIN is incorrect.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctx, ctx.getString(R.string.hc_pin_incorrect), Toast.LENGTH_SHORT).show()
                         } else {
                             appLockEnabled = false
                             biometricAllowed = false
@@ -810,10 +807,10 @@ fun PrivacySecurityScreen(
                             }
                             showDisablePinDialog = false
                             pinOldField = TextFieldValue("")
-                            Toast.makeText(ctx, "App Lock disabled.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctx, ctx.getString(R.string.hc_app_lock_disabled), Toast.LENGTH_SHORT).show()
                         }
                     }
-                ) { Text("Disable", color = Color(0xFFEF9A9A)) }
+                ) { Text(stringResource(R.string.hc_disable), color = Color(0xFFEF9A9A)) }
             },
             dismissButton = {
                 TextButton(
@@ -821,13 +818,13 @@ fun PrivacySecurityScreen(
                         showDisablePinDialog = false
                         pinOldField = TextFieldValue("")
                     }
-                ) { Text("Cancel", color = dialogTitle.copy(alpha = 0.85f)) }
+                ) { Text(stringResource(R.string.hc_cancel), color = dialogTitle.copy(alpha = 0.85f)) }
             },
-            title = { Text("Disable App Lock?", color = dialogTitle, fontWeight = FontWeight.SemiBold, fontSize = 16.sp) },
+            title = { Text(stringResource(R.string.hc_disable_app_lock), color = dialogTitle, fontWeight = FontWeight.SemiBold, fontSize = 16.sp) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Enter your current PIN to turn off App Lock.",
+                        text = stringResource(R.string.hc_disable_pin_info),
                         color = dialogText,
                         fontSize = 13.sp
                     )
@@ -835,7 +832,7 @@ fun PrivacySecurityScreen(
                         value = pinOldField,
                         onValueChange = { if (it.text.length <= 4 && it.text.all(Char::isDigit)) pinOldField = it },
                         singleLine = true,
-                        placeholder = { Text("Current PIN") },
+                        placeholder = { Text(stringResource(R.string.hc_current_pin)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = accentB,
@@ -862,19 +859,17 @@ fun PrivacySecurityScreen(
                         showForgotPinDialog = false
                         showForgotConfirmDialog = true
                     }
-                ) { Text("Reset App Lock", color = Color(0xFFEF9A9A)) }
+                ) { Text(stringResource(R.string.hc_reset_app_lock), color = Color(0xFFEF9A9A)) }
             },
             dismissButton = {
                 TextButton(onClick = { showForgotPinDialog = false }) {
-                    Text("Cancel", color = dialogTitle.copy(alpha = 0.85f))
+                    Text(stringResource(R.string.hc_cancel), color = dialogTitle.copy(alpha = 0.85f))
                 }
             },
-            title = { Text("Forgot your PIN?", color = dialogTitle, fontWeight = FontWeight.SemiBold, fontSize = 16.sp) },
+            title = { Text(stringResource(R.string.hc_forgot_pin), color = dialogTitle, fontWeight = FontWeight.SemiBold, fontSize = 16.sp) },
             text = {
                 Text(
-                    text = "If you reset App Lock, your existing PIN and biometric setting will be removed. " +
-                            "App Lock will be turned off and you will need to configure it again later.\n\n" +
-                            "This does NOT delete your step data or preferences.",
+                    text = stringResource(R.string.hc_reset_lock_info),
                     color = dialogText,
                     fontSize = 13.sp
                 )
@@ -905,23 +900,23 @@ fun PrivacySecurityScreen(
                             }
                             showForgotConfirmDialog = false
                             confirm = TextFieldValue("")
-                            Toast.makeText(ctx, "App Lock has been reset.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctx, ctx.getString(R.string.hc_app_lock_reset), Toast.LENGTH_SHORT).show()
                         } else {
-                            Toast.makeText(ctx, "Type RESET to confirm.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctx, ctx.getString(R.string.hc_type_reset_confirm), Toast.LENGTH_SHORT).show()
                         }
                     }
-                ) { Text("Confirm", color = Color(0xFFEF9A9A)) }
+                ) { Text(stringResource(R.string.hc_confirm), color = Color(0xFFEF9A9A)) }
             },
             dismissButton = {
                 TextButton(onClick = { showForgotConfirmDialog = false }) {
-                    Text("Cancel", color = dialogTitle.copy(alpha = 0.85f))
+                    Text(stringResource(R.string.hc_cancel), color = dialogTitle.copy(alpha = 0.85f))
                 }
             },
-            title = { Text("Type RESET to continue", color = dialogTitle, fontWeight = FontWeight.SemiBold, fontSize = 16.sp) },
+            title = { Text(stringResource(R.string.hc_type_reset_continue), color = dialogTitle, fontWeight = FontWeight.SemiBold, fontSize = 16.sp) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "This action removes your current PIN and biometric unlock. Type RESET to confirm:",
+                        text = stringResource(R.string.hc_reset_lock_confirm),
                         color = dialogText,
                         fontSize = 13.sp
                     )
@@ -957,23 +952,18 @@ fun PrivacySecurityScreen(
                         clearAcknowledge = false
                         showClearConfirm = true
                     }
-                ) { Text("Continue", color = Color(0xFFFFB74D)) }
+                ) { Text(stringResource(R.string.hc_continue), color = Color(0xFFFFB74D)) }
             },
             dismissButton = {
                 TextButton(onClick = { showClearWarning = false }) {
-                    Text("Cancel", color = dialogTitle.copy(alpha = 0.85f))
+                    Text(stringResource(R.string.hc_cancel), color = dialogTitle.copy(alpha = 0.85f))
                 }
             },
-            title = { Text("Delete everything?", color = dialogTitle, fontWeight = FontWeight.SemiBold, fontSize = 16.sp) },
+            title = { Text(stringResource(R.string.hc_delete_everything_question), color = dialogTitle, fontWeight = FontWeight.SemiBold, fontSize = 16.sp) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "This is irreversible and may remove data you cannot recover.\n\n" +
-                                "StepForge will attempt to delete:\n" +
-                                "• Local preferences and all local history (steps, water, sleep)\n" +
-                                "• Cloud backup data for the currently signed-in user\n" +
-                                "• Backup account session (sign-out)\n\n" +
-                                "Health Connect data is not deleted here.",
+                        text = stringResource(R.string.hc_clear_warning_body),
                         color = dialogText,
                         fontSize = 13.sp
                     )
@@ -993,11 +983,11 @@ fun PrivacySecurityScreen(
                     onClick = {
                         val phraseOk = clearConfirmText.text.trim().equals("DELETE ALL", ignoreCase = true)
                         if (!clearAcknowledge) {
-                            Toast.makeText(ctx, "Please acknowledge the warning checkbox.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctx, ctx.getString(R.string.hc_acknowledge_warning), Toast.LENGTH_SHORT).show()
                             return@TextButton
                         }
                         if (!phraseOk) {
-                            Toast.makeText(ctx, "Type DELETE ALL to confirm.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctx, ctx.getString(R.string.hc_type_delete_all_confirm), Toast.LENGTH_SHORT).show()
                             return@TextButton
                         }
 
@@ -1016,12 +1006,12 @@ fun PrivacySecurityScreen(
                             currentPin = null
                             timeoutSeconds = 0
 
-                            Toast.makeText(ctx, "Delete complete. ${result.take(80)}", Toast.LENGTH_LONG).show()
+                            Toast.makeText(ctx, ctx.getString(R.string.hc_delete_complete_format, result.take(80)), Toast.LENGTH_LONG).show()
                             // Kullanıcı isterse geri çıkabilir
                             onBack()
                         }
                     }
-                ) { Text(if (isWiping) "Deleting…" else "Delete", color = Color(0xFFEF9A9A)) }
+                ) { Text(if (isWiping) stringResource(R.string.hc_deleting) else stringResource(R.string.hc_delete), color = Color(0xFFEF9A9A)) }
             },
             dismissButton = {
                 TextButton(
@@ -1031,18 +1021,18 @@ fun PrivacySecurityScreen(
                         clearConfirmText = TextFieldValue("")
                         clearAcknowledge = false
                     }
-                ) { Text("Cancel", color = dialogTitle.copy(alpha = 0.85f)) }
+                ) { Text(stringResource(R.string.hc_cancel), color = dialogTitle.copy(alpha = 0.85f)) }
             },
-            title = { Text("Final confirmation", color = dialogTitle, fontWeight = FontWeight.SemiBold, fontSize = 16.sp) },
+            title = { Text(stringResource(R.string.hc_final_confirmation), color = dialogTitle, fontWeight = FontWeight.SemiBold, fontSize = 16.sp) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "To permanently delete StepForge local data and attempt cloud deletion, type:",
+                        text = stringResource(R.string.hc_delete_prompt),
                         color = dialogText,
                         fontSize = 13.sp
                     )
                     Text(
-                        text = "DELETE ALL",
+                        text = stringResource(R.string.hc_delete_all_phrase),
                         color = Color(0xFFFF8A80),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
@@ -1068,7 +1058,7 @@ fun PrivacySecurityScreen(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "I understand this cannot be undone.",
+                            text = stringResource(R.string.hc_irreversible_ack),
                             color = dialogTitle.copy(alpha = 0.9f),
                             fontSize = 12.sp
                         )
@@ -1264,12 +1254,9 @@ private suspend fun wipeEverything(
         }
     }
 
-    buildString {
-        append("Done: ")
-        append(ok.joinToString(", ").ifBlank { "no steps completed" })
-        if (warn.isNotEmpty()) {
-            append(". Warnings: ")
-            append(warn.joinToString(" | "))
-        }
+    if (warn.isEmpty()) {
+        ctx.getString(R.string.hc_clear_done)
+    } else {
+        ctx.getString(R.string.hc_clear_done_warnings, warn.size)
     }
 }

@@ -1,6 +1,7 @@
 package com.example.stepforge.ui.insights
 
 import android.content.Context
+import com.example.stepforge.R
 import com.example.stepforge.data.AppDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,19 +18,7 @@ object InsightsCalculator {
     private fun getDayLabel(dateStr: String): String {
         return try {
             val d = dateFormat.parse(dateStr) ?: return "?"
-            val cal = Calendar.getInstance().apply { time = d }
-            val dow = cal.get(Calendar.DAY_OF_WEEK)
-
-            when (dow) {
-                Calendar.MONDAY -> "Mon"
-                Calendar.TUESDAY -> "Tue"
-                Calendar.WEDNESDAY -> "Wed"
-                Calendar.THURSDAY -> "Thu"
-                Calendar.FRIDAY -> "Fri"
-                Calendar.SATURDAY -> "Sat"
-                Calendar.SUNDAY -> "Sun"
-                else -> "?"
-            }
+            SimpleDateFormat("EEE", Locale.getDefault()).format(d)
         } catch (_: Exception) {
             "?"
         }
@@ -82,6 +71,7 @@ object InsightsCalculator {
     }
 
     private fun computeSummaryLines(
+        context: Context,
         mode: InsightsMode,
         totalSteps: Int,
         avg: Int,
@@ -96,46 +86,50 @@ object InsightsCalculator {
 
         val lines = mutableListOf<String>()
 
-        val modeLabel = if (mode == InsightsMode.WEEKLY) "week" else "month"
+        val modeLabel = if (mode == InsightsMode.WEEKLY) {
+            context.getString(R.string.hc_weekly).lowercase()
+        } else {
+            context.getString(R.string.hc_monthly).lowercase()
+        }
 
-        lines.add("You recorded ${formatNumber(totalSteps)} steps this $modeLabel.")
+        lines.add(context.getString(R.string.hc_insight_total_format, formatNumber(totalSteps), modeLabel))
 
         if (trendLabel == "New") {
-            lines.add("This is your first tracked $modeLabel. Keep going.")
+            lines.add(context.getString(R.string.hc_insight_first_period, modeLabel))
         } else {
             val trendText = when {
-                trendPercent > 0 -> "+$trendPercent% vs previous"
-                trendPercent < 0 -> "$trendPercent% vs previous"
-                else -> "No change vs previous"
+                trendPercent > 0 -> "+$trendPercent%"
+                trendPercent < 0 -> "$trendPercent%"
+                else -> context.getString(R.string.hc_insight_no_change)
             }
-            lines.add("Trend: $trendText.")
+            lines.add(context.getString(R.string.hc_insight_trend_format, trendText))
         }
 
         if (avg > 0) {
-            lines.add("Daily average: ${formatNumber(avg)} steps.")
+            lines.add(context.getString(R.string.hc_insight_daily_average_format, formatNumber(avg)))
         }
 
         if (bestSteps > 0) {
-            lines.add("Your strongest day hit ${formatNumber(bestSteps)} steps.")
+            lines.add(context.getString(R.string.hc_insight_strongest_format, formatNumber(bestSteps)))
         }
 
         if (worstSteps >= 0) {
-            lines.add("Your weakest day dropped to ${formatNumber(worstSteps)} steps.")
+            lines.add(context.getString(R.string.hc_insight_weakest_format, formatNumber(worstSteps)))
         }
 
         if (periodDays > 0) {
             val percentActive = ((activeDays.toFloat() / periodDays.toFloat()) * 100f).roundToInt()
-            lines.add("Active days: $activeDays/$periodDays ($percentActive%).")
+            lines.add(context.getString(R.string.hc_insight_active_days_format, activeDays, periodDays, percentActive))
         }
 
         if (consistency > 0) {
             val label = when {
-                consistency >= 80 -> "Very consistent"
-                consistency >= 60 -> "Consistent"
-                consistency >= 40 -> "Unstable"
-                else -> "Very unstable"
+                consistency >= 80 -> context.getString(R.string.hc_very_consistent)
+                consistency >= 60 -> context.getString(R.string.hc_consistency)
+                consistency >= 40 -> context.getString(R.string.hc_unstable)
+                else -> context.getString(R.string.hc_very_unstable)
             }
-            lines.add("Consistency: $consistency/100 ($label).")
+            lines.add(context.getString(R.string.hc_insight_consistency_format, consistency, label))
         }
 
         return lines
@@ -254,6 +248,7 @@ object InsightsCalculator {
         val (trendPercent, trendLabel) = computeTrendPercent(totalSteps, previousTotalSteps)
 
         val summaryLines = computeSummaryLines(
+            context = context,
             mode = mode,
             totalSteps = totalSteps,
             avg = dailyAverage,

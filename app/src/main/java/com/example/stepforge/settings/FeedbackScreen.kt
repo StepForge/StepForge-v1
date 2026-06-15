@@ -1,5 +1,9 @@
 package com.example.stepforge.settings
 
+import com.example.stepforge.R
+
+import androidx.compose.ui.res.stringResource
+
 import android.Manifest
 import android.app.AlarmManager
 import android.content.Context
@@ -113,14 +117,13 @@ fun FeedbackScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Feedback & Support",
+                            text = stringResource(R.string.hc_feedback_title),
                             color = cs.onBackground,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Help us refine StepForge by" +
-                                    " reporting issues and sharing ideas.",
+                            text = stringResource(R.string.hc_feedback_subtitle),
                             color = cs.onBackground.copy(alpha = 0.65f),
                             fontSize = 12.sp,
                             maxLines = 2,
@@ -134,7 +137,7 @@ fun FeedbackScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.hc_back),
                             tint = cs.onBackground
                         )
                     }
@@ -165,14 +168,13 @@ fun FeedbackScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Share your thoughts",
+                        text = stringResource(R.string.hc_share_thoughts),
                         color = cs.onSurface,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = "Describe what happened, what you expected, and how to reproduce it. " +
-                                "If relevant, mention which screen you were on, and whether widgets or Health Connect were enabled.",
+                        text = stringResource(R.string.hc_feedback_description),
                         color = cs.onSurface.copy(alpha = 0.7f),
                         fontSize = 13.sp
                     )
@@ -185,7 +187,7 @@ fun FeedbackScreen(
                             .height(160.dp),
                         placeholder = {
                             Text(
-                                "Describe your feedback or issue…",
+                                stringResource(R.string.hc_feedback_placeholder),
                                 color = cs.onSurface.copy(alpha = 0.4f)
                             )
                         },
@@ -210,13 +212,13 @@ fun FeedbackScreen(
                         singleLine = true,
                         label = {
                             Text(
-                                "Email (optional)",
+                                stringResource(R.string.hc_email_optional),
                                 color = cs.onSurface.copy(alpha = 0.7f)
                             )
                         },
                         placeholder = {
                             Text(
-                                "If you’d like us to reply",
+                                stringResource(R.string.hc_email_reply_hint),
                                 color = cs.onSurface.copy(alpha = 0.4f)
                             )
                         },
@@ -253,14 +255,13 @@ fun FeedbackScreen(
                         )
                         Column(modifier = Modifier.padding(top = 2.dp)) {
                             Text(
-                                text = "Include detailed diagnostics",
+                                text = stringResource(R.string.hc_include_diagnostics),
                                 color = cs.onSurface,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "Includes app version, Android version, device model, main permissions and StepForge settings snapshot. " +
-                                        "No step history, water logs, sleep records or PIN are included.",
+                                text = stringResource(R.string.hc_diagnostics_info),
                                 color = cs.onSurface.copy(alpha = 0.6f),
                                 fontSize = 11.sp
                             )
@@ -289,7 +290,7 @@ fun FeedbackScreen(
                                 tint = cs.onSurface
                             )
                             Spacer(Modifier.padding(3.dp))
-                            Text("Attach", fontSize = 13.sp)
+                            Text(stringResource(R.string.hc_attach), fontSize = 13.sp)
                         }
 
                         Button(
@@ -297,14 +298,14 @@ fun FeedbackScreen(
                                 if (message.text.isBlank()) {
                                     Toast.makeText(
                                         ctx,
-                                        "Please enter a short description before submitting.",
+                                        ctx.getString(R.string.hc_enter_feedback_first),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                     return@Button
                                 }
 
                                 scope.launch {
-                                    val subject = "StepForge Feedback"
+                                    val subject = ctx.getString(R.string.hc_feedback_subject)
 
                                     val diagnostics = if (includeDiagnostics) {
                                         buildDiagnosticsBlock(ctx)
@@ -315,7 +316,7 @@ fun FeedbackScreen(
                                         appendLine()
 
                                         if (email.text.isNotBlank()) {
-                                            appendLine("Preferred contact: ${email.text.trim()}")
+                                            appendLine(ctx.getString(R.string.hc_preferred_contact_format, email.text.trim()))
                                             appendLine()
                                         }
 
@@ -339,7 +340,7 @@ fun FeedbackScreen(
                                     } catch (_: Exception) {
                                         Toast.makeText(
                                             ctx,
-                                            "No email app available on this device.",
+                                            ctx.getString(R.string.hc_no_email_app),
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     }
@@ -368,7 +369,7 @@ fun FeedbackScreen(
                                 )
                                 Spacer(Modifier.padding(3.dp))
                                 Text(
-                                    "Submit",
+                                    stringResource(R.string.hc_submit),
                                     color = if (isDark) Color.Black else Color.White,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp
@@ -389,69 +390,51 @@ fun FeedbackScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "Common Issues & Tips",
+                        text = stringResource(R.string.hc_common_issues),
                         color = neonEnd,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold
                     )
 
                     IssueRow(
-                        title = "Steps not counting or freezing?",
-                        subtitle = "1) Check Activity Recognition permission.\n" +
-                                "2) Remove battery optimizations for StepForge so the service can stay active.\n" +
-                                "3) Some OEMs require locking the app in recent apps to avoid it being killed.\n" +
-                                "4) If Health Connect is enabled, compare its totals with sensor-only History.",
+                        title = stringResource(R.string.hc_issue_steps_title),
+                        subtitle = stringResource(R.string.hc_issue_steps_body),
                         emoji = "🚶"
                     )
 
                     IssueRow(
-                        title = "History or day detail looks wrong?",
-                        subtitle = "History combines sensor data, manual edits and optional Health Connect sync.\n" +
-                                "• Make sure the device date/time is correct.\n" +
-                                "• If you edited past days manually, a later Health Connect sync may adjust them.\n" +
-                                "• Check that you are not mixing very different totals from multiple devices.",
+                        title = stringResource(R.string.hc_issue_history_title),
+                        subtitle = stringResource(R.string.hc_issue_history_body),
                         emoji = "📅"
                     )
 
                     IssueRow(
-                        title = "Health Connect not syncing (steps / sleep)?",
-                        subtitle = "1) Open Health Connect → Connected apps → StepForge and verify read access for Steps and Sleep.\n" +
-                                "2) After granting permissions, wait or pull-to-refresh inside StepForge.\n" +
-                                "3) For sleep, confirm that your watch or app actually writes data into Health Connect.",
+                        title = stringResource(R.string.hc_issue_health_title),
+                        subtitle = stringResource(R.string.hc_issue_health_body),
                         emoji = "🔄"
                     )
 
                     IssueRow(
-                        title = "Water reminders not firing?",
-                        subtitle = "1) In Water Reminder, check that reminders are enabled, interval is set, and active hours are valid.\n" +
-                                "2) On Android 12+, allow exact alarms for StepForge if requested.\n" +
-                                "3) Battery savers or deep sleep modes can block alarms – allow StepForge in those settings.",
+                        title = stringResource(R.string.hc_issue_water_title),
+                        subtitle = stringResource(R.string.hc_issue_water_body),
                         emoji = "💧"
                     )
 
                     IssueRow(
-                        title = "App Lock issues?",
-                        subtitle = "1) If App Lock appears too often, adjust the timeout under Privacy & Security.\n" +
-                                "2) If biometric unlock does not appear, ensure you have enrolled fingerprint/face.\n" +
-                                "3) If you forget the PIN and security questions are not configured, you may need to reset App Lock from Privacy & Security.",
+                        title = stringResource(R.string.hc_issue_lock_title),
+                        subtitle = stringResource(R.string.hc_issue_lock_body),
                         emoji = "🔒"
                     )
 
                     IssueRow(
-                        title = "Cloud backup / restore problems?",
-                        subtitle = "1) Verify that a backup account is connected under Sync & Backup.\n" +
-                                "2) Check network connection and try again.\n" +
-                                "3) After restore, reopen StepForge and check History and Settings.\n" +
-                                "4) If you recently used Clear Data (local + cloud), there may be no backup left to restore.",
+                        title = stringResource(R.string.hc_issue_backup_title),
+                        subtitle = stringResource(R.string.hc_issue_backup_body),
                         emoji = "☁️"
                     )
 
                     IssueRow(
-                        title = "Widgets not updating?",
-                        subtitle = "Widgets rely on the step service and scheduled refresh.\n" +
-                                "• After installation or theme change, open StepForge once.\n" +
-                                "• Use the widget refresh option or wait for the next update.\n" +
-                                "• On aggressive OEMs, allow StepForge in background/battery optimization settings.",
+                        title = stringResource(R.string.hc_issue_widgets_title),
+                        subtitle = stringResource(R.string.hc_issue_widgets_body),
                         emoji = "📲"
                     )
                 }
@@ -462,12 +445,12 @@ fun FeedbackScreen(
                     onDismissRequest = { showAttachInfo = false },
                     confirmButton = {
                         TextButton(onClick = { showAttachInfo = false }) {
-                            Text("Got it", color = neonEnd)
+                            Text(stringResource(R.string.hc_got_it), color = neonEnd)
                         }
                     },
                     title = {
                         Text(
-                            text = "How to attach a screenshot",
+                            text = stringResource(R.string.hc_attach_screenshot),
                             color = cs.onSurface,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp
@@ -475,9 +458,7 @@ fun FeedbackScreen(
                     },
                     text = {
                         Text(
-                            text = "After you tap Submit, StepForge opens your default email app. " +
-                                    "From there, use the email app's attach button to add a screenshot. " +
-                                    "Please avoid including sensitive personal information in your screenshot.",
+                            text = stringResource(R.string.hc_attach_screenshot_info),
                             color = cs.onSurface.copy(alpha = 0.85f),
                             fontSize = 13.sp
                         )
@@ -497,7 +478,7 @@ fun FeedbackScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "Need more help?",
+                        text = stringResource(R.string.hc_need_more_help),
                         color = cs.onSurface,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold
@@ -513,7 +494,7 @@ fun FeedbackScreen(
                             tint = neonEnd
                         )
                         Text(
-                            text = "For detailed or urgent issues, contact us via email.",
+                            text = stringResource(R.string.hc_contact_email_info),
                             color = cs.onSurface.copy(alpha = 0.75f),
                             fontSize = 13.sp
                         )
@@ -524,28 +505,28 @@ fun FeedbackScreen(
                             val intent = Intent(Intent.ACTION_SENDTO).apply {
                                 data = "mailto:".toUri()
                                 putExtra(Intent.EXTRA_EMAIL, arrayOf("stepforge0@gmail.com"))
-                                putExtra(Intent.EXTRA_SUBJECT, "StepForge – Support Request")
+                                putExtra(Intent.EXTRA_SUBJECT, ctx.getString(R.string.hc_support_subject))
                             }
                             try {
                                 ctx.startActivity(intent)
                             } catch (_: Exception) {
                                 Toast.makeText(
                                     ctx,
-                                    "No email app available on this device.",
+                                    ctx.getString(R.string.hc_no_email_app),
                                     Toast.LENGTH_SHORT
                                 ).show()
                             }
                         }
                     ) {
                         Text(
-                            text = "Contact us  •  stepforge0@gmail.com",
+                            text = stringResource(R.string.hc_contact_email),
                             color = neonEnd,
                             fontSize = 13.sp
                         )
                     }
 
                     Text(
-                        text = "Please avoid sending screenshots that reveal personal information, financial data or third‑party identities.",
+                        text = stringResource(R.string.hc_sensitive_screenshot_warning),
                         color = cs.onSurface.copy(alpha = 0.7f),
                         fontSize = 11.sp
                     )

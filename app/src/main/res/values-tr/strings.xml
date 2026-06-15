@@ -619,6 +619,8 @@
     <string name="sleep_manual_picker_minute">Dakika</string>
     <string name="sleep_manual_meta_title">Uyku Notları</string>
     <string name="sleep_manual_meta_subtitle">Manuel kaydından alındı</string>
+    <string name="sleep_manual_date_title">Uyku tarihi</string>
+    <string name="sleep_manual_date_hint">Manuel uyku için başka bir gün seçmek üzere dokun.</string>
 
     <string name="sleep_stage_detail_duration_percent">%1$s · %2$d%%</string>
     <string name="sleep_stage_detail_benefits">Faydaları</string>
@@ -1011,7 +1013,110 @@
     <string name="ach_unit_workouts">antrenman</string>
     <string name="ach_unit_minutes">dk</string>
     <string name="ach_unit_times">kez</string>
-    <string name="ach_share_app_subtitle_clean">Adım, streak ve başarım takipçisi</string>
-    <string name="ach_share_app_cta_clean">İlerlemeni takip et, daha iyi alışkanlıklar oluştur.</string>
+    <string name="ach_share_app_subtitle_clean">Seni hareket halinde tutmak için tasarlandı.</string>
+    <string name="ach_share_app_cta_clean">Adımlarını takip et, streaklerini güçlendir ve her kilometre taşını kutla.</string>
+    <string name="premium_rescue_use">Kurtarma Kullan</string>
+    <string name="debug_console">Hata Ayıklama Konsolu</string>
+    <string name="debug_logs_count">%1$d kayıt</string>
+    <string name="debug_share_failed">Paylaşma başarısız</string>
+    <string name="debug_export_failed">Dışa aktarma başarısız</string>
+    <string name="debug_search_logs">Kayıtlarda ara</string>
+    <string name="debug_package_filter">Paket filtresi</string>
+    <string name="debug_thread_filter">İş parçacığı filtresi</string>
+    <string name="debug_log_detail">Kayıt Ayrıntısı</string>
+    <string name="debug_time_format">Zaman: %1$s</string>
+    <string name="debug_level_format">Seviye: %1$s</string>
+    <string name="debug_tag_format">Etiket: %1$s</string>
+    <string name="debug_thread_format">İş parçacığı: %1$s</string>
+    <string name="debug_class_format">Sınıf: %1$s</string>
+    <string name="debug_method_format">Metot: %1$s</string>
+    <string name="debug_line_format">Satır: %1$d</string>
+    <string name="debug_message_format">Mesaj: %1$s</string>
+    <string name="debug_stacktrace">Yığın izi:</string>
+    <string name="debug_probable_cause">Olası neden:</string>
+    <string name="debug_suggestion">Öneri:</string>
+    <string name="debug_cause_null">Null olabilen bir nesne güvenlik kontrolü olmadan kullanıldı.</string>
+    <string name="debug_suggestion_null">İlgili nesneyi kontrol edin ve kullanmadan önce null doğrulaması ekleyin.</string>
+    <string name="debug_cause_state">Uygulama, istenen işlem için geçersiz bir çalışma durumuna girdi.</string>
+    <string name="debug_suggestion_state">Durum geçişlerini inceleyin ve işlemi ön koşullarla koruyun.</string>
+    <string name="debug_cause_security">İzin, paket kimliği veya kısıtlı API sorunu oluştu.</string>
+    <string name="debug_suggestion_security">Manifest ve çalışma zamanı izinlerini, ayrıca harici servis ayarlarını doğrulayın.</string>
+    <string name="debug_cause_database">Yerel veritabanı sorgusu, geçişi veya entity eşleşmesi başarısız olmuş olabilir.</string>
+    <string name="debug_suggestion_database">DAO sorgularını, geçiş sürümlerini ve entity alan uyumunu kontrol edin.</string>
+    <string name="debug_cause_firebase">Firebase API isteği veya kimlik doğrulama akışı başarısız olmuş olabilir.</string>
+    <string name="debug_suggestion_firebase">Firebase ayarlarını, bağlantıyı, oturum durumunu ve istek verisini doğrulayın.</string>
+    <string name="debug_cause_unknown">Güvenilir bir otomatik tanı bulunamadı.</string>
+    <string name="debug_suggestion_unknown">Tam yığın izini, ilgili kayıtları ve çalışma bağlamını inceleyin.</string>
 
+
+    <!-- Achievement unlock instructions -->
+    <string name="ach_unlock_01">StepForge’un ilk hareketini kaydetmesi için en az 1 adım at.</string>
+    <string name="ach_unlock_02">Herhangi bir günde günlük adım hedefini tamamla.</string>
+    <string name="ach_unlock_03">Tek bir günde 20.000 adıma ulaş.</string>
+    <string name="ach_unlock_04">Tek bir günde 30.000 adıma ulaş.</string>
+    <string name="ach_unlock_05">Tüm kayıtlı günlerde toplam 50.000 adıma ulaş.</string>
+    <string name="ach_unlock_06">Tüm kayıtlı günlerde toplam 250.000 adıma ulaş.</string>
+    <string name="ach_unlock_07">Tüm kayıtlı günlerde toplam 500.000 adıma ulaş.</string>
+    <string name="ach_unlock_08">Tüm kayıtlı günlerde toplam 1.000.000 adıma ulaş.</string>
+    <string name="ach_unlock_09">Kayıtlı adımlarından toplam 5 km mesafe biriktir.</string>
+    <string name="ach_unlock_10">Kayıtlı adımlarından toplam 25 km mesafe biriktir.</string>
+    <string name="ach_unlock_11">Kayıtlı adımlarından toplam 100 km mesafe biriktir.</string>
+    <string name="ach_unlock_12">Kayıtlı adımlarından toplam 42,2 km mesafe biriktir.</string>
+    <string name="ach_unlock_13">Kayıtlı adımlarından toplam 1.000 km mesafe biriktir.</string>
+    <string name="ach_unlock_14">Kayıtlı adımlarınla toplam 1.000 kalori yak.</string>
+    <string name="ach_unlock_15">Kayıtlı adımlarınla toplam 5.000 kalori yak.</string>
+    <string name="ach_unlock_16">Kayıtlı adımlarınla toplam 50.000 kalori yak.</string>
+    <string name="ach_unlock_17">Tek bir günde 1.000 kalori yak.</string>
+    <string name="ach_unlock_18">Tek bir günde en az 60 aktif dakika kaydet.</string>
+    <string name="ach_unlock_19">Tek bir günde en az 120 aktif dakika kaydet.</string>
+    <string name="ach_unlock_20">Tüm kayıtlı günlerde toplam 6.000 aktif dakika biriktir.</string>
+    <string name="ach_unlock_21">İlk workout oturumunu tamamla.</string>
+    <string name="ach_unlock_22">10 workout oturumu tamamla.</string>
+    <string name="ach_unlock_23">50 workout oturumu tamamla.</string>
+    <string name="ach_unlock_24">10 yürüyüş workout oturumu tamamla.</string>
+    <string name="ach_unlock_25">10 koşu workout oturumu tamamla.</string>
+    <string name="ach_unlock_26">10 bisiklet workout oturumu tamamla.</string>
+    <string name="ach_unlock_27">Günlük hedef streak’ini 3 gün boyunca sürdür.</string>
+    <string name="ach_unlock_28">Günlük hedef streak’ini 7 gün boyunca sürdür.</string>
+    <string name="ach_unlock_29">Günlük hedef streak’ini 30 gün boyunca sürdür.</string>
+    <string name="ach_unlock_30">Günlük hedef streak’ini 100 gün boyunca sürdür.</string>
+    <string name="ach_unlock_31">Streak’ini korumak için Streak Shield’ı bir kez kullan.</string>
+    <string name="ach_unlock_32">Kaybedilen streak’i bir kez geri yükle ve devam et.</string>
+    <string name="ach_unlock_33">Herhangi bir 7 günlük aralıkta 3 farklı gün aktif ol.</string>
+    <string name="ach_unlock_34">Herhangi bir 7 günlük aralıkta 5 farklı gün aktif ol.</string>
+    <string name="ach_unlock_35">Herhangi bir 7 günlük aralıkta 7 günün tamamında aktif ol.</string>
+    <string name="ach_unlock_36">Herhangi bir 30 günlük aralıkta 15 farklı gün aktif ol.</string>
+    <string name="ach_unlock_37">Herhangi bir 30 günlük aralıkta 25 farklı gün aktif ol.</string>
+    <string name="ach_unlock_38">Günlük adım hedefini 10 kez tamamla.</string>
+    <string name="ach_unlock_39">Günlük adım hedefini 50 kez tamamla.</string>
+    <string name="ach_unlock_40">Günlük adım hedefini 100 kez tamamla.</string>
+    <string name="ach_unlock_41">05:00 ile 08:59 arasında 10 workout tamamla.</string>
+    <string name="ach_unlock_42">21:00 ile 04:59 arasında gece 10 workout tamamla.</string>
+    <string name="ach_unlock_43">Hafta sonu günlerinde 10 kez aktif ol.</string>
+    <string name="ach_unlock_44">Yağmurlu hava aktifken bir günde aktivite kaydet.</string>
+    <string name="ach_unlock_45">Karlı hava aktifken bir günde aktivite kaydet.</string>
+    <string name="ach_unlock_46">Düşük aktiviteli bir günden sonra geri dönüp hedefini tekrar tamamla.</string>
+    <string name="ach_unlock_47">Günlük adımlarında yeni bir kişisel rekor kır.</string>
+    <string name="ach_unlock_48">Kişisel rekor kırarak en iyi günlerinden birini oluştur.</string>
+    <string name="ach_unlock_49">7 günlük bir hafta içinde en az 5 gün aktif ol.</string>
+    <string name="ach_unlock_50">Tüm kayıtlı günlerde toplam 5.000.000 adıma ulaş.</string>
+    <string name="ach_unlock_generic">Bu başarım için gereken görevi tamamla.</string>
+
+
+    <!-- History detail editing -->
+    <string name="h3_adjust_day_data">Bu günü düzenle</string>
+    <string name="h3_adjust_day_data_info">Seçili geçmiş günün kayıtlı adım veya su verisini düzelt. Bugün düzenlenirse canlı takip de yenilenir.</string>
+    <string name="h3_adjust_steps">Adım</string>
+    <string name="h3_adjust_water">Su (ml)</string>
+    <string name="h3_save_steps">Adımı kaydet</string>
+    <string name="h3_save_water">Suyu kaydet</string>
+    <string name="h3_steps_saved">Adımlar güncellendi</string>
+    <string name="h3_water_saved">Su güncellendi</string>
+
+
+    <!-- History detail edit dialog -->
+    <string name="h3_edit">Düzenle</string>
+    <string name="h3_edit_day">Günü düzenle</string>
+    <string name="h3_save_changes">Değişiklikleri kaydet</string>
+    <string name="h3_day_updated">Gün güncellendi</string>
 </resources>

@@ -19,7 +19,6 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
 import android.os.IBinder
-import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -37,6 +36,7 @@ import com.example.stepforge.data.SleepMainSessionDeduper
 import com.example.stepforge.data.SleepSession
 import com.example.stepforge.data.WorkoutSession
 import com.example.stepforge.data.stepforgeStore
+import com.example.stepforge.core.AppLanguageHelper
 import com.example.stepforge.debug.DebugLogger
 import com.example.stepforge.debug.RuntimeDiagnostics
 import com.example.stepforge.debug.StepSafetyGuard
@@ -58,6 +58,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
@@ -139,18 +141,8 @@ class StepCounterService : Service(), SensorEventListener {
     private var hasCelebrated = false
 
     private val MOTION_THRESHOLD = 1.2f
-    private val SLEEP_START_AFTER_MS = 20 * 60_000L   // legacy probable-sleep hint; kept for compatibility
-    private val WAKE_AFTER_MS = 2 * 60_000L           // legacy wake hint; kept for compatibility
-
-    // Auto Sleep v2: conservative thresholds to avoid random/fake sleep sessions.
-    private val AUTO_SLEEP_START_IDLE_MS = 35L * 60L * 1000L
-    private val AUTO_SLEEP_LATE_START_IDLE_MS = 50L * 60L * 1000L
-    private val AUTO_SLEEP_WAKE_CONFIRM_MS = 3L * 60L * 1000L
-    private val AUTO_SLEEP_SCREEN_ON_CONFIRM_MS = 4L * 60L * 1000L
-    private val AUTO_SLEEP_WATCHDOG_INTERVAL_MS = 5L * 60L * 1000L
-    private val AUTO_SLEEP_MIN_DURATION_MIN = 90
-    private val AUTO_SLEEP_MAX_DURATION_MIN = 14 * 60
-    private val AUTO_SLEEP_OVERLAP_WINDOW_MS = 45L * 60L * 1000L
+    private val SLEEP_START_AFTER_MS = 20 * 60_000L   // 20 dk hareketsizlik -> uyku
+    private val WAKE_AFTER_MS = 2 * 60_000L           // 2 dk hareket -> uyandı
 
     private var hourlyTickerJob: Job? = null
     private val dao by lazy { AppDatabase.getDatabase(this).dailyStepsDao() }
@@ -233,17 +225,6 @@ class StepCounterService : Service(), SensorEventListener {
     private val PREF_OFFSET = intPreferencesKey("pref_sensor_offset")
     private val PREF_TOTAL = intPreferencesKey("pref_total_all")
 
-    private fun hasActivityRecognitionPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            true
-        } else {
-            ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACTIVITY_RECOGNITION
-            ) == PackageManager.PERMISSION_GRANTED
-        }
-    }
-
     private fun isStartForegroundNotAllowed(t: Throwable): Boolean {
         var cur: Throwable? = t
         while (cur != null) {
@@ -254,43 +235,17 @@ class StepCounterService : Service(), SensorEventListener {
     }
 
     private fun safeStartForeground(notification: Notification): Boolean {
-        fun startWithoutExplicitType(fallbackReason: String): Boolean {
-            return try {
-                startForeground(NOTIF_ID, notification)
-                DebugLogger.i(
-                    TAG,
-                    "startForeground succeeded without explicit service type",
-                    metadata = mapOf("fallbackReason" to fallbackReason)
-                )
-                true
-            } catch (fallback: Throwable) {
-                Log.e(
-                    TAG,
-                    "startForeground fallback failed: ${fallback.javaClass.name} ${fallback.message}",
-                    fallback
-                )
-                DebugLogger.e(
-                    TAG,
-                    "startForeground fallback failed: ${fallback.javaClass.name} ${fallback.message}",
-                    throwable = fallback,
-                    metadata = mapOf("fallbackReason" to fallbackReason)
-                )
-                false
-            }
-        }
-
         return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && hasActivityRecognitionPermission()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 startForeground(
                     NOTIF_ID,
                     notification,
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
                 )
-                DebugLogger.i(TAG, "startForeground succeeded with HEALTH type")
             } else {
                 startForeground(NOTIF_ID, notification)
-                DebugLogger.i(TAG, "startForeground succeeded")
             }
+            DebugLogger.i(TAG, "startForeground succeeded (once)")
             true
         } catch (t: Throwable) {
             Log.e(TAG, "startForeground blocked: ${t.javaClass.name} ${t.message}", t)
@@ -299,33 +254,21 @@ class StepCounterService : Service(), SensorEventListener {
                 "startForeground blocked: ${t.javaClass.name} ${t.message}",
                 throwable = t,
                 metadata = mapOf(
-                    "isForegroundStartNotAllowed" to isStartForegroundNotAllowed(t).toString(),
-                    "activityRecognitionGranted" to hasActivityRecognitionPermission().toString()
+                    "isForegroundStartNotAllowed" to isStartForegroundNotAllowed(t).toString()
                 )
             )
-
-            // If the typed HEALTH start fails on Android 14+ because the runtime permission
-            // is not ready yet, try the non-typed foreground call once. If that also fails,
-            // the service must stop immediately, otherwise Android will crash the app with
-            // ForegroundServiceDidNotStartInTimeException.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                startWithoutExplicitType("typed_health_failed")
-            } else {
-                false
-            }
+            false
         }
     }
 
-    private fun ensureForegroundOnce(notification: Notification): Boolean {
-        if (foregroundStarted) return true
-        return if (safeStartForeground(notification)) {
+    private fun ensureForegroundOnce(notification: Notification) {
+        if (foregroundStarted) return
+        if (safeStartForeground(notification)) {
             foregroundStarted = true
-            true
         } else {
-            Log.e(TAG, "Failed to start foreground service. Stopping service to avoid global crash.")
-            DebugLogger.e(TAG, "Foreground start failed; stopping service to avoid Android FGS timeout")
-            stopSelf()
-            false
+            // Eğer foreground başlatılamazsa, servisin düzgün çalışmayacağını biliyoruz.
+            // Kritik durumda stopSelf() çağrılabilir veya tekrar deneme stratejisi kurulabilir.
+            Log.e(TAG, "Failed to start foreground service, background execution may be limited.")
         }
     }
 
@@ -381,10 +324,6 @@ class StepCounterService : Service(), SensorEventListener {
                     stepSafetyGuard.registerError("write_last_step_time_failed")
                 }
             }
-        }
-
-        if (diff > 0) {
-            signalAutoSleepWake(now, "step")
         }
 
         coachJob?.cancel()
@@ -484,25 +423,8 @@ class StepCounterService : Service(), SensorEventListener {
     private var screenOnTime: Long = 0
     private var screenReceiver: BroadcastReceiver? = null
 
-    // --- stable auto sleep runtime state ---
-    @Volatile private var lastScreenOffRuntimeMs: Long = 0L
-    @Volatile private var autoSleepActiveRuntime: Boolean = false
-    @Volatile private var autoSleepStartRuntimeMs: Long = 0L
-    @Volatile private var autoWakeSignalStartMs: Long = 0L
-    private var autoSleepWatchdogJob: Job? = null
-
     override fun onCreate() {
         super.onCreate()
-
-        // Android gives a started foreground service only a very short window to call
-        // startForeground(). Do it before DataStore, sensor registration, receivers, or
-        // any other setup so a slow device cannot hit ForegroundServiceDidNotStartInTimeException.
-        isServiceRunning = true
-        createChannel()
-        if (!ensureForegroundOnce(buildNotification(0))) {
-            Log.e(TAG, "StepCounterService stopped because foreground notification could not be started.")
-            return
-        }
 
         serviceScope.launch {
             targetFlow.collect {
@@ -558,15 +480,6 @@ class StepCounterService : Service(), SensorEventListener {
             sleepEndMs = prefs[RUNTIME_SLEEP_END] ?: 0L
             wakeMotionStartMs = prefs[RUNTIME_WAKE_MOTION_START] ?: 0L
 
-            lastScreenOffRuntimeMs = prefs[SLEEP_LAST_SCREEN_OFF_MS] ?: 0L
-            autoSleepActiveRuntime = prefs[AUTO_SLEEP_ACTIVE] ?: false
-            autoSleepStartRuntimeMs = prefs[AUTO_SLEEP_START_TIME] ?: 0L
-            if (!autoSleepActiveRuntime || autoSleepStartRuntimeMs <= 0L) {
-                autoSleepActiveRuntime = false
-                autoSleepStartRuntimeMs = 0L
-                autoWakeSignalStartMs = 0L
-            }
-
             isWalking = prefs[RUNTIME_IS_WALKING] ?: false
             sessionStartTime = prefs[RUNTIME_SESSION_START_TIME] ?: 0L
             sessionStartSteps = prefs[RUNTIME_SESSION_START_STEPS] ?: 0
@@ -580,6 +493,7 @@ class StepCounterService : Service(), SensorEventListener {
             }
             val currentGoal = (prefs[intPreferencesKey("step_goal")] ?: 10000)
                 .coerceIn(1000, 100000)
+            cachedGoal = currentGoal
 
             Log.d(TAG, "DB'den Yüklenen: Total=$totalSteps, Offset=$sensorOffset, LastSensor=$lastSensorValue")
 
@@ -682,7 +596,6 @@ class StepCounterService : Service(), SensorEventListener {
         startActivityMonitoring()
         lastStepTime = System.currentTimeMillis()
         startStreakBehaviorTicker()
-        startAutoSleepWatchdog()
 
         // -------------------------------------------------
         // Screen on/off receiver for sleep heuristics
@@ -694,7 +607,6 @@ class StepCounterService : Service(), SensorEventListener {
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_ON -> {
                         screenOnTime = now
-                        autoWakeSignalStartMs = now
 
                         Log.d(TAG, "Screen ON detected")
                         DebugLogger.d(
@@ -705,21 +617,29 @@ class StepCounterService : Service(), SensorEventListener {
 
                         serviceScope.launch {
                             try {
-                                stepforgeStore.edit { pref ->
-                                    pref[LAST_KNOWN_WAKE_TIME] = now
-                                }
+                                val prefs = stepforgeStore.data.first()
 
-                                if (!autoSleepActiveRuntime || autoSleepStartRuntimeMs <= 0L) return@launch
+                                val active = prefs[AUTO_SLEEP_ACTIVE] ?: false
+                                val startMs = prefs[AUTO_SLEEP_START_TIME] ?: 0L
 
-                                delay(AUTO_SLEEP_SCREEN_ON_CONFIRM_MS)
+                                if (!active || startMs == 0L) return@launch
+
+                                delay(5 * 60 * 1000L)
 
                                 val stillOn = screenOnTime == now
                                 if (!stillOn) return@launch
 
+                                stepforgeStore.edit { pref ->
+                                    pref[REAL_AWAKE_TIME] = screenOnTime
+                                    pref[LAST_KNOWN_WAKE_TIME] = screenOnTime
+                                    pref[LAST_HEAVY_USAGE] = System.currentTimeMillis()
+                                }
+
+
+                                val endMs = screenOnTime
                                 finalizeAutoSleepSession(
-                                    startMs = autoSleepStartRuntimeMs,
-                                    endMs = autoWakeSignalStartMs.takeIf { it > 0L } ?: now,
-                                    reason = "screen_on_confirmed"
+                                    startMs = startMs,
+                                    endMs = endMs
                                 )
 
                             } catch (e: Exception) {
@@ -733,8 +653,6 @@ class StepCounterService : Service(), SensorEventListener {
 
                         screenOffToken = System.currentTimeMillis()
                         val token = screenOffToken
-                        lastScreenOffRuntimeMs = now
-                        autoWakeSignalStartMs = 0L
 
                         Log.d(TAG, "Screen OFF detected")
                         DebugLogger.d(
@@ -745,18 +663,51 @@ class StepCounterService : Service(), SensorEventListener {
 
                         serviceScope.launch {
                             try {
+                                val nowMs = System.currentTimeMillis()
+
                                 stepforgeStore.edit { prefs ->
-                                    prefs[SLEEP_LAST_SCREEN_OFF_MS] = now
+                                    prefs[SLEEP_LAST_SCREEN_OFF_MS] = nowMs
                                 }
 
-                                delay(AUTO_SLEEP_START_IDLE_MS)
+                                delay(15 * 60 * 1000L)
 
-                                if (token != screenOffToken) return@launch
+                                if (token != screenOffToken) {
+                                    return@launch
+                                }
 
-                                maybeStartAutoSleepFromQuietWindow(
-                                    nowMs = System.currentTimeMillis(),
-                                    trigger = "screen_off_confirmed"
-                                )
+                                val prefs = stepforgeStore.data.first()
+                                val lastStep = prefs[LAST_STEP_TIME] ?: 0L
+                                val lastMotion = prefs[LAST_MOTION_TIME] ?: 0L
+                                val alreadyActive = prefs[AUTO_SLEEP_ACTIVE] ?: false
+
+                                if (alreadyActive) return@launch
+
+                                val idleThreshold = 15 * 60 * 1000L
+                                val now2 = System.currentTimeMillis()
+
+                                val stepIdle = now2 - lastStep > idleThreshold
+                                val motionIdle = now2 - lastMotion > idleThreshold
+
+                                val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+                                val nightTime = (hour >= 21 || hour <= 5)
+
+                                if (stepIdle && motionIdle && nightTime) {
+                                    val startCandidate = maxOf(lastStep, lastMotion).coerceAtMost(now2)
+
+                                    stepforgeStore.edit { p ->
+                                        p[AUTO_SLEEP_ACTIVE] = true
+                                        p[AUTO_SLEEP_START_TIME] = startCandidate
+                                    }
+
+                                    Log.d(TAG, "🌙 AUTO SLEEP STARTED at ${Date(startCandidate)}")
+                                    DebugLogger.i(
+                                        TAG,
+                                        "Auto sleep started from screen-off flow",
+                                        metadata = mapOf(
+                                            "startCandidate" to startCandidate.toString()
+                                        )
+                                    )
+                                }
                             } catch (e: Exception) {
                                 Log.e(TAG, "ACTION_SCREEN_OFF sleep detect error", e)
                                 DebugLogger.e(TAG, "ACTION_SCREEN_OFF sleep detect error", e)
@@ -802,18 +753,15 @@ class StepCounterService : Service(), SensorEventListener {
 
     private suspend fun finalizeAutoSleepSession(
         startMs: Long,
-        endMs: Long,
-        reason: String = "auto"
+        endMs: Long
     ) {
         if (startMs <= 0L || endMs <= startMs) {
-            clearAutoSleepRuntime(clearSuggestion = true)
             DebugLogger.w(
                 TAG,
                 "Auto sleep finalize ignored because timestamps are invalid",
                 metadata = mapOf(
                     "startMs" to startMs.toString(),
-                    "endMs" to endMs.toString(),
-                    "reason" to reason
+                    "endMs" to endMs.toString()
                 )
             )
             return
@@ -822,17 +770,20 @@ class StepCounterService : Service(), SensorEventListener {
         val durationMs = endMs - startMs
         val durationMin = (durationMs / 60_000L).toInt()
 
-        if (durationMin < AUTO_SLEEP_MIN_DURATION_MIN || durationMin > AUTO_SLEEP_MAX_DURATION_MIN) {
-            clearAutoSleepRuntime(clearSuggestion = true)
+        if (durationMin < 20) {
+            stepforgeStore.edit {
+                it[AUTO_SLEEP_ACTIVE] = false
+                it[AUTO_SLEEP_START_TIME] = 0L
+                it[PROBABLE_SLEEP_READY] = false
+            }
 
             DebugLogger.d(
                 TAG,
-                "Auto sleep discarded because duration is outside safe range",
+                "Auto sleep discarded because duration too short",
                 metadata = mapOf(
                     "startMs" to startMs.toString(),
                     "endMs" to endMs.toString(),
-                    "durationMin" to durationMin.toString(),
-                    "reason" to reason
+                    "durationMin" to durationMin.toString()
                 )
             )
             return
@@ -847,54 +798,6 @@ class StepCounterService : Service(), SensorEventListener {
         val sleepDao = db.sleepSessionDao()
         val stageDao = db.sleepStageDao()
 
-        val existingSessions = sleepDao.getSessionsForDate(saveDate)
-        val blockingMain = existingSessions.any { existing ->
-            existing.type == "main" &&
-                    existing.source in setOf("manual", "health_connect") &&
-                    sessionsOverlap(startMs, endMs, existing.startTime, existing.endTime, AUTO_SLEEP_OVERLAP_WINDOW_MS)
-        }
-
-        if (blockingMain) {
-            clearAutoSleepRuntime(clearSuggestion = false, startMs = startMs, endMs = endMs)
-            DebugLogger.i(
-                TAG,
-                "Auto sleep skipped because trusted main session already exists",
-                metadata = mapOf(
-                    "date" to saveDate,
-                    "durationMin" to durationMin.toString(),
-                    "reason" to reason
-                )
-            )
-            return
-        }
-
-        val overlappingAutoSessions = existingSessions.filter { existing ->
-            existing.type == "main" &&
-                    existing.source == "auto" &&
-                    sessionsOverlap(startMs, endMs, existing.startTime, existing.endTime, AUTO_SLEEP_OVERLAP_WINDOW_MS)
-        }
-
-        val longestExistingAuto = overlappingAutoSessions.maxByOrNull { it.totalMinutes }
-        if (longestExistingAuto != null && longestExistingAuto.totalMinutes >= durationMin) {
-            clearAutoSleepRuntime(clearSuggestion = false, startMs = startMs, endMs = endMs)
-            DebugLogger.i(
-                TAG,
-                "Auto sleep skipped because equal/better auto session already exists",
-                metadata = mapOf(
-                    "date" to saveDate,
-                    "existingMinutes" to longestExistingAuto.totalMinutes.toString(),
-                    "newMinutes" to durationMin.toString(),
-                    "reason" to reason
-                )
-            )
-            return
-        }
-
-        overlappingAutoSessions.forEach { existing ->
-            stageDao.deleteBySessionId(existing.id)
-            sleepDao.deleteById(existing.id)
-        }
-
         sleepDao.insert(
             SleepSession(
                 date = saveDate,
@@ -902,14 +805,22 @@ class StepCounterService : Service(), SensorEventListener {
                 endTime = endMs,
                 totalMinutes = durationMin,
                 qualityScore = qualityScore,
-                source = "auto",
-                type = "main",
-                notes = "auto_sleep_v2:$reason"
+                source = "auto"
             )
         )
 
         SleepMainSessionDeduper.deduplicate(sleepDao, stageDao)
-        clearAutoSleepRuntime(clearSuggestion = false, startMs = startMs, endMs = endMs)
+
+        stepforgeStore.edit {
+            it[AUTO_SLEEP_ACTIVE] = false
+            it[AUTO_SLEEP_START_TIME] = 0L
+            it[PROBABLE_SLEEP_START] = startMs
+            it[PROBABLE_SLEEP_END] = endMs
+            it[PROBABLE_SLEEP_READY] = true
+            it[REAL_AWAKE_TIME] = endMs
+            it[LAST_KNOWN_WAKE_TIME] = endMs
+            it[LAST_HEAVY_USAGE] = System.currentTimeMillis()
+        }
 
         DebugLogger.i(
             TAG,
@@ -920,192 +831,9 @@ class StepCounterService : Service(), SensorEventListener {
                 "endMs" to endMs.toString(),
                 "durationMin" to durationMin.toString(),
                 "qualityScore" to qualityScore.toString(),
-                "source" to "auto",
-                "reason" to reason
+                "source" to "auto"
             )
         )
-    }
-
-    private suspend fun clearAutoSleepRuntime(
-        clearSuggestion: Boolean = false,
-        startMs: Long = 0L,
-        endMs: Long = 0L
-    ) {
-        autoSleepActiveRuntime = false
-        autoSleepStartRuntimeMs = 0L
-        autoWakeSignalStartMs = 0L
-        inSleepMode = false
-        sleepStartMs = 0L
-        sleepEndMs = 0L
-        wakeMotionStartMs = 0L
-
-        stepforgeStore.edit {
-            it[AUTO_SLEEP_ACTIVE] = false
-            it[AUTO_SLEEP_START_TIME] = 0L
-            it[RUNTIME_SLEEP_MODE] = false
-            it[RUNTIME_SLEEP_START] = 0L
-            it[RUNTIME_SLEEP_END] = 0L
-            it[RUNTIME_WAKE_MOTION_START] = 0L
-            if (clearSuggestion) {
-                it[PROBABLE_SLEEP_READY] = false
-                it[PROBABLE_SLEEP_START] = 0L
-                it[PROBABLE_SLEEP_END] = 0L
-            } else if (startMs > 0L && endMs > startMs) {
-                it[PROBABLE_SLEEP_START] = startMs
-                it[PROBABLE_SLEEP_END] = endMs
-                it[PROBABLE_SLEEP_READY] = true
-                it[REAL_AWAKE_TIME] = endMs
-                it[LAST_KNOWN_WAKE_TIME] = endMs
-                it[LAST_HEAVY_USAGE] = System.currentTimeMillis()
-            }
-        }
-    }
-
-    private fun sessionsOverlap(
-        startA: Long,
-        endA: Long,
-        startB: Long,
-        endB: Long,
-        toleranceMs: Long = 0L
-    ): Boolean {
-        val aStart = startA - toleranceMs
-        val aEnd = endA + toleranceMs
-        val bStart = startB - toleranceMs
-        val bEnd = endB + toleranceMs
-        return maxOf(aStart, bStart) < minOf(aEnd, bEnd)
-    }
-
-    private fun startAutoSleepWatchdog() {
-        autoSleepWatchdogJob?.cancel()
-        autoSleepWatchdogJob = serviceScope.launch {
-            while (isActive) {
-                try {
-                    val now = System.currentTimeMillis()
-                    if (!isDeviceInteractive() && lastScreenOffRuntimeMs <= 0L) {
-                        lastScreenOffRuntimeMs = now
-                        stepforgeStore.edit { it[SLEEP_LAST_SCREEN_OFF_MS] = now }
-                    }
-                    maybeStartAutoSleepFromQuietWindow(
-                        nowMs = now,
-                        trigger = "watchdog_quiet_window"
-                    )
-                } catch (e: Exception) {
-                    Log.e(TAG, "Auto sleep watchdog error", e)
-                    DebugLogger.e(TAG, "Auto sleep watchdog error", e)
-                }
-
-                delay(AUTO_SLEEP_WATCHDOG_INTERVAL_MS)
-            }
-        }
-    }
-
-    private suspend fun maybeStartAutoSleepFromQuietWindow(
-        nowMs: Long,
-        trigger: String
-    ) {
-        if (autoSleepActiveRuntime || autoSleepStartRuntimeMs > 0L) return
-        if (!isSleepStartWindow(nowMs)) return
-
-        val prefs = stepforgeStore.data.first()
-        val lastStep = prefs[LAST_STEP_TIME] ?: 0L
-        val lastMotion = prefs[LAST_MOTION_TIME] ?: 0L
-        val storedScreenOff = prefs[SLEEP_LAST_SCREEN_OFF_MS] ?: 0L
-        if (lastScreenOffRuntimeMs <= 0L) lastScreenOffRuntimeMs = storedScreenOff
-
-        val idleThreshold = if (isLateMorningSleepWindow(nowMs)) {
-            AUTO_SLEEP_LATE_START_IDLE_MS
-        } else {
-            AUTO_SLEEP_START_IDLE_MS
-        }
-
-        val stepIdle = lastStep <= 0L || nowMs - lastStep >= idleThreshold
-        val motionIdle = lastMotion <= 0L || nowMs - lastMotion >= idleThreshold
-        val screenOffIdle = lastScreenOffRuntimeMs > 0L && nowMs - lastScreenOffRuntimeMs >= idleThreshold
-
-        if (!stepIdle || !motionIdle || !screenOffIdle) return
-
-        val startCandidate = listOf(lastStep, lastMotion, lastScreenOffRuntimeMs)
-            .filter { it > 0L }
-            .maxOrNull()
-            ?.coerceAtMost(nowMs - idleThreshold)
-            ?: (nowMs - idleThreshold)
-
-        val safeStart = startCandidate.coerceAtLeast(nowMs - AUTO_SLEEP_MAX_DURATION_MIN * 60_000L)
-        autoSleepActiveRuntime = true
-        autoSleepStartRuntimeMs = safeStart
-        autoWakeSignalStartMs = 0L
-        inSleepMode = true
-        sleepStartMs = safeStart
-        wakeMotionStartMs = 0L
-
-        stepforgeStore.edit { p ->
-            p[AUTO_SLEEP_ACTIVE] = true
-            p[AUTO_SLEEP_START_TIME] = safeStart
-            p[RUNTIME_SLEEP_MODE] = true
-            p[RUNTIME_SLEEP_START] = safeStart
-            p[RUNTIME_WAKE_MOTION_START] = 0L
-        }
-
-        Log.d(TAG, "🌙 AUTO SLEEP v2 STARTED at ${Date(safeStart)}")
-        DebugLogger.i(
-            TAG,
-            "Auto sleep v2 started",
-            metadata = mapOf(
-                "startCandidate" to safeStart.toString(),
-                "trigger" to trigger,
-                "lastStep" to lastStep.toString(),
-                "lastMotion" to lastMotion.toString(),
-                "lastScreenOff" to lastScreenOffRuntimeMs.toString(),
-                "idleThresholdMs" to idleThreshold.toString()
-            )
-        )
-    }
-
-    private fun signalAutoSleepWake(nowMs: Long, reason: String) {
-        if (!autoSleepActiveRuntime || autoSleepStartRuntimeMs <= 0L) return
-        if (autoWakeSignalStartMs <= 0L) {
-            autoWakeSignalStartMs = nowMs
-            DebugLogger.d(
-                TAG,
-                "Auto sleep wake signal started",
-                metadata = mapOf(
-                    "reason" to reason,
-                    "wakeStartMs" to nowMs.toString()
-                )
-            )
-            return
-        }
-
-        if (nowMs - autoWakeSignalStartMs >= AUTO_SLEEP_WAKE_CONFIRM_MS) {
-            val start = autoSleepStartRuntimeMs
-            val end = autoWakeSignalStartMs
-            serviceScope.launch {
-                finalizeAutoSleepSession(
-                    startMs = start,
-                    endMs = end,
-                    reason = "wake_$reason"
-                )
-            }
-        }
-    }
-
-    private fun isDeviceInteractive(): Boolean {
-        return try {
-            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-            powerManager.isInteractive
-        } catch (_: Exception) {
-            true
-        }
-    }
-
-    private fun isSleepStartWindow(nowMs: Long): Boolean {
-        val hour = Calendar.getInstance().apply { timeInMillis = nowMs }.get(Calendar.HOUR_OF_DAY)
-        return hour >= 20 || hour <= 10
-    }
-
-    private fun isLateMorningSleepWindow(nowMs: Long): Boolean {
-        val hour = Calendar.getInstance().apply { timeInMillis = nowMs }.get(Calendar.HOUR_OF_DAY)
-        return hour in 6..10
     }
 
     private fun calculateSleepQuality(durationMin: Int): Int {
@@ -1115,9 +843,8 @@ class StepCounterService : Service(), SensorEventListener {
             durationMin >= 6 * 60 -> 84
             durationMin >= 5 * 60 -> 78
             durationMin >= 4 * 60 -> 70
-            durationMin >= 3 * 60 -> 62
-            durationMin >= AUTO_SLEEP_MIN_DURATION_MIN -> 55
-            else -> 45
+            durationMin >= 2 * 60 -> 60
+            else -> 50
         }
     }
 
@@ -1161,10 +888,6 @@ class StepCounterService : Service(), SensorEventListener {
         activityCheckJob?.cancel()
         activityCheckJob = null
         DebugLogger.d(TAG, "activityCheckJob cancelled")
-
-        autoSleepWatchdogJob?.cancel()
-        autoSleepWatchdogJob = null
-        DebugLogger.d(TAG, "autoSleepWatchdogJob cancelled")
 
         hourlyTickerJob?.cancel()
         hourlyTickerJob = null
@@ -1210,13 +933,6 @@ class StepCounterService : Service(), SensorEventListener {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createChannel()
 
-        // Defensive guard: every startForegroundService() entry must either already be
-        // foreground, become foreground immediately, or stop. Never continue half-started.
-        if (!foregroundStarted && !ensureForegroundOnce(buildNotification(totalSteps))) {
-            stopSelfResult(startId)
-            return START_NOT_STICKY
-        }
-
         if (
             ContextCompat.checkSelfPermission(
                 this,
@@ -1228,7 +944,7 @@ class StepCounterService : Service(), SensorEventListener {
                 TAG,
                 "ACTIVITY_RECOGNITION permission missing! Stopping service."
             )
-            stopSelfResult(startId)
+            stopSelf()
             return START_NOT_STICKY
         }
 
@@ -1257,18 +973,20 @@ class StepCounterService : Service(), SensorEventListener {
             )
 
             if (action == ACTION_RELOAD) {
-                DebugLogger.w(TAG, "ACTION_RELOAD received. Syncing with DataStore/DB.")
+                DebugLogger.i(TAG, "ACTION_RELOAD received. Refreshing localized runtime surfaces.")
                 serviceScope.launch {
                     val prefs = stepforgeStore.data.first()
-                    totalSteps = prefs[PREF_TOTAL] ?: 0
-                    lastSensorValue = prefs[PREF_LAST_SENSOR] ?: 0
-                    sensorOffset = prefs[PREF_OFFSET] ?: 0
-
                     val currentGoal = (prefs[intPreferencesKey("step_goal")] ?: 10000)
                         .coerceIn(1000, 100000)
+                    cachedGoal = currentGoal
 
+                    createChannel()
+                    createAlertChannel()
                     CentralStepState.emit(totalSteps, currentGoal, todayKey())
                     updateForegroundNotification(totalSteps)
+                    StepWidgetProvider.notifyRefresh(applicationContext)
+                    StepWidgetCompactProvider.notifyRefresh(applicationContext)
+                    StepWidgetLargeProvider.notifyRefresh(applicationContext)
                 }
             }
 
@@ -1298,7 +1016,11 @@ class StepCounterService : Service(), SensorEventListener {
             if (action == "TEST_NOTIFICATION") {
                 Log.d(TAG, "Test bildirimi tetiklendi!")
                 DebugLogger.i(TAG, "Test notification action triggered")
-                sendAlertNotification("Test Başarılı! 🎉", "Bu bir deneme bildirimidir.")
+                val textContext = AppLanguageHelper.localizedContext(this)
+                sendAlertNotification(
+                    textContext.getString(R.string.hc_test_notification_title),
+                    textContext.getString(R.string.hc_test_notification_message)
+                )
             }
 
             if (forceSteps >= 0) {
@@ -1734,22 +1456,22 @@ class StepCounterService : Service(), SensorEventListener {
     }
 
     private fun buildNotification(sum: Int): Notification {
+        val textContext = AppLanguageHelper.localizedContext(this)
         val prefGoal = cachedGoal.coerceIn(1000, 100000)
 
         val fmtSteps = formatInt(sum)
         val fmtGoal = formatInt(prefGoal)
 
-        val expandedText = """
-$fmtSteps steps today
-
-Daily goal: $fmtGoal steps
-Keep walking 🚶
-""".trimIndent()
+        val expandedText = textContext.getString(
+            R.string.hc_foreground_expanded_format,
+            fmtSteps,
+            fmtGoal
+        )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_walk)
-            .setContentTitle("StepForge")
-            .setContentText("$fmtSteps steps / Goal $fmtGoal")
+            .setContentTitle(textContext.getString(R.string.app_name))
+            .setContentText(textContext.getString(R.string.hc_step_notification_format, fmtSteps, fmtGoal))
             .setStyle(
                 NotificationCompat.BigTextStyle()
                     .bigText(expandedText)
@@ -1922,7 +1644,10 @@ Keep walking 🚶
                     DebugLogger.e(TAG, "Main dispatcher sensor unregister block failed", e)
                 }
 
-                val dayToSave = currentDay  // ✅ Reset öncesi günün tarihi (dün)
+                val dayToSave = java.time.LocalDate
+                    .now(java.time.ZoneId.systemDefault())
+                    .minusDays(1)
+                    .toString()  // Reset her zaman tamamlanan günü, yani dünü kaydeder.
                 val currentSensorValue = lastSensorValue
                 val stepsToSave = totalSteps
                 saveTomorrowShieldFromTodaySteps(stepsToSave)
@@ -2279,8 +2004,10 @@ Keep walking 🚶
                     DebugLogger.d(TAG, "ACTION_GOAL_COMPLETED broadcast sent")
 
                     sendAlertNotification(
-                        "Goal Reached! 🏆",
-                        "Congratulations! You've reached your daily goal of $goal steps."
+                        AppLanguageHelper.localizedContext(this@StepCounterService)
+                            .getString(R.string.hc_goal_reached_title),
+                        AppLanguageHelper.localizedContext(this@StepCounterService)
+                            .getString(R.string.hc_goal_reached_message, goal)
                     )
                 }
             } catch (e: Exception) {
@@ -2301,9 +2028,10 @@ Keep walking 🚶
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val textContext = AppLanguageHelper.localizedContext(this)
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "StepForge Service",
+                textContext.getString(R.string.hc_stepforge_service),
                 NotificationManager.IMPORTANCE_MIN
             ).apply {
                 setShowBadge(false)
@@ -2317,7 +2045,7 @@ Keep walking 🚶
     }
 
     private fun formatInt(value: Int): String {
-        return String.format(Locale.getDefault(), "%,d", value)
+        return String.format(AppLanguageHelper.selectedLocale(this), "%,d", value)
     }
 
     private fun todayKey(): String {
@@ -2351,8 +2079,10 @@ Keep walking 🚶
                         )
 
                         sendAlertNotification(
-                            "Time to Move! ⚠️",
-                            "You haven't moved in 3 hours. Let's take a short walk!"
+                            AppLanguageHelper.localizedContext(this@StepCounterService)
+                                .getString(R.string.hc_inactivity_title),
+                            AppLanguageHelper.localizedContext(this@StepCounterService)
+                                .getString(R.string.hc_inactivity_message)
                         )
                         lastStepTime = now
                     }
@@ -2652,8 +2382,13 @@ Keep walking 🚶
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            val title = "Workout completed"
-            val message = "You walked $stepsTaken steps in $durationMin minutes."
+            val textContext = AppLanguageHelper.localizedContext(this)
+            val title = textContext.getString(R.string.hc_workout_completed)
+            val message = textContext.getString(
+                R.string.hc_workout_completed_message,
+                stepsTaken,
+                durationMin
+            )
 
             val notificationManager =
                 getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -2664,7 +2399,11 @@ Keep walking 🚶
                 .setContentText(message)
                 .setStyle(
                     NotificationCompat.BigTextStyle().bigText(
-                        "You completed a walking workout with $stepsTaken steps in $durationMin minutes. Tap to view details."
+                        textContext.getString(
+                            R.string.hc_workout_notification_message,
+                            stepsTaken,
+                            durationMin
+                        )
                     )
                 )
                 .setContentIntent(pendingIntent)
@@ -2706,12 +2445,13 @@ Keep walking 🚶
 
     private fun createAlertChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val textContext = AppLanguageHelper.localizedContext(this)
             val channel = NotificationChannel(
                 ALERT_CHANNEL_ID,
-                "Activity Alerts",
+                textContext.getString(R.string.hc_activity_alerts_channel),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Notifications for walking summaries and inactivity"
+                description = textContext.getString(R.string.hc_activity_alerts_channel_info)
                 enableVibration(true)
             }
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
@@ -2862,7 +2602,6 @@ Keep walking 🚶
             if (motion > MOTION_THRESHOLD) {
 
                 lastMotionMs = now
-                signalAutoSleepWake(now, "motion")
 
                 // Daha seyrek datastore write
                 if (now - lastMotionWriteMs > 2 * 60_000L) {
@@ -2947,8 +2686,6 @@ Keep walking 🚶
 
             if (
                 !inSleepMode &&
-                !autoSleepActiveRuntime &&
-                isSleepStartWindow(now) &&
                 lastMotionMs > 0L &&
                 (now - lastMotionMs) > SLEEP_START_AFTER_MS
             ) {

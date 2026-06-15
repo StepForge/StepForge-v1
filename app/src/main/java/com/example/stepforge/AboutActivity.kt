@@ -70,6 +70,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -139,12 +140,12 @@ fun AboutScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("About", color = cs.onBackground) },
+                title = { Text(stringResource(R.string.hc_about), color = cs.onBackground) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.hc_back),
                             tint = cs.onBackground
                         )
                     }
@@ -254,7 +255,7 @@ private fun SimpleLogo(
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_walk),
-                contentDescription = "StepForge Icon",
+                contentDescription = stringResource(R.string.hc_stepforge_icon),
                 tint = neonB,
                 modifier = Modifier.size(90.dp)
             )
@@ -302,14 +303,14 @@ private fun AboutCard(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(
-            text = "StepForge",
+            text = stringResource(R.string.app_name),
             color = textMain,
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold
         )
 
         Text(
-            text = "A focused wellness tracker for steps, hydration, sleep, and daily consistency.",
+            text = stringResource(R.string.hc_about_tagline),
             color = textSub,
             fontSize = 13.5.sp,
             lineHeight = 20.sp,
@@ -318,39 +319,39 @@ private fun AboutCard(
         )
 
         Text(
-            text = "Version $versionName (Build $versionCode)",
+            text = stringResource(R.string.hc_version_build_format, versionName, versionCode),
             color = textSub.copy(alpha = 0.9f),
             fontSize = 12.sp
         )
 
         Divider(color = if (isDark) Color(0xFF1E222B) else Color(0xFFE0E5EC))
 
-        SectionTitle("What you can do", textMain)
-        Bullet("Track daily steps using device sensors.", textSub)
-        Bullet("Set a daily goal and monitor progress with ring visuals.", textSub)
-        Bullet("View history by day and detailed day summaries.", textSub)
-        Bullet("Home screen widgets (standard / compact / large).", textSub, icon = Icons.Outlined.Widgets)
-        Bullet("Reminders: daily step reminder, water reminders, and inactivity prompts.", textSub)
-        Bullet("Water intake tracking with daily goal + quick add.", textSub)
-        Bullet("Sleep tracking: manual logs and optional Health Connect import.", textSub)
+        SectionTitle(stringResource(R.string.hc_what_you_can_do), textMain)
+        Bullet(stringResource(R.string.hc_about_track_steps), textSub)
+        Bullet(stringResource(R.string.hc_about_daily_goal), textSub)
+        Bullet(stringResource(R.string.hc_about_history), textSub)
+        Bullet(stringResource(R.string.hc_about_widgets), textSub, icon = Icons.Outlined.Widgets)
+        Bullet(stringResource(R.string.hc_about_reminders), textSub)
+        Bullet(stringResource(R.string.hc_about_water), textSub)
+        Bullet(stringResource(R.string.hc_about_sleep), textSub)
 
         Divider(color = if (isDark) Color(0xFF1E222B) else Color(0xFFE0E5EC))
 
-        SectionTitle("Privacy & data", textMain)
-        Bullet("Most of your data is stored locally on your device (Room + DataStore).", textSub, icon = Icons.Outlined.PrivacyTip)
-        Bullet("Health Connect is optional and permission-based: you control what stepforge can read.", textSub)
-        Bullet("App Lock is optional (PIN + optional biometrics). Biometrics are handled by Android.", textSub, icon = Icons.Outlined.Lock)
+        SectionTitle(stringResource(R.string.hc_privacy_data), textMain)
+        Bullet(stringResource(R.string.hc_about_local_data), textSub, icon = Icons.Outlined.PrivacyTip)
+        Bullet(stringResource(R.string.hc_about_health_permissions), textSub)
+        Bullet(stringResource(R.string.hc_about_app_lock), textSub, icon = Icons.Outlined.Lock)
 
         Divider(color = if (isDark) Color(0xFF1E222B) else Color(0xFFE0E5EC))
 
-        SectionTitle("Integrations", textMain)
-        Bullet("Health Connect: unify steps/sleep (and other permitted records) from supported sources.", textSub)
-        Bullet("Sync & Backup: optional cloud backup/restore of supported data.", textSub, icon = Icons.Outlined.Cloud)
-        Bullet("Crash diagnostics: used to improve stability (no intentional health-history upload).", textSub, icon = Icons.Outlined.Sync)
+        SectionTitle(stringResource(R.string.hc_integrations), textMain)
+        Bullet(stringResource(R.string.hc_about_health_connect), textSub)
+        Bullet(stringResource(R.string.hc_about_sync_backup), textSub, icon = Icons.Outlined.Cloud)
+        Bullet(stringResource(R.string.hc_about_diagnostics), textSub, icon = Icons.Outlined.Sync)
 
         Divider(color = if (isDark) Color(0xFF1E222B) else Color(0xFFE0E5EC))
 
-        SectionTitle("Support", textMain)
+        SectionTitle(stringResource(R.string.hc_support), textMain)
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -360,7 +361,7 @@ private fun AboutCard(
             // ✅ Text sığmazsa alt satıra düşmesin, ellipsis olsun
             ActionOutlinedButton(
                 modifier = Modifier.weight(1f),
-                label = "Contact",
+                label = stringResource(R.string.hc_contact),
                 icon = Icons.Outlined.SupportAgent,
                 borderBrush = neon,
                 textColor = textMain,
@@ -374,7 +375,7 @@ private fun AboutCard(
                         ctx.startActivity(intent)
                     } catch (_: Exception) {
                         Toast
-                            .makeText(ctx, "No email app available on this device.", Toast.LENGTH_SHORT)
+                            .makeText(ctx, ctx.getString(R.string.hc_no_email_app), Toast.LENGTH_SHORT)
                             .show()
                     }
                 }
@@ -383,7 +384,7 @@ private fun AboutCard(
             // ✅ Feedback ekranına git
             ActionFilledButton(
                 modifier = Modifier.weight(1f),
-                label = "Feedback",
+                label = stringResource(R.string.hc_feedback),
                 brush = neon,
                 isDark = isDark,
                 onClick = {
@@ -394,7 +395,7 @@ private fun AboutCard(
 
         Divider(color = if (isDark) Color(0xFF1E222B) else Color(0xFFE0E5EC))
 
-        SectionTitle("Legal", textMain)
+        SectionTitle(stringResource(R.string.hc_legal), textMain)
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -403,7 +404,7 @@ private fun AboutCard(
         ) {
             ActionOutlinedButton(
                 modifier = Modifier.weight(1f),
-                label = "Privacy",
+                label = stringResource(R.string.hc_privacy),
                 icon = Icons.Outlined.Policy,
                 borderBrush = neon,
                 textColor = textMain,
@@ -412,7 +413,7 @@ private fun AboutCard(
 
             ActionOutlinedButton(
                 modifier = Modifier.weight(1f),
-                label = "Terms",
+                label = stringResource(R.string.hc_terms),
                 icon = Icons.Outlined.Policy,
                 borderBrush = neon,
                 textColor = textMain,
@@ -423,11 +424,11 @@ private fun AboutCard(
         if (debugUnlocked && BuildConfig.DEBUG) {
             Divider(color = if (isDark) Color(0xFF1E222B) else Color(0xFFE0E5EC))
 
-            SectionTitle("Developer Tools", textMain)
+            SectionTitle(stringResource(R.string.hc_developer_tools), textMain)
 
             ActionOutlinedButton(
                 modifier = Modifier.fillMaxWidth(),
-                label = "Open Debug Console",
+                label = stringResource(R.string.hc_open_debug_console),
                 icon = Icons.Outlined.Info,
                 borderBrush = neon,
                 textColor = textMain,
@@ -438,7 +439,7 @@ private fun AboutCard(
         }
 
         Text(
-            text = "Developed by Iman Mirzazadegan",
+            text = stringResource(R.string.hc_developed_by),
             color = textSub.copy(alpha = 0.9f),
             fontSize = 12.sp
         )

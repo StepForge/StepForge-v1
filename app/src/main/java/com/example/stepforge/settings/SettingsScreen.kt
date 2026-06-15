@@ -5,7 +5,6 @@ import android.net.Uri
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -76,7 +75,6 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.core.os.LocaleListCompat
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -93,6 +91,7 @@ import com.example.stepforge.SyncBackupActivity
 import com.example.stepforge.TargetActivity
 import com.example.stepforge.WaterReminderActivity
 import com.example.stepforge.data.stepforgeStore
+import com.example.stepforge.core.AppLanguageHelper
 import com.example.stepforge.notification.WaterReminderScheduler
 import com.example.stepforge.steps.StepEvents
 import com.example.stepforge.ui.components.CustomTimePicker
@@ -167,7 +166,7 @@ fun SettingsScreen(
 
     LaunchedEffect(Unit) {
         activity.stepforgeStore.data.collect { prefs ->
-            username = prefs[USERNAME] ?: "User"
+            username = prefs[USERNAME] ?: activity.getString(R.string.hc_user)
             goal = prefs[STEP_GOAL] ?: 10000
             gender = prefs[stringPreferencesKey("gender")] ?: ""
             themeMode = prefs[THEME_MODE] ?: "system"
@@ -205,12 +204,12 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings", color = textMain) },
+                title = { Text(stringResource(R.string.hc_settings), color = textMain) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.hc_back),
                             tint = textMain
                         )
                     }
@@ -239,8 +238,8 @@ fun SettingsScreen(
                 // 1) Account
                 SettingBlock(
                     icon = Icons.Outlined.Person,
-                    title = "Account",
-                    infoText = "Edit your username or personal data",
+                    title = stringResource(R.string.hc_account),
+                    infoText = stringResource(R.string.hc_account_info),
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { windowRect, text ->
                         infoAnchor = windowRect
@@ -249,14 +248,14 @@ fun SettingsScreen(
                     },
                     darkTheme = isDark
                 ) {
-                    Text("Username: $username", color = textMain, fontSize = 16.sp)
+                    Text(stringResource(R.string.hc_username_format, username), color = textMain, fontSize = 16.sp)
                     Text(
-                        text = if (age > 0) "Age: $age" else "Age: Not set",
+                        text = if (age > 0) stringResource(R.string.hc_age_format, age) else stringResource(R.string.hc_age_not_set),
                         color = textSub,
                         fontSize = 15.sp
                     )
                     Text(
-                        "Gender: ${if (gender.isNotEmpty()) gender else "Not set"}",
+                        stringResource(R.string.hc_gender_format, if (gender.isNotEmpty()) gender else stringResource(R.string.hc_not_set)),
                         color = textSub,
                         fontSize = 15.sp
                     )
@@ -269,14 +268,14 @@ fun SettingsScreen(
                         },
                         shape = RoundedCornerShape(30),
                         border = BorderStroke(1.dp, neon)
-                    ) { Text("Edit Profile", color = Color(0xFF00F5FF)) }
+                    ) { Text(stringResource(R.string.hc_edit_profile), color = Color(0xFF00F5FF)) }
                 }
 
                 // 2) Notifications
                 SettingItem(
                     icon = Icons.Outlined.Notifications,
-                    title = "Notifications",
-                    infoText = "Daily step reminder time",
+                    title = stringResource(R.string.hc_notifications),
+                    infoText = stringResource(R.string.hc_notification_time_info),
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { windowRect, text ->
                         infoAnchor = windowRect
@@ -287,14 +286,14 @@ fun SettingsScreen(
                     darkTheme = isDark
                 ) {
                     var showPicker by remember { mutableStateOf(false) }
-                    Text("Reminder at $notifTime", color = textMain, fontSize = 16.sp)
+                    Text(stringResource(R.string.hc_reminder_at_format, notifTime), color = textMain, fontSize = 16.sp)
                     Spacer(Modifier.height(6.dp))
                     OutlinedButton(
                         onClick = { showPicker = true },
                         border = BorderStroke(1.dp, neon),
                         shape = RoundedCornerShape(50)
                     ) {
-                        Text("Set Time", color = Color(0xFF00F5FF))
+                        Text(stringResource(R.string.hc_set_time), color = Color(0xFF00F5FF))
                     }
 
                     if (showPicker) {
@@ -322,8 +321,8 @@ fun SettingsScreen(
                 // 2.5) System Notification Settings
                 SettingItem(
                     icon = Icons.Outlined.Notifications,
-                    title = "Notification Settings",
-                    infoText = "Open the system notification settings for StepForge to control badges, sounds and more.",
+                    title = stringResource(R.string.hc_notification_settings),
+                    infoText = stringResource(R.string.hc_notification_settings_info),
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { windowRect, text ->
                         infoAnchor = windowRect
@@ -335,8 +334,7 @@ fun SettingsScreen(
                 ) {
                     val ctxLocal = LocalContext.current
                     Text(
-                        text = "Use this option to open Android’s notification settings screen for StepForge. " +
-                                "From there you can turn off the app icon badge, adjust sound/vibration and other options.",
+                        text = stringResource(R.string.hc_notification_settings_body),
                         color = textSub,
                         fontSize = 13.sp
                     )
@@ -364,7 +362,7 @@ fun SettingsScreen(
                                 } catch (_: Exception) {
                                     Toast.makeText(
                                         ctxLocal,
-                                        "Unable to open system notification settings.",
+                                        ctxLocal.getString(R.string.hc_unable_open_notification_settings),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -373,15 +371,15 @@ fun SettingsScreen(
                         border = BorderStroke(1.dp, neon),
                         shape = RoundedCornerShape(50)
                     ) {
-                        Text("Open Notification Settings", color = Color(0xFF00F5FF), fontSize = 13.sp)
+                        Text(stringResource(R.string.hc_open_notification_settings), color = Color(0xFF00F5FF), fontSize = 13.sp)
                     }
                 }
 
                 // 2.55) Battery Optimization Settings
                 SettingItem(
                     icon = Icons.Outlined.BatterySaver,
-                    title = "Battery Optimization",
-                    infoText = "Disable battery optimization so StepForge can count steps reliably in the background.",
+                    title = stringResource(R.string.hc_battery_optimization),
+                    infoText = stringResource(R.string.hc_battery_settings_info),
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { windowRect, text ->
                         infoAnchor = windowRect
@@ -394,8 +392,7 @@ fun SettingsScreen(
                     val ctxLocal = LocalContext.current
 
                     Text(
-                        text = "Some Android phones stop background services automatically to save battery. " +
-                                "To ensure StepForge keeps counting steps, disable battery optimization for this app.",
+                        text = stringResource(R.string.hc_battery_settings_body),
                         color = textSub,
                         fontSize = 13.sp
                     )
@@ -416,7 +413,7 @@ fun SettingsScreen(
                                 } catch (_: Exception) {
                                     Toast.makeText(
                                         ctxLocal,
-                                        "Unable to open battery optimization settings.",
+                                        ctxLocal.getString(R.string.hc_unable_open_battery_settings),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -425,7 +422,7 @@ fun SettingsScreen(
                         border = BorderStroke(1.dp, neon),
                         shape = RoundedCornerShape(50)
                     ) {
-                        Text("Open Battery Optimization Settings", color = Color(0xFF00F5FF), fontSize = 13.sp)
+                        Text(stringResource(R.string.hc_open_battery_settings), color = Color(0xFF00F5FF), fontSize = 13.sp)
                     }
 
                     Spacer(Modifier.height(6.dp))
@@ -440,7 +437,7 @@ fun SettingsScreen(
                             } catch (_: Exception) {
                                 Toast.makeText(
                                     ctxLocal,
-                                    "Unable to open app settings.",
+                                    ctxLocal.getString(R.string.hc_unable_open_app_settings),
                                     Toast.LENGTH_SHORT
                                 ).show()
                             }
@@ -448,7 +445,7 @@ fun SettingsScreen(
                         border = BorderStroke(1.dp, neon),
                         shape = RoundedCornerShape(50)
                     ) {
-                        Text("Open StepForge App Settings", color = Color(0xFF00F5FF), fontSize = 13.sp)
+                        Text(stringResource(R.string.hc_open_app_settings), color = Color(0xFF00F5FF), fontSize = 13.sp)
                     }
                 }
 
@@ -456,8 +453,8 @@ fun SettingsScreen(
                 // 2.6) Water Reminder
                 SettingItem(
                     icon = Icons.Outlined.LocalDrink,
-                    title = "Water Reminder",
-                    infoText = "Configure hydration reminders and track your daily water intake.",
+                    title = stringResource(R.string.hc_water_reminder),
+                    infoText = stringResource(R.string.hc_water_settings_info),
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { windowRect, text ->
                         infoAnchor = windowRect
@@ -497,16 +494,16 @@ fun SettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             Text(
-                                text = "Water reminders",
+                                text = stringResource(R.string.hc_water_reminders),
                                 color = textMain,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
                                 text = if (waterEnabled)
-                                    "Enabled • Tap to adjust schedule and goal."
+                                    stringResource(R.string.hc_water_enabled_info)
                                 else
-                                    "Disabled • Tap to enable and configure reminders.",
+                                    stringResource(R.string.hc_water_disabled_info),
                                 color = textSub,
                                 fontSize = 11.sp,
                                 maxLines = 1
@@ -541,8 +538,8 @@ fun SettingsScreen(
                 // Sleep
                 SettingItem(
                     icon = Icons.Outlined.Bedtime,
-                    title = "Sleep",
-                    infoText = "Sleep insights and Health Connect sync.",
+                    title = stringResource(R.string.hc_sleep),
+                    infoText = stringResource(R.string.hc_sleep_settings_info),
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { windowRect, text ->
                         infoAnchor = windowRect
@@ -569,13 +566,13 @@ fun SettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "Open Sleep",
+                                text = stringResource(R.string.hc_open_sleep),
                                 color = textMain,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "Tap to view your sleep overview and sync from Health Connect.",
+                                text = stringResource(R.string.hc_open_sleep_info),
                                 color = textSub,
                                 fontSize = 11.sp
                             )
@@ -586,8 +583,8 @@ fun SettingsScreen(
                 // 3) Daily Goal
                 SettingItem(
                     icon = Icons.Outlined.Flag,
-                    title = "Daily Goal",
-                    infoText = "Change your daily step goal",
+                    title = stringResource(R.string.hc_daily_goal),
+                    infoText = stringResource(R.string.hc_daily_goal_info),
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { windowRect, text ->
                         infoAnchor = windowRect
@@ -602,7 +599,7 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("$goal steps", color = textMain, fontSize = 16.sp)
+                        Text(stringResource(R.string.hc_steps_format, goal.toString()), color = textMain, fontSize = 16.sp)
                         OutlinedButton(
                             onClick = {
                                 activity.startActivity(
@@ -612,7 +609,7 @@ fun SettingsScreen(
                             border = BorderStroke(1.dp, neon),
                             shape = RoundedCornerShape(50)
                         ) {
-                            Text("Change", color = Color(0xFF00F5FF))
+                            Text(stringResource(R.string.hc_change), color = Color(0xFF00F5FF))
                         }
                     }
                 }
@@ -620,8 +617,8 @@ fun SettingsScreen(
                 // 4) Theme
                 SettingItem(
                     icon = Icons.Outlined.Palette,
-                    title = "Theme",
-                    infoText = "Choose app appearance mode",
+                    title = stringResource(R.string.hc_theme),
+                    infoText = stringResource(R.string.hc_theme_info),
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { windowRect, text ->
                         infoAnchor = windowRect
@@ -666,7 +663,11 @@ fun SettingsScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    mode.uppercase(),
+                                    when (mode) {
+                                        "dark" -> stringResource(R.string.hc_dark)
+                                        "light" -> stringResource(R.string.hc_light)
+                                        else -> stringResource(R.string.hc_system)
+                                    },
                                     color = if (sel) Color(0xFF00FFA3) else textMain,
                                     fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal
                                 )
@@ -689,7 +690,7 @@ fun SettingsScreen(
                     alwaysExpanded = true,
                     darkTheme = isDark
                 ) {
-                    val currentTags = AppCompatDelegate.getApplicationLocales().toLanguageTags()
+                    val currentTags = AppLanguageHelper.selectedLanguageTags(activity)
                     val currentLabel = when {
                         currentTags.isBlank() -> stringResource(R.string.settings_language_system_default)
                         currentTags.startsWith("en") -> stringResource(R.string.settings_language_english)
@@ -723,8 +724,8 @@ fun SettingsScreen(
                 // 4.5) Premium Debug
                 SettingItem(
                     icon = Icons.Outlined.Info,
-                    title = "Feature Preview (Debug)",
-                    infoText = "Temporary toggle to test advanced views.",
+                    title = stringResource(R.string.hc_feature_preview),
+                    infoText = stringResource(R.string.hc_feature_preview_info),
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { windowRect, text ->
                         infoAnchor = windowRect
@@ -740,7 +741,7 @@ fun SettingsScreen(
 
                 SettingItem(
                     icon = Icons.Outlined.Info,
-                    title = "Smart Coach Alerts",
+                    title = stringResource(R.string.hc_smart_coach_alerts),
                     infoText = stringResource(R.string.premium_ai_info_text),
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { rect, text ->
@@ -763,8 +764,8 @@ fun SettingsScreen(
                 // 5) Integration
                 SettingItem(
                     icon = Icons.Outlined.Public,
-                    title = "Integration",
-                    infoText = "Connect StepForge with Health Connect to sync walking data.",
+                    title = stringResource(R.string.hc_integration),
+                    infoText = stringResource(R.string.hc_integration_info),
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { rect, text ->
                         infoAnchor = rect
@@ -786,8 +787,8 @@ fun SettingsScreen(
                 // 6) Adjust Today's Steps
                 SettingItem(
                     icon = Icons.Outlined.Edit,
-                    title = "Adjust Today's Steps",
-                    infoText = "Manually correct today's steps if the sensor missed walking time.",
+                    title = stringResource(R.string.hc_adjust_today_steps),
+                    infoText = stringResource(R.string.hc_adjust_steps_info),
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { windowRect, text ->
                         infoAnchor = windowRect
@@ -814,7 +815,7 @@ fun SettingsScreen(
 
                             StepCounterService.updateServiceNotification(ctxLocal, value, goal)
 
-                            Toast.makeText(ctxLocal, "Steps updated to $value ✅", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctxLocal, ctxLocal.getString(R.string.hc_steps_updated_format, value), Toast.LENGTH_SHORT).show()
                         },
                         onReset = {
                             val KEY_MANUAL_OVERRIDE = intPreferencesKey("manual_override_enabled")
@@ -832,7 +833,7 @@ fun SettingsScreen(
                             // Android O+ güvenli başlatma
                             ContextCompat.startForegroundService(ctxLocal, resetIntent)
 
-                            Toast.makeText(ctxLocal, "Steps reset request sent", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(ctxLocal, ctxLocal.getString(R.string.hc_steps_reset_sent), Toast.LENGTH_SHORT).show()
 
                             // Bildirimi hemen 0 göster (servis zaten ardından güncelleyecek)
                             StepCounterService.updateServiceNotification(ctxLocal, 0, goal)
@@ -844,8 +845,8 @@ fun SettingsScreen(
                 // 7) Feedback / Support
                 SettingItem(
                     icon = Icons.Outlined.Feedback,
-                    title = "Feedback / Support",
-                    infoText = "Send feedback or ask for support.",
+                    title = stringResource(R.string.hc_feedback_support),
+                    infoText = stringResource(R.string.hc_feedback_info),
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { windowRect, text ->
                         infoAnchor = windowRect
@@ -869,13 +870,13 @@ fun SettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "Open Feedback Center",
+                                text = stringResource(R.string.hc_open_feedback_center),
                                 color = textMain,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "Tap to report issues, share ideas or ask for help.",
+                                text = stringResource(R.string.hc_open_feedback_info),
                                 color = textSub,
                                 fontSize = 11.sp
                             )
@@ -886,8 +887,8 @@ fun SettingsScreen(
                 // 8) Privacy & Security
                 SettingItem(
                     icon = Icons.Outlined.Info,
-                    title = "Privacy & Security",
-                    infoText = "Manage data privacy and permission settings to protect your information.",
+                    title = stringResource(R.string.hc_privacy_security),
+                    infoText = stringResource(R.string.hc_privacy_center_info),
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { windowRect, text ->
                         infoAnchor = windowRect
@@ -911,13 +912,13 @@ fun SettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "Open Privacy Center",
+                                text = stringResource(R.string.hc_open_privacy_center),
                                 color = textMain,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "Tap to control App Lock, permissions and local data.",
+                                text = stringResource(R.string.hc_open_privacy_info),
                                 color = textSub,
                                 fontSize = 11.sp
                             )
@@ -928,8 +929,8 @@ fun SettingsScreen(
                 // 9) Sync & Backup
                 SettingItem(
                     icon = Icons.Outlined.Info,
-                    title = "Sync & Backup",
-                    infoText = "Backup your step data and sync it securely across devices.",
+                    title = stringResource(R.string.hc_sync_backup),
+                    infoText = stringResource(R.string.hc_sync_backup_info),
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { windowRect, text ->
                         infoAnchor = windowRect
@@ -953,13 +954,13 @@ fun SettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "Open Sync & Backup",
+                                text = stringResource(R.string.hc_open_sync_backup),
                                 color = textMain,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "Tap to manage cloud backup, restore and auto‑sync.",
+                                text = stringResource(R.string.hc_open_sync_backup_info),
                                 color = textSub,
                                 fontSize = 11.sp
                             )
@@ -970,8 +971,8 @@ fun SettingsScreen(
                 // 10) About
                 SettingItem(
                     icon = Icons.Outlined.Info,
-                    title = "About",
-                    infoText = "Learn more about StepForge and the development team.",
+                    title = stringResource(R.string.hc_about),
+                    infoText = stringResource(R.string.hc_about_info),
                     openInfoCard = openInfoCard,
                     onInfoAnchor = { windowRect, text ->
                         infoAnchor = windowRect
@@ -995,13 +996,13 @@ fun SettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "About StepForge",
+                                text = stringResource(R.string.hc_about_stepforge),
                                 color = textMain,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "Tap to see version info and credits.",
+                                text = stringResource(R.string.hc_about_stepforge_info),
                                 color = textSub,
                                 fontSize = 11.sp
                             )
@@ -1052,14 +1053,11 @@ fun SettingsScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
 
                         fun apply(tags: String?) {
-                            val locales = if (tags.isNullOrBlank()) {
-                                LocaleListCompat.getEmptyLocaleList()
-                            } else {
-                                LocaleListCompat.forLanguageTags(tags)
-                            }
-
-                            AppCompatDelegate.setApplicationLocales(locales)
-                            activity.recreate()
+                            AppLanguageHelper.applyLanguage(activity, tags)
+                            activity.window.decorView.postDelayed(
+                                { AppLanguageHelper.refreshRuntimeSurfaces(activity) },
+                                300L
+                            )
                             showLanguageDialog = false
                         }
 
@@ -1136,13 +1134,13 @@ private fun PremiumDebugToggle(darkTheme: Boolean) {
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Text(
-                text = if (isPremium) "Advanced views enabled" else "Advanced views disabled",
+                text = if (isPremium) stringResource(R.string.hc_advanced_enabled) else stringResource(R.string.hc_advanced_disabled),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold
             )
 
             Text(
-                text = "For testing Weekly/Monthly Insights and advanced views.",
+                text = stringResource(R.string.hc_feature_preview_body),
                 fontSize = 11.sp,
                 color = if (darkTheme) Color.White.copy(alpha = 0.75f) else Color.Black.copy(alpha = 0.7f)
             )

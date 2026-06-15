@@ -2,6 +2,8 @@
 
 package com.example.stepforge
 
+import androidx.compose.ui.res.stringResource
+
 
 import android.Manifest
 import android.app.AlarmManager
@@ -614,7 +616,7 @@ private fun HomeTopBar() {
     CenterAlignedTopAppBar(
         title = {
             Text(
-                text = "StepForge",
+                text = stringResource(R.string.app_name),
                 color = cs.onBackground,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold
@@ -630,7 +632,7 @@ private fun HomeTopBar() {
                 // Şimdilik Material icon kullanalım (light/dark uyumlu)
                 Icon(
                     imageVector = Icons.Outlined.Insights,
-                    contentDescription = "Insights",
+                    contentDescription = stringResource(R.string.hc_insights),
                     tint = cs.onBackground,
                     modifier = Modifier.size(22.dp)
                 )
@@ -645,7 +647,7 @@ private fun HomeTopBar() {
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Settings,
-                    contentDescription = "Settings",
+                    contentDescription = stringResource(R.string.hc_settings),
                     tint = cs.onBackground,
                     modifier = Modifier.size(22.dp)
                 )
@@ -667,7 +669,13 @@ private fun HomeBottomBar(
     onSelect: (Int) -> Unit
 ) {
     val cs = colorScheme
-    val items = listOf("Home", "History", "Water", "Insights", "Profile")
+    val items = listOf(
+        stringResource(R.string.wv2_nav_home),
+        stringResource(R.string.wv2_nav_history),
+        stringResource(R.string.wv2_nav_water),
+        stringResource(R.string.wv2_nav_insights),
+        stringResource(R.string.wv2_nav_profile)
+    )
     val icons: List<ImageVector> = listOf(
         Icons.Filled.Home,
         Icons.Filled.History,
@@ -917,7 +925,11 @@ private fun DailyGoalLeftBadge(
     val cs = colorScheme
 
     val left = (target - steps).coerceAtLeast(0)
-    val label = if (left <= 0) "GOAL DONE" else "${NumberFormat.getIntegerInstance().format(left)} LEFT"
+    val label = if (left <= 0) {
+        stringResource(R.string.hc_goal_done)
+    } else {
+        stringResource(R.string.hc_left_format, NumberFormat.getIntegerInstance().format(left))
+    }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -945,7 +957,7 @@ private fun DailyGoalLeftBadge(
         }
 
         Text(
-            text = "Daily Goal",
+            text = stringResource(R.string.ach_title_02),
             color = cs.onSurface.copy(alpha = 0.7f),
             fontSize = 11.sp
         )
@@ -977,7 +989,7 @@ private fun StreakBadge(
 
             Icon(
                 painter = painterResource(id = R.drawable.ic_streak_calendar_vec),
-                contentDescription = "Streak",
+                contentDescription = stringResource(R.string.hc_streak),
                 tint = cs.primary,
                 modifier = Modifier.size(36.dp)
             )
@@ -991,7 +1003,7 @@ private fun StreakBadge(
         }
 
         Text(
-            text = "Streak",
+            text = stringResource(R.string.sleep_streak_title),
             color = cs.onSurface.copy(alpha = 0.7f),
             fontSize = 11.sp
         )
@@ -1074,7 +1086,7 @@ private fun HeroRing(
         ) {
             Image(
                 painter = painterResource(id = R.drawable.ic_walk),
-                contentDescription = "runner",
+                contentDescription = stringResource(R.string.runner_icon),
                 modifier = Modifier.size(iconSize),
                 contentScale = ContentScale.Fit
             )
@@ -1087,7 +1099,7 @@ private fun HeroRing(
             )
 
             Text(
-                text = "Today's Steps",
+                text = stringResource(R.string.hc_today_steps),
                 color = cs.onSurface.copy(alpha = 0.7f),
                 fontSize = 13.sp
             )
@@ -1112,7 +1124,7 @@ private fun DistanceActiveRow(
     ) {
         Column {
             Text(
-                text = "Distance",
+                text = stringResource(R.string.workouts_today_distance),
                 color = cs.onSurface.copy(alpha = 0.65f),
                 fontSize = 11.sp
             )
@@ -1125,7 +1137,7 @@ private fun DistanceActiveRow(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "km",
+                    text = stringResource(R.string.wv2_km),
                     color = cs.onSurface,
                     fontSize = 13.sp
                 )
@@ -1134,7 +1146,7 @@ private fun DistanceActiveRow(
 
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = "Active Time",
+                text = stringResource(R.string.wv2_active_time),
                 color = cs.onSurface.copy(alpha = 0.65f),
                 fontSize = 11.sp
             )
@@ -1147,7 +1159,7 @@ private fun DistanceActiveRow(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "min",
+                    text = stringResource(R.string.m),
                     color = cs.onSurface,
                     fontSize = 13.sp
                 )
@@ -1205,12 +1217,13 @@ private fun DailyWeeklyRow(
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = "Daily Average",
+                                text = stringResource(R.string.hc_daily_average),
                                 color = cs.onSurfaceVariant,
                                 fontSize = 11.sp
                             )
                         }
 
+                        val stepsLabel = stringResource(R.string.widget_steps_label)
                         Text(
                             text = buildAnnotatedString {
                                 append(NumberFormat.getIntegerInstance().format(it))
@@ -1220,7 +1233,7 @@ private fun DailyWeeklyRow(
                                         color = cs.primary,
                                         fontSize = 13.sp
                                     )
-                                ) { append("steps") }
+                                ) { append(stepsLabel) }
                             },
                             color = cs.onSurface,
                             fontSize = 18.sp,
@@ -1263,7 +1276,7 @@ private fun DailyWeeklyRow(
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = "Weekly Total",
+                                text = stringResource(R.string.hc_weekly_total),
                                 color = cs.onSurfaceVariant,
                                 fontSize = 11.sp
                             )
@@ -1367,7 +1380,7 @@ private fun SleepSummaryCard() {
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "Sleep",
+                        text = stringResource(R.string.sleep_title),
                         color = Color(0xFFE3B5FF),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
@@ -1375,7 +1388,7 @@ private fun SleepSummaryCard() {
                 }
 
                 Text(
-                    text = if (hasData) "${hours}h ${mins}m" else "No data",
+                    text = if (hasData) "${hours}h ${mins}m" else stringResource(R.string.hc_no_data),
                     color = cs.onSurface,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
@@ -1400,9 +1413,9 @@ private fun SleepSummaryCard() {
                     timeFormat.format(java.util.Date(it))
                 } ?: "--:--"
 
-                SleepMiniBox("Start", start)
-                SleepMiniBox("End", end)
-                SleepMiniBox("Quality", if (hasData) quality.toString() else "--")
+                SleepMiniBox(stringResource(R.string.hc_start_label), start)
+                SleepMiniBox(stringResource(R.string.hc_end_label), end)
+                SleepMiniBox(stringResource(R.string.hc_quality), if (hasData) quality.toString() else "--")
             }
 
             Spacer(modifier = Modifier.height(9.dp))

@@ -1,5 +1,9 @@
 package com.example.stepforge.settings
 
+import com.example.stepforge.R
+
+import androidx.compose.ui.res.stringResource
+
 import android.opengl.ETC1.isValid
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -248,10 +252,10 @@ fun WaterReminderScreen(
 
     val deviationMl = todayMl - expectedByNowMl
     val statusText = when {
-        !enabled -> "Water reminder is disabled"
-        deviationMl >= -150 -> "Hydration: Optimal"
-        deviationMl >= -350 -> "Hydration: Slightly behind"
-        else -> "Hydration: Behind schedule"
+        !enabled -> stringResource(R.string.hc_water_reminder_disabled)
+        deviationMl >= -150 -> stringResource(R.string.hc_water_optimal)
+        deviationMl >= -350 -> stringResource(R.string.hc_water_slightly_behind)
+        else -> stringResource(R.string.hc_water_behind)
     }
 
     val animatedMl = remember { Animatable(0f) }
@@ -302,10 +306,10 @@ fun WaterReminderScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Water Reminder", color = cs.onBackground, fontWeight = FontWeight.SemiBold) },
+                title = { Text(stringResource(R.string.hc_water_reminder), color = cs.onBackground, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back", tint = cs.onBackground)
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.hc_back), tint = cs.onBackground)
                     }
                 },
                 actions = {
@@ -343,9 +347,9 @@ fun WaterReminderScreen(
                         ) {
                             Icon(Icons.Outlined.Star, contentDescription = null, tint = Color(0xFF00F5FF))
                             Column {
-                                Text("Goal completed!", color = cs.onSurface, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Text(stringResource(R.string.hc_goal_completed), color = cs.onSurface, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                 Text(
-                                    "Great job staying hydrated today.",
+                                    stringResource(R.string.hc_hydration_good_job),
                                     color = cs.onSurface.copy(alpha = 0.75f),
                                     fontSize = 12.sp
                                 )
@@ -391,7 +395,10 @@ fun WaterReminderScreen(
 
                                 val remaining = (goalMl - todayMl).coerceAtLeast(0)
                                 Text(
-                                    text = "${NumberFormat.getIntegerInstance().format(remaining)} ml remaining",
+                                    text = stringResource(
+                                        R.string.hc_left_format,
+                                        "${NumberFormat.getIntegerInstance().format(remaining)} ml"
+                                    ),
                                     color = cs.onSurface.copy(alpha = 0.7f),
                                     fontSize = 13.sp
                                 )
@@ -425,7 +432,7 @@ fun WaterReminderScreen(
                             enter = fadeIn(tween(200)) + scaleIn(tween(220, easing = EaseOut)),
                             exit = fadeOut(tween(140)) + scaleOut(tween(140))
                         ) {
-                            Text("Water reminder is disabled", color = cs.onSurface.copy(alpha = 0.7f), fontSize = 13.sp)
+                            Text(stringResource(R.string.hc_water_reminder_disabled), color = cs.onSurface.copy(alpha = 0.7f), fontSize = 13.sp)
                         }
                     }
                 }
@@ -440,7 +447,7 @@ fun WaterReminderScreen(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("Hydration Analysis", color = cs.onSurface, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                            Text(stringResource(R.string.hc_hydration_analysis), color = cs.onSurface, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
 
                             HydrationFlowBar(
                                 actual = todayMl,
@@ -454,12 +461,12 @@ fun WaterReminderScreen(
 
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(
-                                    "Expected by now: ${NumberFormat.getIntegerInstance().format(expectedByNowMl)} ml",
+                                    stringResource(R.string.hc_expected_by_now, NumberFormat.getIntegerInstance().format(expectedByNowMl)),
                                     color = cs.onSurface.copy(alpha = 0.75f),
                                     fontSize = 12.sp
                                 )
                                 Text(
-                                    "Actual: ${NumberFormat.getIntegerInstance().format(todayMl)} ml",
+                                    stringResource(R.string.hc_actual_water, NumberFormat.getIntegerInstance().format(todayMl)),
                                     color = cs.onSurface.copy(alpha = 0.75f),
                                     fontSize = 12.sp
                                 )
@@ -533,7 +540,7 @@ fun WaterReminderScreen(
                                 containerColor = cs.surfaceVariant,
                                 contentColor = cs.onSurface
                             )
-                        ) { Text("Daily Goal", fontWeight = FontWeight.SemiBold) }
+                        ) { Text(stringResource(R.string.hc_daily_goal), fontWeight = FontWeight.SemiBold) }
                     },
                     right = { m ->
                         Button(
@@ -545,7 +552,7 @@ fun WaterReminderScreen(
                                 containerColor = cs.surfaceVariant,
                                 contentColor = cs.onSurface
                             )
-                        ) { Text("Custom", fontWeight = FontWeight.SemiBold) }
+                        ) { Text(stringResource(R.string.hc_custom), fontWeight = FontWeight.SemiBold) }
                     }
                 )
 
@@ -574,16 +581,16 @@ fun WaterReminderScreen(
                     ) {
                         Icon(Icons.Outlined.Undo, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Undo last", fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.hc_undo_last), fontWeight = FontWeight.SemiBold)
                     }
                 }
 
                 ElevatedGlassCard(cardBg = cardBg, border = border, shadow = shadow) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Today's Timeline", color = cs.onSurface, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                        Text(stringResource(R.string.hc_today_timeline), color = cs.onSurface, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
 
                         if (events.isEmpty()) {
-                            Text("No entries yet.", color = cs.onSurface.copy(alpha = 0.65f), fontSize = 12.sp)
+                            Text(stringResource(R.string.hc_no_entries), color = cs.onSurface.copy(alpha = 0.65f), fontSize = 12.sp)
                         } else {
                             Column(
                                 modifier = Modifier
@@ -596,7 +603,7 @@ fun WaterReminderScreen(
                             }
                         }
 
-                        Text("Today resets at 00:00", color = cs.onSurface.copy(alpha = 0.55f), fontSize = 11.sp)
+                        Text(stringResource(R.string.hc_today_resets), color = cs.onSurface.copy(alpha = 0.55f), fontSize = 11.sp)
                     }
                 }
             }
@@ -683,7 +690,7 @@ private fun PremiumGoalSheet(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    text = "Daily water goal",
+                    text = stringResource(R.string.hc_daily_water_goal),
                     color = cs.onSurface,
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp
@@ -715,12 +722,12 @@ private fun PremiumGoalSheet(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("1.0 L", color = cs.onSurface.copy(alpha = 0.65f), fontSize = 12.sp)
-                    Text("4.5 L", color = cs.onSurface.copy(alpha = 0.65f), fontSize = 12.sp)
+                    Text(stringResource(R.string.hc_water_min_liters), color = cs.onSurface.copy(alpha = 0.65f), fontSize = 12.sp)
+                    Text(stringResource(R.string.hc_water_max_liters), color = cs.onSurface.copy(alpha = 0.65f), fontSize = 12.sp)
                 }
 
                 Text(
-                    text = "Choose a goal you can hit consistently.",
+                    text = stringResource(R.string.hc_choose_consistent_water_goal),
                     color = cs.onSurface.copy(alpha = 0.7f),
                     fontSize = 12.sp
                 )
@@ -729,7 +736,7 @@ private fun PremiumGoalSheet(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.hc_cancel)) }
                     Spacer(Modifier.weight(1f))
                     Button(
                         onClick = { onSave(goal) },
@@ -746,7 +753,7 @@ private fun PremiumGoalSheet(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                "Save",
+                                stringResource(R.string.hc_save),
                                 color = Color.Black,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
@@ -796,7 +803,7 @@ private fun PremiumCustomIntakeSheet(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    text = "Custom intake",
+                    text = stringResource(R.string.hc_custom_intake),
                     color = cs.onSurface,
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp
@@ -807,14 +814,14 @@ private fun PremiumCustomIntakeSheet(
                     value = value,
                     onValueChange = { v -> value = v.filter(Char::isDigit).take(4) },
                     singleLine = true,
-                    placeholder = { Text("e.g. 300") },
+                    placeholder = { Text(stringResource(R.string.hc_example_300)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    suffix = { Text("ml", color = cs.onSurface.copy(alpha = 0.65f)) },
+                    suffix = { Text(stringResource(R.string.hc_ml), color = cs.onSurface.copy(alpha = 0.65f)) },
                     supportingText = {
                         val t = when {
-                            value.isBlank() -> "Enter an amount between $minMl and $maxMl ml."
-                            isValid -> "Looks good."
-                            else -> "Please enter $minMl–$maxMl ml."
+                            value.isBlank() -> stringResource(R.string.hc_enter_ml_range, minMl, maxMl)
+                            isValid -> stringResource(R.string.hc_looks_good)
+                            else -> stringResource(R.string.hc_ml_range_error, minMl, maxMl)
                         }
                         Text(t, color = cs.onSurface.copy(alpha = 0.7f), fontSize = 12.sp)
                     },
@@ -827,7 +834,7 @@ private fun PremiumCustomIntakeSheet(
                 )
 
                 Text(
-                    text = "Quick presets",
+                    text = stringResource(R.string.hc_quick_presets),
                     color = cs.onSurface.copy(alpha = 0.7f),
                     fontSize = 12.sp
                 )
@@ -862,7 +869,7 @@ private fun PremiumCustomIntakeSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.hc_cancel))
                     }
 
                     Spacer(Modifier.weight(1f))
@@ -886,7 +893,7 @@ private fun PremiumCustomIntakeSheet(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                "Add",
+                                stringResource(R.string.hc_add),
                                 color = Color.Black,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
@@ -920,7 +927,7 @@ private fun PresetChip(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "$value ml",
+            text = stringResource(R.string.hc_ml_format, value),
             color = cs.onSurface,
             fontWeight = FontWeight.SemiBold,
             fontSize = 14.sp
@@ -1039,7 +1046,7 @@ private fun IOSLikeToggle(
         val x = maxX * t.value
 
         Text(
-            text = "ON",
+            text = stringResource(R.string.hc_on),
             color = cs.onSurface.copy(alpha = 0.75f * t.value),
             fontSize = 10.sp,
             fontWeight = FontWeight.SemiBold,
@@ -1049,7 +1056,7 @@ private fun IOSLikeToggle(
         )
 
         Text(
-            text = "OFF",
+            text = stringResource(R.string.hc_off),
             color = cs.onSurface.copy(alpha = 0.75f * (1f - t.value)),
             fontSize = 10.sp,
             fontWeight = FontWeight.SemiBold,
