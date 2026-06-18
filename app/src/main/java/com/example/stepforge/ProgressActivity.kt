@@ -3,7 +3,7 @@ package com.example.stepforge
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import com.example.stepforge.settings.ProgressScreen
+import com.example.stepforge.ui.progress.ProgressScreen
 import com.example.stepforge.ui.rememberUseDarkTheme
 import com.example.stepforge.ui.stepforgeTheme
 

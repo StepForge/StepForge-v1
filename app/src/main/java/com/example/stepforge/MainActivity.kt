@@ -669,6 +669,8 @@ private fun HomeBottomBar(
     onSelect: (Int) -> Unit
 ) {
     val cs = colorScheme
+    val isDark = cs.background.luminance() < 0.5f
+
     val items = listOf(
         stringResource(R.string.wv2_nav_home),
         stringResource(R.string.wv2_nav_history),
@@ -688,8 +690,31 @@ private fun HomeBottomBar(
         Color(0xFFA970FF),
         Color(0xFF2EA8FF),
         Color(0xFFFFB340),
-        Color(0xFF00FFA3)
+        Color(0xFF00D690)
     )
+
+    val barShape = RoundedCornerShape(30.dp)
+    val itemShape = RoundedCornerShape(24.dp)
+    val barColor = if (isDark) Color(0xFF090D12).copy(alpha = 0.98f) else Color(0xFFF8FBFF).copy(alpha = 0.96f)
+    val barBorder = Brush.horizontalGradient(
+        if (isDark) {
+            listOf(
+                Color.White.copy(alpha = 0.07f),
+                cs.primary.copy(alpha = 0.18f),
+                Color(0xFF00FFA3).copy(alpha = 0.10f),
+                Color.White.copy(alpha = 0.06f)
+            )
+        } else {
+            listOf(
+                Color.White.copy(alpha = 0.98f),
+                Color(0xFF00CFE8).copy(alpha = 0.26f),
+                Color(0xFF2EE6B8).copy(alpha = 0.20f),
+                Color(0xFFCBD5E1).copy(alpha = 0.62f)
+            )
+        }
+    )
+    val navMuted = if (isDark) cs.onSurface.copy(alpha = 0.48f) else Color(0xFF687386)
+    val navMutedIcon = if (isDark) cs.onSurface.copy(alpha = 0.58f) else Color(0xFF7B8794)
 
     Box(
         modifier = Modifier
@@ -702,139 +727,184 @@ private fun HomeBottomBar(
                 .fillMaxWidth()
                 .height(68.dp)
                 .shadow(
-                    elevation = 18.dp,
-                    shape = RoundedCornerShape(30.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.34f),
-                    spotColor = Color(0xFF00F5FF).copy(alpha = 0.10f)
+                    elevation = if (isDark) 18.dp else 16.dp,
+                    shape = barShape,
+                    ambientColor = if (isDark) Color.Black.copy(alpha = 0.34f) else Color(0xFF0F172A).copy(alpha = 0.13f),
+                    spotColor = if (isDark) Color(0xFF00F5FF).copy(alpha = 0.10f) else Color(0xFF00CFE8).copy(alpha = 0.14f)
                 )
                 .border(
                     width = 1.dp,
-                    brush = Brush.horizontalGradient(
-                        listOf(
-                            Color.White.copy(alpha = 0.07f),
-                            cs.primary.copy(alpha = 0.18f),
-                            Color(0xFF00FFA3).copy(alpha = 0.10f),
-                            Color.White.copy(alpha = 0.06f)
-                        )
-                    ),
-                    shape = RoundedCornerShape(30.dp)
+                    brush = barBorder,
+                    shape = barShape
                 ),
-            shape = RoundedCornerShape(30.dp),
-            color = Color(0xFF090D12).copy(alpha = 0.98f)
+            shape = barShape,
+            color = barColor
         ) {
-            Row(
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                items.forEachIndexed { index, label ->
-                    val selected = selectedIndex == index
-                    val accent = accents[index]
-                    val selectedProgress by animateFloatAsState(
-                        targetValue = if (selected) 1f else 0f,
-                        animationSpec = tween(280, easing = FastOutSlowInEasing),
-                        label = "premiumBottomSelected"
-                    )
-                    val scale by animateFloatAsState(
-                        targetValue = if (selected) 1.04f else 0.96f,
-                        animationSpec = tween(260, easing = FastOutSlowInEasing),
-                        label = "premiumBottomScale"
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .weight(if (selected) 1.32f else 1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(
-                                brush = Brush.linearGradient(
-                                    listOf(
-                                        accent.copy(alpha = 0.06f * selectedProgress),
-                                        Color(0xFF101821).copy(alpha = 0.22f * selectedProgress),
-                                        Color(0xFF05080D).copy(alpha = 0.02f)
-                                    )
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            if (isDark) {
+                                listOf(
+                                    Color(0xFF101821).copy(alpha = 0.42f),
+                                    Color(0xFF05080D).copy(alpha = 0.12f)
                                 )
-                            )
-                            .border(
-                                width = 1.dp,
-                                brush = Brush.linearGradient(
-                                    listOf(
-                                        accent.copy(alpha = 0.30f * selectedProgress),
-                                        Color.White.copy(alpha = 0.06f * selectedProgress),
-                                        Color.Transparent
-                                    )
-                                ),
-                                shape = RoundedCornerShape(24.dp)
-                            )
-                            .clickable { onSelect(index) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .graphicsLayer(
-                                    scaleX = scale,
-                                    scaleY = scale,
-                                    alpha = 0.72f + selectedProgress * 0.28f
-                                )
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(if (selected) 32.dp else 28.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(
-                                        brush = Brush.radialGradient(
-                                            colors = if (selected) {
-                                                listOf(
-                                                    accent.copy(alpha = 0.28f),
-                                                    accent.copy(alpha = 0.12f),
-                                                    Color.Transparent
-                                                )
-                                            } else {
-                                                listOf(
-                                                    Color.White.copy(alpha = 0.05f),
-                                                    Color.Transparent
-                                                )
-                                            }
-                                        )
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = icons[index],
-                                    contentDescription = label,
-                                    modifier = Modifier.size(if (selected) 19.dp else 18.dp),
-                                    tint = if (selected) accent else cs.onSurface.copy(alpha = 0.58f)
+                            } else {
+                                listOf(
+                                    Color.White.copy(alpha = 0.72f),
+                                    Color(0xFFEFF8FC).copy(alpha = 0.42f)
                                 )
                             }
+                        )
+                    )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items.forEachIndexed { index, label ->
+                        val selected = selectedIndex == index
+                        val accent = accents[index]
+                        val selectedProgress by animateFloatAsState(
+                            targetValue = if (selected) 1f else 0f,
+                            animationSpec = tween(280, easing = FastOutSlowInEasing),
+                            label = "premiumBottomSelected"
+                        )
+                        val scale by animateFloatAsState(
+                            targetValue = if (selected) 1.04f else 0.96f,
+                            animationSpec = tween(260, easing = FastOutSlowInEasing),
+                            label = "premiumBottomScale"
+                        )
 
-                            Spacer(Modifier.height(2.dp))
+                        val selectedTileBrush = Brush.linearGradient(
+                            if (isDark) {
+                                listOf(
+                                    accent.copy(alpha = 0.07f * selectedProgress),
+                                    Color(0xFF101821).copy(alpha = 0.22f * selectedProgress),
+                                    Color(0xFF05080D).copy(alpha = 0.02f)
+                                )
+                            } else {
+                                listOf(
+                                    Color.White.copy(alpha = 0.86f * selectedProgress),
+                                    accent.copy(alpha = 0.11f * selectedProgress),
+                                    Color(0xFFEAF8FB).copy(alpha = 0.46f * selectedProgress)
+                                )
+                            }
+                        )
+                        val selectedTileBorder = Brush.linearGradient(
+                            if (isDark) {
+                                listOf(
+                                    accent.copy(alpha = 0.30f * selectedProgress),
+                                    Color.White.copy(alpha = 0.06f * selectedProgress),
+                                    Color.Transparent
+                                )
+                            } else {
+                                listOf(
+                                    accent.copy(alpha = 0.34f * selectedProgress),
+                                    Color.White.copy(alpha = 0.96f * selectedProgress),
+                                    Color(0xFFCBD5E1).copy(alpha = 0.20f * selectedProgress)
+                                )
+                            }
+                        )
 
-                            Text(
-                                text = label,
-                                fontSize = if (selected) 9.sp else 8.4.sp,
-                                lineHeight = 9.sp,
-                                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold,
-                                maxLines = 1,
-                                color = if (selected) accent else cs.onSurface.copy(alpha = 0.48f)
-                            )
-
-                            Spacer(Modifier.height(3.dp))
-
-                            Box(
+                        Box(
+                            modifier = Modifier
+                                .weight(if (selected) 1.32f else 1f)
+                                .fillMaxHeight()
+                                .clip(itemShape)
+                                .background(selectedTileBrush)
+                                .border(
+                                    width = 1.dp,
+                                    brush = selectedTileBorder,
+                                    shape = itemShape
+                                )
+                                .clickable { onSelect(index) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
                                 modifier = Modifier
-                                    .width(if (selected) 18.dp else 4.dp)
-                                    .height(2.dp)
-                                    .clip(RoundedCornerShape(999.dp))
-                                    .background(
-                                        if (selected) accent.copy(alpha = 0.95f)
-                                        else Color.Transparent
+                                    .fillMaxWidth()
+                                    .graphicsLayer(
+                                        scaleX = scale,
+                                        scaleY = scale,
+                                        alpha = 0.72f + selectedProgress * 0.28f
                                     )
-                            )
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(if (selected) 32.dp else 28.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(
+                                            brush = Brush.radialGradient(
+                                                colors = if (selected) {
+                                                    if (isDark) {
+                                                        listOf(
+                                                            accent.copy(alpha = 0.28f),
+                                                            accent.copy(alpha = 0.12f),
+                                                            Color.Transparent
+                                                        )
+                                                    } else {
+                                                        listOf(
+                                                            accent.copy(alpha = 0.22f),
+                                                            Color.White.copy(alpha = 0.82f),
+                                                            Color.Transparent
+                                                        )
+                                                    }
+                                                } else {
+                                                    if (isDark) {
+                                                        listOf(
+                                                            Color.White.copy(alpha = 0.05f),
+                                                            Color.Transparent
+                                                        )
+                                                    } else {
+                                                        listOf(
+                                                            Color(0xFF0F172A).copy(alpha = 0.035f),
+                                                            Color.Transparent
+                                                        )
+                                                    }
+                                                }
+                                            )
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = icons[index],
+                                        contentDescription = label,
+                                        modifier = Modifier.size(if (selected) 19.dp else 18.dp),
+                                        tint = if (selected) accent else navMutedIcon
+                                    )
+                                }
+
+                                Spacer(Modifier.height(2.dp))
+
+                                Text(
+                                    text = label,
+                                    fontSize = if (selected) 9.sp else 8.4.sp,
+                                    lineHeight = 9.sp,
+                                    fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    color = if (selected) accent else navMuted
+                                )
+
+                                Spacer(Modifier.height(3.dp))
+
+                                Box(
+                                    modifier = Modifier
+                                        .width(if (selected) 18.dp else 4.dp)
+                                        .height(2.dp)
+                                        .clip(RoundedCornerShape(999.dp))
+                                        .background(
+                                            if (selected) accent.copy(alpha = 0.95f)
+                                            else Color.Transparent
+                                        )
+                                )
+                            }
                         }
                     }
                 }

@@ -262,7 +262,7 @@ private fun AchievementDetailInfoCard(item: AchievementItemUi, accent: Color) {
             fontSize = 11.sp,
             lineHeight = 13.sp,
             fontWeight = FontWeight.Bold,
-            maxLines = 2,
+            maxLines = 4,
             overflow = TextOverflow.Ellipsis
         )
         if (!item.unlocked) {
@@ -375,19 +375,7 @@ private fun achievementDetailRarityLabel(rarity: AchievementRarity): String = wh
 
 @Composable
 private fun AchievementDefinition.requirementTextForDetail(): String {
-    val value = target.formatAchievementRequirementNumberForDetail()
-    val suffix = when (category) {
-        AchievementCategory.STEPS -> R.string.ach_req_steps
-        AchievementCategory.DISTANCE -> R.string.ach_req_km
-        AchievementCategory.CALORIES -> R.string.ach_req_kcal
-        AchievementCategory.STREAKS -> R.string.ach_req_days
-        AchievementCategory.WORKOUTS -> R.string.ach_req_workouts
-        AchievementCategory.TIME -> R.string.ach_req_minutes
-        AchievementCategory.WEATHER -> R.string.ach_req_times
-        AchievementCategory.SPECIAL -> R.string.ach_req_times
-        AchievementCategory.ALL -> R.string.ach_req_times
-    }
-    return stringResource(suffix, value)
+    return stringResource(unlockHintRes())
 }
 
 @Composable

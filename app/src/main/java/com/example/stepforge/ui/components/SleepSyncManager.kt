@@ -20,11 +20,13 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
 
 class SleepSyncManager(private val context: Context) {
 
     companion object {
         private const val TAG = "SleepSyncManager"
+        private const val FIVE_MINUTES_MS = 5 * 60 * 1000L
     }
 
     private val client by lazy { HealthConnectClient.getOrCreate(context) }
@@ -86,18 +88,38 @@ class SleepSyncManager(private val context: Context) {
             stageDao.deleteBySourceAndDateRange("health_connect", fromDate, toDate)
             sessionDao.deleteBySourceAndDateRange("health_connect", fromDate, toDate)
 
+            val localSessions = sessionDao.getRecentSessions(1000)
+                .filter { it.source != "health_connect" }
+
             var wroteSessions = 0
+            var skippedStepForgeEchoes = 0
             var wroteStages = 0
 
             for (record in sessionResponse.records) {
                 val startMs = record.startTime.toEpochMilli()
                 val endMs = record.endTime.toEpochMilli()
+                if (endMs <= startMs) continue
+
                 val localDate = sdfDate.format(Date(endMs))
 
                 val durationMin = ChronoUnit.MINUTES.between(
                     record.startTime.atZone(ZoneId.systemDefault()),
                     record.endTime.atZone(ZoneId.systemDefault())
                 ).toInt().coerceAtLeast(0)
+
+                val title = record.title.orEmpty()
+                val notes = record.notes.orEmpty()
+                val type = inferSessionType(title = title, notes = notes, durationMin = durationMin)
+
+                // Prevent Health Connect echo-back: when StepForge writes a manual Nap/Main Sleep
+                // into Health Connect, the next sync can read the same record back. Without this
+                // guard, a manual Nap can be imported again as a Main Sleep and corrupt the day.
+                if (isStepForgeEchoRecord(title, notes) &&
+                    hasOverlappingLocalSession(localSessions, startMs, endMs)
+                ) {
+                    skippedStepForgeEchoes++
+                    continue
+                }
 
                 val quality = (50 + durationMin / 10).coerceIn(0, 100)
 
@@ -108,7 +130,8 @@ class SleepSyncManager(private val context: Context) {
                         endTime = endMs,
                         totalMinutes = durationMin,
                         qualityScore = quality,
-                        source = "health_connect"
+                        source = "health_connect",
+                        type = type
                     )
                 )
                 wroteSessions++
@@ -130,7 +153,10 @@ class SleepSyncManager(private val context: Context) {
                 }
             }
 
-            Log.d(TAG, "Sleep sync wrote sessions=$wroteSessions stages=$wroteStages")
+            Log.d(
+                TAG,
+                "Sleep sync wrote sessions=$wroteSessions stages=$wroteStages skippedEchoes=$skippedStepForgeEchoes"
+            )
             wroteSessions > 0
         } catch (e: Exception) {
             Log.e(TAG, "syncLast7Days error", e)
@@ -144,6 +170,45 @@ class SleepSyncManager(private val context: Context) {
         val startMs: Long,
         val endMs: Long
     )
+
+    private fun isStepForgeEchoRecord(title: String, notes: String): Boolean {
+        val raw = "$title $notes".lowercase(Locale.getDefault())
+        return raw.contains("stepforge")
+    }
+
+    private fun inferSessionType(title: String, notes: String, durationMin: Int): String {
+        val raw = "$title $notes".lowercase(Locale.getDefault())
+        val isNap = raw.contains("nap") ||
+                raw.contains("şekerleme") ||
+                raw.contains("sekerleme") ||
+                raw.contains("nickerchen") ||
+                raw.contains("kurzschlaf")
+
+        if (isNap) return "nap"
+
+        // Health Connect does not provide a reliable native Nap/Main flag.
+        // For StepForge-authored echo records without a localized title, short sleep is safer as Nap.
+        if (raw.contains("stepforge") && durationMin in 1..240) return "nap"
+
+        return "main"
+    }
+
+    private fun hasOverlappingLocalSession(
+        localSessions: List<SleepSession>,
+        startMs: Long,
+        endMs: Long
+    ): Boolean {
+        val durationMs = (endMs - startMs).coerceAtLeast(1L)
+        return localSessions.any { local ->
+            val startsClose = abs(local.startTime - startMs) <= FIVE_MINUTES_MS
+            val endsClose = abs(local.endTime - endMs) <= FIVE_MINUTES_MS
+            val overlapMs = (minOf(local.endTime, endMs) - maxOf(local.startTime, startMs))
+                .coerceAtLeast(0L)
+            val shorterMs = minOf((local.endTime - local.startTime).coerceAtLeast(1L), durationMs)
+
+            (startsClose && endsClose) || overlapMs >= (shorterMs * 8L / 10L)
+        }
+    }
 
     private fun mapHealthConnectStageToInternal(stageAny: Any?): String? {
         val raw = stageAny?.toString()?.uppercase(Locale.US) ?: return null

@@ -531,12 +531,12 @@ private fun AchievementLibraryDetailCloud(item: AchievementItemUi) {
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = stringResource(item.definition.descriptionRes),
+                text = item.definition.requirementText(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 10.sp,
                 lineHeight = 11.5.sp,
                 fontWeight = FontWeight.Medium,
-                maxLines = 3,
+                maxLines = 4,
                 overflow = TextOverflow.Ellipsis
             )
             ProgressLine(progress = item.progress, color = accent, modifier = Modifier.fillMaxWidth(0.92f))
@@ -934,7 +934,7 @@ private fun AchievementDetailProgressCard(
             fontSize = 12.sp,
             lineHeight = 15.sp,
             fontWeight = FontWeight.SemiBold,
-            maxLines = 2,
+            maxLines = 4,
             overflow = TextOverflow.Ellipsis
         )
     }
